@@ -1,0 +1,19 @@
+---
+description: Hotel OS v2 "Alpine Glass" UI/UX system — glass tiers, color, gradients, shadows, motion/physics. Overrides 3d-glassmorphism.mdc for v2 paths.
+globs: packages/ui/**/*.{ts,tsx,css},apps/desk/**/*.{ts,tsx,css},apps/marketplace/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+# v2 Design System (canonical)
+
+Spec: [`docs/v2/DESIGN-SYSTEM.md`](../../docs/v2/DESIGN-SYSTEM.md). For these paths it **overrides** `3d-glassmorphism.mdc` and the v1 glass docs.
+
+Hard rules:
+- No Tailwind in v2 (it is not installed). Use `var(--hos-*)` tokens + `hos-*` classes from `@hotel-os/ui/styles.css`. No raw hex in `apps/*`.
+- Glass = chrome only (`.hos-glass-1/2/3`, blur 12/20/28). Rows, cells, rack bars, inputs, keypads are **opaque**. ≤ 3 stacked glass layers.
+- No purple. Status palette: ok / info / warn / danger / group(teal) / vip / neutral — always with icon or label.
+- Brass text and primary-button fill = `--hos-brass-ink` (#B45309) in light theme, not #D97706.
+- Motion presets only from `packages/ui/src/motion.ts` (press, snappy, fluid, sheet, gentle, bouncy). Animate transform/opacity only. No tilt in desk; marketplace ≤ 6°.
+- Respect reduced-motion, reduced-transparency, prefers-contrast, and `data-perf="low"`.
+- Money actions are never optimistic: pending → server ack → success. Offline blocks money. StayHub is the only stay editor.
+- Every amount via `MoneyText` / `.hos-num` (tabular).

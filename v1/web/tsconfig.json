@@ -1,0 +1,46 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+    "paths": {
+      "@/*": ["./src/*"],
+      "@hotel-os/core": ["../packages/core/src/index.ts"],
+      "@hotel-os/core/*": ["../packages/core/src/*"],
+      "@hotel-os/engine": ["../packages/engine/src/index.ts"],
+      "@hotel-os/engine/*": ["../packages/engine/src/*"],
+      "@hotel-os/ui": ["../packages/ui/src/index.ts"],
+      "@hotel-os/ui/*": ["../packages/ui/src/*"],
+      "@hotel-os/rates": ["../packages/rates/src/index.ts"],
+      "@hotel-os/rates/*": ["../packages/rates/src/*"],
+      "@hotel-os/hardware": ["../packages/hardware/src/index.ts"],
+      "@hotel-os/hardware/*": ["../packages/hardware/src/*"],
+      "@supabase/supabase-js": ["./node_modules/@supabase/supabase-js"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts"
+  ],
+  "exclude": ["node_modules", "**/*.test.ts"]
+}

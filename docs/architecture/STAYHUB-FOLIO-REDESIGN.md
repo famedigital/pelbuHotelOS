@@ -4,6 +4,8 @@
 > **Scope:** Redesign of `web/src/components/erp/StayHubDialog.tsx` (decoupling the 5,000-line monolith), Folio Ledger Stream Splitting, and Atomic Checkout Cashiering.  
 > **Aesthetic:** 3D Elevated Glassmorphism (`.glass-elevated`), Himalayan Jewel Accents, 60 FPS Cold Glass.
 
+> **Evolution note (2026-11-08):** Dual folio + cashier dock in this doc remain the money model for production `web/`. v2 desk presentation evolves StayHub → **Stay** (Adaptive Stay Stage: dock/dossier densities, Fast Book as create mode, fiscal INV as print studio). See [`docs/superpowers/specs/2026-11-08-adaptive-stay-stage-design.md`](../superpowers/specs/2026-11-08-adaptive-stay-stage-design.md). Naming changes; single-editor invariant and A/B ledger do not.
+
 ---
 
 ## 1. Executive Summary & Problems Being Solved

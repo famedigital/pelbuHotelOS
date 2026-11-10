@@ -60,10 +60,14 @@ backups/
 .cursor/memory/.recall-state.json
 
 # scratch / agent temp (never commit)
+tmp/
 .tmp/
 .tmp*
 .tmp_*.sql
 .tmp_*.json
+hos-v2-cutover.tgz
+hos-v2-*.tgz
+hos-v2-filelist.txt
 web/eslint-pass.json
 web/eslint-pos.json
 web/home.html

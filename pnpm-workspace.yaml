@@ -1,0 +1,3 @@
+# Product monorepo is nested at v2/ (own pnpm-workspace.yaml).
+# Root has no active packages — archives live under v1/.
+packages: []

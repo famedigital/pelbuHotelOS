@@ -1,0 +1,111 @@
+:root {
+  --hos-ivory: #f8fafc;
+  --hos-ivory-soft: #ffffff;
+  --hos-ivory-deep: #e2e8f0;
+  --hos-espresso: #0f172a;
+  --hos-espresso-soft: #1e293b;
+  --hos-espresso-mute: #64748b;
+  --hos-brass: #d97706;
+  --hos-brass-soft: #f59e0b;
+  --hos-emerald: #059669;
+  --hos-crimson: #dc2626;
+  --hos-lapis: #2563eb;
+  --hos-header-h: 56px;
+  --hos-rail-w: 64px;
+  --hos-drawer-w: 420px;
+  --hos-glass-surface: rgba(255, 255, 255, 0.78);
+  --hos-glass-border: rgba(15, 23, 42, 0.08);
+  --hos-glass-specular: inset 0 1px 1px rgba(255, 255, 255, 0.7);
+  --hos-blur: 12px;
+}
+
+.hos-shell {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(217, 119, 6, 0.08), transparent 55%),
+    linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  color: var(--hos-espresso);
+  font-family: "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+}
+
+.hos-glass {
+  background: var(--hos-glass-surface);
+  backdrop-filter: blur(var(--hos-blur));
+  -webkit-backdrop-filter: blur(var(--hos-blur));
+  border: 1px solid var(--hos-glass-border);
+  box-shadow:
+    var(--hos-glass-specular),
+    0 8px 28px rgba(15, 23, 42, 0.06);
+  transform: translateZ(0);
+}
+
+.hos-header {
+  height: var(--hos-header-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.hos-body {
+  display: flex;
+  min-height: calc(100vh - var(--hos-header-h));
+}
+
+.hos-rail {
+  width: var(--hos-rail-w);
+  flex-shrink: 0;
+  border-right: 1px solid rgba(15, 23, 42, 0.06);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: width 160ms ease;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.hos-rail:hover,
+.hos-rail[data-locked="true"] {
+  width: 200px;
+}
+
+.hos-viewport {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.hos-drawer {
+  width: var(--hos-drawer-w);
+  flex-shrink: 0;
+  border-left: 1px solid rgba(15, 23, 42, 0.06);
+  overflow: auto;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.hos-rail a {
+  color: var(--hos-espresso-mute) !important;
+}
+.hos-rail a[aria-current="page"],
+.hos-rail a.active {
+  background: rgba(217, 119, 6, 0.12) !important;
+  color: var(--hos-espresso) !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .hos-glass {
+    backdrop-filter: none;
+    background: #ffffff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hos-rail {
+    transition: none;
+  }
+}

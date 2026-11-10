@@ -1,9 +1,13 @@
-﻿# Documentation index
+# Documentation index
 
 All Pelbu OS docs live in this folder (`C:\GitHub\pelbusuites\docs`).
 
 | Doc | Purpose |
 |-----|---------|
+| [v2/ENTERPRISE-SPEC.md](v2/ENTERPRISE-SPEC.md) | **v2 Enterprise Master Specification** (vision) — RAM engine, Neo-Spatial, SuperAdmin, B2B, 16 reports |
+| [v2/IMPLEMENTATION.md](v2/IMPLEMENTATION.md) | **v2 build status** — what actually runs in `apps/*`; cutover rules |
+| [v2/V1-VS-V2-GAP.md](v2/V1-VS-V2-GAP.md) | **Innora v1 → v2 gap register** — module matrix (Present after smarter parity) |
+| [v2/CUTOVER.md](v2/CUTOVER.md) | Desk cutover flag, smoke, rollback (`V2_DESK_CUTOVER`) |
 | [RELEASE-v1.md](RELEASE-v1.md) | **v1.0 release** — combined plans + what’s in / out of scope |
 | [WHITEBOARD.md](WHITEBOARD.md) | **Live system map** — surfaces, ERP modules, hosting, known gaps |
 | [ERP-AUDIT.md](ERP-AUDIT.md) | **International PMS fault register** + Phase A–C correction roadmap |

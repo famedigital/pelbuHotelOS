@@ -1,0 +1,33 @@
+# Side-by-side v2 services — do NOT replace the Coolify `web` (Innora v1) app.
+# Cap resources so droplet FO stays responsive for live guests.
+services:
+  hotel-os-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "4100:4100"
+    environment:
+      PORT: "4100"
+      NODE_OPTIONS: "--max-old-space-size=512"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+    restart: unless-stopped
+
+  hotel-os-desk:
+    build:
+      context: .
+      dockerfile: apps/desk/Dockerfile
+    ports:
+      - "4173:80"
+    depends_on:
+      - hotel-os-api
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 256M
+    restart: unless-stopped

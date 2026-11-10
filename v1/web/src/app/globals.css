@@ -1,0 +1,2442 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =========================================================================
+   Innora — public tokens are the Ocean Breeze values on :root.
+   The tweakcn theme pack is not imported (it was unused weight on every route).
+   Desk `.erp` below overrides every semantic token.
+   ========================================================================= */
+
+:root {
+  /* --- Legacy brand anchors (kept for ERP / portal utility classes) --- */
+  --ivory: #f7f3ec;
+  --ivory-soft: #fbf8f2;
+  --ivory-deep: #efe7d8;
+  --espresso: #1c1612;
+  --espresso-soft: #2a221c;
+  --espresso-mute: #3a3027;
+  --maroon: #7a1f1f;
+  --maroon-soft: #9a3535;
+  --gold: #b8892c;
+  --gold-soft: #d4a852;
+  --brass: #c19548;
+  --brass-soft: #d9b173;
+  --brass-hairline: rgba(193, 149, 72, 0.42);
+  --ink: #082f49;
+  --ink-soft: #0c4a6e;
+  --ink-rule: rgba(8, 47, 73, 0.12);
+  --paper-0: #f7fbfd;
+  --paper-1: #f0f7fb;
+  --paper-2: #eef4f8;
+  --paper-3: #d9e5ee;
+  --paper-4: #b8cddc;
+  --paper-5: #64748b;
+
+  /* --- Sky / Citrus / Mint premium ramp --- */
+  --sky-ink: #082f49;
+  --sky-900: #0c4a6e;
+  --sky-800: #075985;
+  --sky-700: #0369a1;
+  --sky-600: #0284c7;
+  --sky-500: #0ea5e9;
+  --sky-100: #e0f2fe;
+  --citrus-600: #d97706;
+  --citrus-500: #f59e0b;
+  --citrus-100: #fef3c7;
+  /* Deep evergreen anchor for the mint ramp. Dark enough to carry white body
+     text at glass opacities, where mint-600 is far too light. */
+  --mint-ink: #053b2f;
+  --mint-600: #059669;
+  --mint-500: #10b981;
+  --mint-100: #d1fae5;
+  --frost-0: #f7fbfd;
+  --frost-1: #f0f7fb;
+  --frost-2: #eef4f8;
+  --frost-3: #d9e5ee;
+
+  --muted: #475569;
+
+  --citrus: #f59e0b;
+  --citrus-soft: #fbbf24;
+  --citrus-tint: #fef3c7;
+
+  /* Mobile & tablet ergonomics (dvh + safe-area) */
+  --app-height: 100dvh;
+  --touch-target-min: 44px;
+  --touch-target-optimal: 48px;
+  --mobile-dock-height: 4rem;
+
+  /* --- 3D Glass (light) — VisionOS × Himalayan --- */
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --glass-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 0.85);
+  --glass-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 0 0 1px rgba(0, 0, 0, 0.03);
+  --glass-blur: 16px;
+  --glass-surface-light: rgba(255, 255, 255, 0.72);
+  --glass-surface-dark: rgba(18, 22, 28, 0.65);
+  --glass-border-light: rgba(255, 255, 255, 0.45);
+  --glass-border-dark: rgba(255, 255, 255, 0.08);
+  --glass-specular-light: inset 0 1px 1px 0 rgba(255, 255, 255, 0.6);
+  --glass-specular-dark: inset 0 1px 1px 0 rgba(255, 255, 255, 0.12);
+  --glass-blur-radius: 12px;
+  --ambient-glow-brand: radial-gradient(
+    circle at 50% 0%,
+    rgba(59, 130, 246, 0.12) 0%,
+    transparent 60%
+  );
+  --ambient-glow-gold: radial-gradient(
+    circle at 100% 100%,
+    rgba(245, 158, 11, 0.08) 0%,
+    transparent 50%
+  );
+
+  /* Himalayan jewel palette (LIVELY-COLORFUL-3D-GLASS-GUIDELINE) */
+  --color-gold: #f59e0b;
+  --color-mint: #10b981;
+  --color-lapis: #0284c7;
+  --color-coral: #f97316;
+  --color-violet: #8b5cf6;
+  --color-ruby: #ef4444;
+
+  /* Fallback public semantics — Ocean Breeze light (data-theme overrides). */
+  --background: oklch(0.98 0.01 244.25);
+  --foreground: oklch(0.37 0.03 259.73);
+
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.37 0.03 259.73);
+
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.37 0.03 259.73);
+
+  --primary: oklch(0.72 0.19 149.58);
+  --primary-foreground: oklch(1 0 0);
+
+  --secondary: oklch(0.95 0.03 236.82);
+  --secondary-foreground: oklch(0.45 0.03 256.8);
+
+  --muted-shadcn: oklch(0.97 0 264.54);
+  --muted-foreground: oklch(0.55 0.02 264.36);
+
+  --accent: oklch(0.95 0.05 163.05);
+  --accent-foreground: oklch(0.37 0.03 259.73);
+
+  --destructive: oklch(0.64 0.21 25.33);
+  --destructive-foreground: oklch(1 0 0);
+
+  --border: oklch(0.93 0.01 264.53);
+  --input: oklch(0.93 0.01 264.53);
+  --ring: oklch(0.72 0.19 149.58);
+
+  --chart-1: oklch(0.72 0.19 149.58);
+  --chart-2: oklch(0.7 0.15 162.48);
+  --chart-3: oklch(0.6 0.13 163.23);
+  --chart-4: oklch(0.51 0.1 165.61);
+  --chart-5: oklch(0.43 0.09 166.91);
+
+  --sidebar: oklch(0.95 0.03 236.82);
+  --sidebar-foreground: oklch(0.37 0.03 259.73);
+  --sidebar-primary: oklch(0.72 0.19 149.58);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0.05 163.05);
+  --sidebar-accent-foreground: oklch(0.37 0.03 259.73);
+  --sidebar-border: oklch(0.93 0.01 264.53);
+  --sidebar-ring: oklch(0.72 0.19 149.58);
+
+  --radius: 0.5rem;
+
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces, Georgia), Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-lora, Georgia), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.dark {
+  /* Public evening mode — sky ink surfaces, citrus / mint accents */
+  --glass-bg: rgba(15, 23, 42, 0.68);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 0.2);
+  --glass-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  --glass-blur: 18px;
+  --ambient-glow-brand: radial-gradient(
+    circle at 50% 0%,
+    rgba(59, 130, 246, 0.18) 0%,
+    transparent 65%
+  );
+  --ambient-glow-gold: radial-gradient(
+    circle at 100% 100%,
+    rgba(245, 158, 11, 0.12) 0%,
+    transparent 55%
+  );
+
+  --background: var(--sky-ink);
+  --foreground: #f8fafc;
+
+  --card: #0c4a6e;
+  --card-foreground: #f8fafc;
+
+  --popover: #0c4a6e;
+  --popover-foreground: #f8fafc;
+
+  --primary: var(--sky-500);
+  --primary-foreground: #ffffff;
+
+  --secondary: #0c4a6e;
+  --secondary-foreground: #f8fafc;
+
+  --muted-shadcn: #0c4a6e;
+  --muted-foreground: #94a3b8;
+
+  --accent: var(--citrus-500);
+  --accent-foreground: var(--sky-ink);
+
+  --destructive: var(--maroon-soft);
+  --destructive-foreground: #ffffff;
+
+  --border: #075985;
+  --input: #075985;
+  --ring: var(--sky-500);
+
+  --chart-1: var(--sky-500);
+  --chart-2: var(--citrus-500);
+  --chart-3: var(--mint-500);
+  --chart-4: #94a3b8;
+  --chart-5: var(--mint-100);
+
+  --sidebar: #051f33;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: var(--sky-500);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #0c4a6e;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: #0c4a6e;
+  --sidebar-ring: var(--sky-500);
+}
+
+/* =========================================================================
+   Desk skins. Dzong is the default on every .erp root.
+   brass | dusk | cedar override the six roles. Status colors stay here.
+   ========================================================================= */
+.erp {
+  /* Crystal Clean porcelain / slate — no muddy beige or coffee brown */
+  --ivory: #F8FAFC;
+  --ivory-soft: #F8FAFC;
+  --ivory-deep: #E2E8F0;
+  --espresso: #0F172A;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #64748B;
+  --maroon: #0284C7;
+  --gold: #D97706;
+  --gold-soft: #F59E0B;
+  --brass: #D97706;
+
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+
+  --card: #ffffff;
+  --card-foreground: #0F172A;
+
+  --popover: #ffffff;
+  --popover-foreground: #0F172A;
+
+  --primary: #0284C7;
+  --primary-foreground: #ffffff;
+
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+
+  --muted-shadcn: #F1F5F9;
+  --muted-foreground: #64748B;
+
+  --accent: #D97706;
+  --accent-foreground: #0F172A;
+
+  --destructive: #EF4444;
+  --destructive-foreground: #ffffff;
+
+  --border: rgba(226, 232, 240, 0.8);
+  --input: rgba(148, 163, 184, 0.35);
+  --ring: #0284C7;
+
+  --chart-1: #0284C7;
+  --chart-2: #D97706;
+  --chart-3: #10B981;
+  --chart-4: #64748B;
+  --chart-5: #EF4444;
+
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #0284C7;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(148, 163, 184, 0.25);
+  --sidebar-ring: #0284C7;
+
+  --citrus: #D97706;
+  --citrus-soft: #F59E0B;
+  --citrus-tint: rgba(217, 119, 6, 0.14);
+
+  --status-arrival: #10B981;
+  --status-in-house: #0284C7;
+  --status-due: #EF4444;
+  --status-unpaid: #D97706;
+  --status-blocked: #EF4444;
+
+  /* Density */
+  --desk-pad: 0.5rem;
+  --desk-pad-md: 0.75rem;
+  --desk-row: 2.25rem;
+  --desk-header: 2.75rem;
+
+  --radius: 0.5rem;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* Portaled dialogs sit outside the shell, so the attribute also lives on html. */
+.erp[data-desk-theme="brass"],
+html[data-desk-theme="brass"] .erp {
+  /* Crystal porcelain + sovereign gold accents (no coffee beige canvas) */
+  --ivory: #F8FAFC;
+  --ivory-soft: #F8FAFC;
+  --ivory-deep: #E2E8F0;
+  --espresso: #0F172A;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #64748B;
+  --maroon: #D97706;
+  --gold: #D97706;
+  --gold-soft: #F59E0B;
+  --brass: #B45309;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #ffffff;
+  --card-foreground: #0F172A;
+  --popover: #ffffff;
+  --popover-foreground: #0F172A;
+  --primary: #D97706;
+  --primary-foreground: #ffffff;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted-shadcn: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F59E0B;
+  --accent-foreground: #0F172A;
+  --border: rgba(226, 232, 240, 0.9);
+  --input: rgba(148, 163, 184, 0.35);
+  --ring: #D97706;
+  --chart-1: #D97706;
+  --chart-2: #0284C7;
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #D97706;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(217, 119, 6, 0.28);
+  --sidebar-ring: #D97706;
+  --citrus: #D97706;
+  --citrus-soft: #F59E0B;
+  --citrus-tint: rgba(217, 119, 6, 0.14);
+}
+
+.erp[data-desk-theme="dusk"],
+html[data-desk-theme="dusk"] .erp {
+  /* Night slate — cool ice text, no beige mute */
+  --ivory: #F1F5F9;
+  --ivory-soft: #1E293B;
+  --ivory-deep: #0F172A;
+  --espresso: #020617;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #94A3B8;
+  --maroon: #38BDF8;
+  --gold: #F59E0B;
+  --gold-soft: #FBBF24;
+  --brass: #F59E0B;
+  --background: #0F172A;
+  --foreground: #F8FAFC;
+  --card: #1E293B;
+  --card-foreground: #F8FAFC;
+  --popover: #1E293B;
+  --popover-foreground: #F8FAFC;
+  --primary: #38BDF8;
+  --primary-foreground: #0F172A;
+  --secondary: #334155;
+  --secondary-foreground: #F8FAFC;
+  --muted-shadcn: #1E293B;
+  --muted-foreground: #94A3B8;
+  --accent: #F59E0B;
+  --accent-foreground: #0F172A;
+  --border: rgba(148, 163, 184, 0.22);
+  --input: rgba(148, 163, 184, 0.28);
+  --ring: #38BDF8;
+  --chart-1: #38BDF8;
+  --chart-2: #F59E0B;
+  --sidebar: #020617;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #38BDF8;
+  --sidebar-primary-foreground: #0F172A;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(148, 163, 184, 0.2);
+  --sidebar-ring: #38BDF8;
+  --citrus: #F59E0B;
+  --citrus-soft: #FBBF24;
+  --citrus-tint: rgba(245, 158, 11, 0.18);
+}
+
+.erp[data-desk-theme="cedar"],
+html[data-desk-theme="cedar"] .erp {
+  /* Crystal porcelain + emerald pine primary (no olive-beige mud) */
+  --ivory: #F8FAFC;
+  --ivory-soft: #F8FAFC;
+  --ivory-deep: #E2E8F0;
+  --espresso: #0F172A;
+  --espresso-soft: #1E293B;
+  --espresso-mute: #64748B;
+  --maroon: #059669;
+  --gold: #D97706;
+  --gold-soft: #F59E0B;
+  --brass: #059669;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+  --card: #ffffff;
+  --card-foreground: #0F172A;
+  --popover: #ffffff;
+  --popover-foreground: #0F172A;
+  --primary: #059669;
+  --primary-foreground: #ffffff;
+  --secondary: #F1F5F9;
+  --secondary-foreground: #0F172A;
+  --muted-shadcn: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #D97706;
+  --accent-foreground: #0F172A;
+  --border: rgba(226, 232, 240, 0.9);
+  --input: rgba(148, 163, 184, 0.35);
+  --ring: #059669;
+  --chart-1: #059669;
+  --chart-2: #D97706;
+  --sidebar: #0F172A;
+  --sidebar-foreground: #F8FAFC;
+  --sidebar-primary: #059669;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1E293B;
+  --sidebar-accent-foreground: #F8FAFC;
+  --sidebar-border: rgba(5, 150, 105, 0.28);
+  --sidebar-ring: #059669;
+  --citrus: #D97706;
+  --citrus-soft: #F59E0B;
+  --citrus-tint: rgba(217, 119, 6, 0.14);
+}
+
+/* Front-office command skin — StayView, arrivals, in-house, checkout, rack.
+   Nested .erp shells must not reset these tokens. Stay Hub dialogs portal
+   outside this tree and keep the light desk. */
+html .fo-command,
+html .fo-command .erp {
+  --background: var(--espresso);
+  --foreground: var(--ivory);
+  --card: var(--espresso-soft);
+  --card-foreground: var(--ivory);
+  --popover: var(--espresso-soft);
+  --popover-foreground: var(--ivory);
+  --primary: var(--gold);
+  --primary-foreground: var(--espresso);
+  --secondary: #2a221c;
+  --secondary-foreground: var(--ivory);
+  --muted-shadcn: var(--espresso-soft);
+  --muted-foreground: #d9cbb8;
+  --accent: var(--gold);
+  --accent-foreground: var(--espresso);
+  --border: rgba(193, 149, 72, 0.38);
+  --input: #3a3027;
+  --ring: var(--gold);
+  --citrus: var(--gold);
+  --citrus-soft: var(--gold-soft);
+  --citrus-tint: rgba(184, 137, 44, 0.18);
+  color: var(--foreground);
+  background: var(--espresso);
+}
+
+/*
+ * StayHub shell must be CRYSTAL OPAQUE — rack/calendar must never bleed through.
+ * Specular rim + soft slate shadow only; no frosted see-through fills.
+ */
+.stay-hub-card {
+  color: var(--foreground, #0f172a);
+  border-color: rgba(226, 232, 240, 0.95);
+  background: #ffffff;
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 1),
+    0 10px 25px -5px rgba(15, 23, 42, 0.08),
+    0 4px 10px -2px rgba(15, 23, 42, 0.04);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  transform: translateZ(0);
+}
+
+.stay-hub-card.erp,
+.fo-command .stay-hub-card.erp {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #0284c7;
+  --primary-foreground: #ffffff;
+  --accent: #d97706;
+  --accent-foreground: #0f172a;
+  --muted-shadcn: #f1f5f9;
+  --muted-foreground: #64748b;
+  --border: rgba(226, 232, 240, 0.95);
+  --ring: #0284c7;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+/* Beat translucent glass-happy-modal / glass-elevated / neo-card on the same node */
+.stay-hub-card.glass-happy-modal,
+.stay-hub-card.glass-elevated,
+.stay-hub-card.neo-card,
+.stay-hub-card.erp-cold-glass {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  color: #0f172a;
+}
+
+.stay-hub-card .glass-happy-card,
+.stay-hub-card .glass-happy-table-container,
+.stay-hub-card .neo-card,
+.stay-hub-card .erp-cold-glass {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.erp[data-desk-theme="dusk"] .stay-hub-card,
+.erp[data-desk-theme="dusk"] .stay-hub-card.erp,
+.dark .stay-hub-card {
+  background: #1e293b;
+  color: #f8fafc;
+  border-color: rgba(148, 163, 184, 0.28);
+}
+
+.erp[data-desk-theme="dusk"] .stay-hub-card.glass-happy-modal,
+.erp[data-desk-theme="dusk"] .stay-hub-card.glass-elevated,
+.dark .stay-hub-card.glass-happy-modal,
+.dark .stay-hub-card.glass-elevated {
+  background: #1e293b !important;
+  color: #f8fafc;
+}
+
+/* Desk ambient canvas — glass needs depth behind it or frost reads as flat white */
+.erp[data-desk-root] {
+  background-color: var(--background);
+  background-image: var(--ambient-glow-brand), var(--ambient-glow-gold);
+  background-attachment: fixed;
+}
+
+@keyframes desk-dialog-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}
+
+@keyframes desk-dialog-out {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% + 8px));
+  }
+}
+
+@keyframes desk-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.desk-rise {
+  animation: desk-rise 180ms ease-out;
+}
+
+@keyframes stay-hub-flash {
+  from {
+    background-color: rgba(184, 137, 44, 0.35);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+.stay-hub-flash {
+  animation: stay-hub-flash 400ms ease-out;
+  border-radius: 0.25rem;
+}
+
+@keyframes stay-hub-dock-in {
+  from {
+    transform: translateX(16px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+.stay-hub-dock {
+  width: 100vw;
+  left: 0;
+  right: 0;
+}
+
+@media (min-width: 768px) {
+  .stay-hub-dock {
+    left: auto;
+    width: var(--stay-dock-width, 64rem);
+    max-width: 96vw;
+  }
+}
+
+@media (min-width: 1280px) {
+  .stay-hub-dock {
+    width: var(--stay-dock-width, 74rem);
+  }
+}
+
+@media (min-width: 1536px) {
+  .stay-hub-dock {
+    width: var(--stay-dock-width, 82rem);
+  }
+}
+
+.stay-hub-dock.stay-hub-expanded,
+.stay-hub-dock[data-expanded="true"] {
+  width: 95vw !important;
+  max-width: 1400px !important;
+}
+
+@media (max-width: 767px) {
+  .erp input,
+  .erp select,
+  .erp textarea {
+    font-size: 16px;
+  }
+}
+
+@media print {
+  html[data-stay-dock] [data-desk-main] {
+    padding-right: 0;
+  }
+
+  .stay-hub-dock {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-rise,
+  .stay-hub-flash,
+  .stay-hub-dock,
+  .erp[data-slot="dialog-content"],
+  .erp[data-slot="sheet-content"],
+  .desk-nav-progress {
+    animation: none;
+    transition: none;
+  }
+}
+
+.fo-command .fo-glass {
+  background: rgba(42, 34, 28, 0.82);
+  border: 1px solid rgba(193, 149, 72, 0.28);
+  border-radius: 0.75rem;
+  backdrop-filter: blur(12px);
+}
+
+.fo-command .fo-glass-card {
+  background: rgba(28, 22, 18, 0.72);
+  border: 1px solid rgba(193, 149, 72, 0.22);
+  border-radius: 0.75rem;
+}
+
+.fo-command .fo-glass-card:hover {
+  border-color: rgba(184, 137, 44, 0.55);
+}
+
+.fo-command .fo-board-table {
+  overflow-x: auto;
+}
+
+.fo-command .fo-mini-table {
+  display: block !important;
+}
+
+.fo-command .fo-mini-cards {
+  display: none !important;
+}
+
+@media print {
+  .fo-command,
+  .fo-command .erp {
+    --background: #ffffff;
+    --foreground: #0b1220;
+    --card: #ffffff;
+    --card-foreground: #0b1220;
+    --muted-shadcn: #f4f8fb;
+    --muted-foreground: #5b6b7c;
+    --border: #e2e9f0;
+    --accent: #0284c7;
+    --accent-foreground: #ffffff;
+    color: #0b1220;
+    background: #ffffff;
+  }
+}
+
+/* Desk page padding utility — prefer over ad-hoc p-4/p-6 on FO screens */
+.erp .desk-page {
+  padding: var(--desk-pad);
+}
+@media (min-width: 768px) {
+  .erp .desk-page {
+    padding: var(--desk-pad-md);
+  }
+}
+
+/* Tablet split panes — list | detail work surfaces */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .erp .desk-tablet-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 0.75rem;
+    align-items: start;
+  }
+}
+
+/* Mobile full-screen task sheet feel inside StayHub / POS */
+@media (max-width: 767px) {
+  .erp .desk-mobile-task {
+    min-height: calc(100dvh - 7.5rem);
+  }
+}
+
+/* ERP mobile ergonomics: every legacy data table remains usable while modules
+   are progressively promoted to card views. :has is supported by the PWA
+   browser targets and turns old overflow-hidden table shells into scroll rails. */
+@media (max-width: 767px) {
+  .erp input,
+  .erp select,
+  .erp textarea {
+    font-size: 16px;
+  }
+
+  .erp :is(button, a)[class*="h-9"],
+  .erp :is(button, a)[class*="h-10"] {
+    min-height: 44px;
+  }
+
+  .erp .overflow-hidden:has(> table) {
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .erp .overflow-hidden:has(> table) > table {
+    min-width: 680px;
+  }
+
+  .erp table th:first-child,
+  .erp table td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--card);
+  }
+
+  .erp table thead th:first-child {
+    background: var(--muted-shadcn);
+  }
+}
+
+/* Desk premium utilities — scoped under .erp only (public brand untouched). */
+.erp .desk-premium-empty {
+  animation: desk-premium-fade-in 180ms ease-out;
+}
+
+.erp .desk-premium-enter {
+  animation: desk-premium-fade-in 200ms ease-out;
+}
+
+@keyframes desk-premium-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Clear Desk live status — calendar / boards (respect reduced motion) */
+.erp .desk-live-pulse {
+  animation: desk-live-pulse 1.8s ease-in-out infinite;
+}
+.erp .desk-live-flash {
+  animation: desk-live-flash 0.9s ease-out 1;
+}
+
+@keyframes desk-live-pulse {
+  0%,
+  100% {
+    box-shadow: inset 0 0 0 0 transparent;
+  }
+  50% {
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--ring) 55%, transparent);
+  }
+}
+
+@keyframes desk-live-flash {
+  0% {
+    background-color: color-mix(in oklab, var(--mint-500) 28%, transparent);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .erp .desk-premium-empty,
+  .erp .desk-premium-enter,
+  .erp .desk-live-pulse,
+  .erp .desk-live-flash,
+  .erp .motion-safe\:duration-200 {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted-shadcn);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* Citrus (amber) — success/money callouts. Bg/text/tint utilities:
+     bg-citrus, text-citrus, bg-citrus-tint, border-citrus, etc. */
+  --color-citrus: var(--citrus);
+  --color-citrus-soft: var(--citrus-soft);
+  --color-citrus-tint: var(--citrus-tint);
+  --color-citrus-500: var(--citrus-500);
+  --color-citrus-600: var(--citrus-600);
+
+  /* Public Sky / Mint ramp */
+  --color-sky-ink: var(--sky-ink);
+  --color-sky-900: var(--sky-900);
+  --color-sky-800: var(--sky-800);
+  --color-sky-700: var(--sky-700);
+  --color-sky-600: var(--sky-600);
+  --color-sky-500: var(--sky-500);
+  --color-sky-100: var(--sky-100);
+  --color-mint-ink: var(--mint-ink);
+  --color-mint-600: var(--mint-600);
+  --color-mint-500: var(--mint-500);
+  --color-mint-100: var(--mint-100);
+  --color-frost-0: var(--frost-0);
+  --color-frost-1: var(--frost-1);
+  --color-frost-2: var(--frost-2);
+  --color-frost-3: var(--frost-3);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Brand names exposed to Tailwind as `bg-ivory`, `text-gold`, etc. */
+  --color-ivory: var(--ivory);
+  --color-ivory-soft: var(--ivory-soft);
+  --color-ivory-deep: var(--ivory-deep);
+  --color-espresso: var(--espresso);
+  --color-espresso-soft: var(--espresso-soft);
+  --color-espresso-mute: var(--espresso-mute);
+  --color-maroon: var(--maroon);
+  --color-maroon-soft: var(--maroon-soft);
+  --color-gold: var(--gold);
+  --color-gold-soft: var(--gold-soft);
+
+  /* Direction B additions */
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-brass: var(--brass);
+  --color-brass-soft: var(--brass-soft);
+  --color-paper-0: var(--paper-0);
+  --color-paper-1: var(--paper-1);
+  --color-paper-2: var(--paper-2);
+  --color-paper-3: var(--paper-3);
+  --color-paper-4: var(--paper-4);
+  --color-paper-5: var(--paper-5);
+  /* Note: brand brown #6b5e52 is exposed as `text-muted-foreground`
+     (see above). `bg-muted` / `border-muted` resolve to the soft cream
+     per the shadcn contract — do not re-alias --color-muted here. */
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 6px);
+
+  --font-sans: var(--font-dm-sans), "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-fraunces, Georgia), Georgia, serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+  --animate-marquee: marquee var(--duration) linear infinite;
+  --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+  --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+  --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+}
+
+@keyframes accordion-down {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+
+@keyframes accordion-up {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(calc(-100% - var(--gap))); }
+}
+
+@keyframes marquee-vertical {
+  from { transform: translateY(0); }
+  to { transform: translateY(calc(-100% - var(--gap))); }
+}
+
+@keyframes shimmer-slide {
+  to { transform: translate(calc(100cqw - 100%), 0); }
+}
+
+@keyframes spin-around {
+  0% { transform: translateZ(0) rotate(0); }
+  15%, 35% { transform: translateZ(0) rotate(90deg); }
+  65%, 85% { transform: translateZ(0) rotate(270deg); }
+  100% { transform: translateZ(0) rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-marquee,
+  .animate-marquee-vertical,
+  .animate-shimmer-slide,
+  .animate-spin-around {
+    animation: none !important;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "ss01", "cv11";
+  }
+
+  /* Display headings pick up the Fraunces face via the .font-display utility.
+     Use `font-display` on h1/h2 heroes. Everything else inherits Inter. */
+
+  ::selection {
+    background: var(--sky-600);
+    color: #ffffff;
+  }
+}
+
+/* =========================================================================
+   Marketing — Himalayan Dusk. Scoped under .marketing so the desk is unaffected.
+   ========================================================================= */
+.marketing {
+  --font-display: var(--font-fraunces, Georgia), Georgia, "Times New Roman", serif;
+  --font-serif: var(--font-lora, Georgia), Georgia, serif;
+  /* Himalayan Dusk — public site only. /book stays on the root tokens. */
+  --background: #141820;
+  --foreground: #f4efe6;
+  --card: #1c2330;
+  --card-foreground: #f4efe6;
+  --popover: #1c2330;
+  --popover-foreground: #f4efe6;
+  --muted-shadcn: #1c2330;
+  --muted-foreground: #a89b8c;
+  --secondary: #1c2330;
+  --secondary-foreground: #f4efe6;
+  --border: rgba(197, 160, 89, 0.28);
+  --input: rgba(244, 239, 230, 0.16);
+  --ring: #7ba3c9;
+  --primary: #c5a059;
+  --primary-foreground: #141820;
+  --accent: #7ba3c9;
+  --accent-foreground: #141820;
+  --cta: var(--primary);
+  --cta-foreground: var(--primary-foreground);
+  --cta-soft: #d4b57a;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.marketing .bg-cta {
+  background-color: var(--cta);
+  color: var(--cta-foreground);
+}
+
+.marketing .bg-cta:hover {
+  background-color: var(--cta-soft);
+}
+
+.marketing .text-cta {
+  color: var(--cta);
+}
+
+.marketing .border-cta {
+  border-color: var(--cta);
+}
+
+@layer components {
+  /* Soft section label — plain text, not a PPT eyebrow. */
+  .label-quiet {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    font-weight: 500;
+    color: var(--muted);
+  }
+  .label-quiet--on-ink {
+    color: color-mix(in oklab, var(--ivory) 55%, transparent);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+    font-feature-settings: "ss01";
+  }
+
+  .lede {
+    font-size: clamp(1rem, 0.96rem + 0.15vw, 1.0625rem);
+    line-height: 1.65;
+    color: color-mix(in oklab, var(--sky-ink) 72%, var(--muted));
+  }
+
+  .media-card {
+    overflow: hidden;
+    border-radius: 1rem;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--card-foreground);
+    transition:
+      box-shadow 300ms ease,
+      transform 300ms ease,
+      border-color 300ms ease;
+  }
+  .media-card:hover {
+    border-color: color-mix(in oklab, var(--sky-600) 35%, var(--border));
+    box-shadow:
+      0 18px 40px -24px rgba(8, 47, 73, 0.35),
+      0 8px 16px -12px rgba(8, 47, 73, 0.18);
+  }
+  .media-card img {
+    transition: transform 400ms ease;
+  }
+  @media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .media-card:hover img {
+      transform: scale(1.05);
+    }
+  }
+}
+
+@layer utilities {
+  .reveal {
+    opacity: 0;
+    transform: translateY(6px);
+    transition:
+      opacity 350ms ease-out,
+      transform 350ms ease-out;
+    will-change: opacity, transform;
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  .ink-panel {
+    background: var(--ink);
+    color: var(--ivory);
+  }
+}
+
+/* =========================================================================
+   POS / KDS fullscreen.
+   The fullscreen toggle calls the native Fullscreen API on documentElement
+   (true browser fullscreen). We *also* add `body.pos-fs` so the desk
+   sidebar / header / mobile nav hide while in fullscreen — the native API
+   promotes the page but doesn't remove those elements from the DOM.
+   .pos-fs-shell switches the surface to `fixed inset-0` for the CSS-only
+   fallback (iOS Safari before 16.4 / locked webviews).
+   ========================================================================= */
+body.pos-fs {
+  overflow: hidden;
+}
+/* Hide desk chrome inside fullscreen — the sidebar rail, its trigger, the
+   desk header bar, and the mobile bottom nav. The `sidebar-inset` is the
+   POS content's <main> wrapper, so we must NOT hide it; we only let it
+   stretch to fill the now-hidden sidebar's space. */
+body.pos-fs .erp [data-sidebar="sidebar"],
+body.pos-fs .erp [data-sidebar="rail"],
+body.pos-fs .erp [data-slot="sidebar"],
+body.pos-fs .erp [data-slot="sidebar-trigger"],
+body.pos-fs .erp [data-slot="sidebar-rail"],
+body.pos-fs .erp [data-slot="sidebar-inset"] header,
+body.pos-fs .erp [data-slot="desk-top-chrome"],
+body.pos-fs .erp [data-slot="desk-side-nav"],
+body.pos-fs .erp [data-slot="desk-sheet-tabs"],
+body.pos-fs .erp [data-slot="desk-mobile-nav"],
+body.pos-fs .erp [data-slot="desk-nav-trigger"] {
+  display: none !important;
+}
+/* The inset normally reserves space beside the sidebar; with the sidebar
+   gone it should fill the viewport. The shadcn SidebarProvider sets a CSS
+   var for sidebar width on the wrapper — overriding it to 0 collapses the
+   gap so the POS gets the full width. */
+body.pos-fs .erp [data-slot="sidebar-wrapper"] {
+  --sidebar-width: 0px !important;
+  --sidebar-width-mobile: 0px !important;
+}
+/* Stay View phone: hide the desk header so the day list / rack gets the screen.
+   Landscape / short screens also hide the bottom nav — the rack overlay covers it. */
+@media (max-width: 767px) {
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] header,
+  .erp:has([data-stay-view]) [data-slot="desk-top-chrome"] {
+    display: none !important;
+  }
+}
+@media (max-height: 640px) and (orientation: landscape) {
+  .erp:has([data-stay-view]) [data-slot="sidebar-inset"] header,
+  .erp:has([data-stay-view]) [data-slot="desk-mobile-nav"] {
+    display: none !important;
+  }
+}
+
+body.pos-fs .erp [data-slot="sidebar-inset"] {
+  width: 100% !important;
+}
+.pos-fs-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  background: var(--background);
+  color: var(--foreground);
+  padding: 0.75rem;
+}
+.pos-fs-shell > * {
+  min-width: 0;
+}
+
+/* Keyboard shortcut chip — used in the help overlay and inline hints. */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 0.35rem;
+  background: var(--muted-shadcn);
+  color: var(--foreground);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+/* =========================================================================
+   Branded first-paint splash (BrandSplash + SplashController).
+   SSR overlay shown on the public site while the app loads, then faded out.
+   ========================================================================= */
+#pelbu-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 24px;
+  background: var(--ivory-soft);
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 500ms ease;
+}
+/* Driven by data-splash on <html> — never mutate #pelbu-splash itself. */
+html[data-splash="off"] #pelbu-splash {
+  display: none;
+}
+html[data-splash="done"] #pelbu-splash {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 500ms ease,
+    visibility 0s linear 500ms;
+}
+
+.pelbu-splash__stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+}
+
+.pelbu-splash__mark {
+  width: 96px;
+  height: 96px;
+  border-radius: 22px;
+  animation: pelbu-splash-pop 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Thin rotating gold arc orbiting the mark. */
+.pelbu-splash__ring {
+  position: absolute;
+  inset: -14px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0 62%,
+    var(--gold-soft) 90%,
+    transparent 100%
+  );
+  -webkit-mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 3px)
+  );
+  mask: radial-gradient(
+    farthest-side,
+    transparent calc(100% - 4px),
+    #000 calc(100% - 3px)
+  );
+  animation: pelbu-splash-spin 900ms linear infinite;
+}
+
+.pelbu-splash__word {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.125rem;
+  letter-spacing: 0.02em;
+  color: var(--espresso);
+  animation: pelbu-splash-rise 620ms ease-out 120ms both;
+}
+
+@keyframes pelbu-splash-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes pelbu-splash-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+@keyframes pelbu-splash-rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+  /* Keep the splash legible but static for reduced-motion users. */
+  .pelbu-splash__ring {
+    animation: none;
+    background: conic-gradient(
+      from 0deg,
+      transparent 0 62%,
+      var(--gold-soft) 90%,
+      transparent 100%
+    );
+  }
+}
+
+/* While a desk sheet is printing, keep it above the stay hub (z-60). */
+html[data-desk-print] [data-slot="dialog-portal"] {
+  visibility: hidden !important;
+}
+html[data-desk-print] #desk-print-mount {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 200 !important;
+  overflow: auto !important;
+  background: #fff !important;
+  padding: 1.5rem !important;
+}
+
+/* Desk booking confirmation: host is screen-hidden; print reveals one sheet */
+.desk-print-host {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  pointer-events: none;
+}
+
+@media print {
+  html[data-desk-print] body * {
+    visibility: hidden !important;
+  }
+  html[data-desk-print] .desk-print-host {
+    position: static !important;
+    width: auto !important;
+    height: auto !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    clip: auto !important;
+    white-space: normal !important;
+    pointer-events: auto !important;
+    visibility: visible !important;
+    background: white !important;
+  }
+  html[data-desk-print] #desk-print-mount,
+  html[data-desk-print] #desk-print-mount * {
+    visibility: visible !important;
+  }
+  html[data-desk-print] #desk-print-mount {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    color: #1a1410 !important;
+    z-index: 2147483647 !important;
+  }
+  html[data-desk-print] #desk-print-mount #print-booking-note,
+  html[data-desk-print] #desk-print-mount #print-agent-voucher,
+  html[data-desk-print] #desk-print-mount #print-reg-card,
+  html[data-desk-print] #desk-print-mount #print-agent-settlement,
+  html[data-desk-print] #desk-print-mount #print-reg-party {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    background: white !important;
+    color: #1a1410 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Desk booking confirmation: print only the active sheet */
+@media print {
+  .catalogue-print {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .catalogue-print img {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .catalogue-print section {
+    break-inside: avoid;
+  }
+
+  /* Default document margins (A4 / untagged pages) */
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+
+  /* Document print sizes (invoice / receipt) — set data-doc-paper on <html> */
+  html[data-doc-paper="a4"] {
+    width: auto;
+    page: a4-doc;
+  }
+  html[data-doc-paper="a4"] body {
+    background: white !important;
+  }
+  html[data-doc-paper="thermal"] {
+    page: thermal-doc;
+  }
+  html[data-doc-paper="thermal"] body {
+    background: white !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
+
+@page a4-doc {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@page thermal-doc {
+  size: 80mm auto;
+  margin: 3mm;
+}
+
+/* Phone preview only. Print keeps the A4 letterhead (screen media, not print). */
+@media screen and (max-width: 1023px) {
+  .fiscal-invoice-preview {
+    padding: 0.85rem 0.75rem;
+  }
+  .fiscal-invoice-preview .fiscal-lh {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+  .fiscal-invoice-preview .fiscal-lh > .shrink-0 {
+    text-align: left;
+  }
+  .fiscal-invoice-preview .fiscal-lh > .shrink-0 table {
+    margin-left: 0;
+  }
+  .fiscal-invoice-preview .fiscal-lh > .shrink-0 td:first-child {
+    text-align: left;
+  }
+}
+
+.folio-print-stage[data-paper="thermal"] .folio-a4 {
+  width: 80mm;
+  min-height: 0;
+}
+
+@media print {
+  .folio-print-stage,
+  .folio-print-stage > div,
+  .folio-print-stage section,
+  .folio-print-frame {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .folio-fit-zoom {
+    display: block !important;
+    zoom: 1 !important;
+    transform: none !important;
+  }
+  .folio-fit-zoom > .folio-a4 {
+    display: block !important;
+    break-after: page;
+    page-break-after: always;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .folio-fit-zoom > .folio-a4:last-child {
+    break-after: auto;
+    page-break-after: auto;
+  }
+  .folio-print-stage {
+    background: white !important;
+    padding: 0 !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .folio-a4 {
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+  html[data-doc-paper="a4"] .doc-print-sheet {
+    max-width: 720px !important;
+    width: 100% !important;
+    margin: 0 auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet {
+    max-width: 72mm !important;
+    width: 72mm !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    font-size: 11px !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet h1 {
+    font-size: 1.05rem !important;
+  }
+  html[data-doc-paper="thermal"] .doc-print-sheet img {
+    max-height: 40px !important;
+  }
+  /* Fiscal tax invoice — compact thermal, preserve A4 letterhead hierarchy */
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet {
+    padding: 0 !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-letterhead {
+    flex-direction: column !important;
+    gap: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet .fiscal-invoice-lines th,
+  html[data-doc-paper="thermal"] .fiscal-invoice-sheet .fiscal-invoice-lines td {
+    padding-top: 0.35rem !important;
+    padding-bottom: 0.35rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay {
+    margin-top: 0.65rem !important;
+    padding-bottom: 0.5rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay dl {
+    grid-template-columns: 1fr !important;
+    gap: 0.35rem !important;
+  }
+  html[data-doc-paper="thermal"] .fiscal-invoice-stay-note {
+    display: none !important;
+  }
+  html[data-doc-paper="a4"] .fiscal-invoice-sheet {
+    color: #171717 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  html[data-doc-paper="a4"] .doc-print-sheet.folio-a4 {
+    width: auto !important;
+    max-width: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+  .fiscal-invoice-compact .fiscal-lh {
+    padding-bottom: 0.35rem;
+    gap: 0.5rem;
+  }
+  .fiscal-invoice-compact .fiscal-lh img {
+    height: 2.25rem;
+    width: 2.25rem;
+  }
+  .fiscal-invoice-compact .fiscal-invoice-lines th,
+  .fiscal-invoice-compact .fiscal-invoice-lines td {
+    padding-top: 1px !important;
+    padding-bottom: 1px !important;
+    line-height: 1.15;
+  }
+  .fiscal-invoice-tight .fiscal-invoice-lines {
+    font-size: 11px;
+  }
+  .fiscal-invoice-compact .fiscal-signoff,
+  .fiscal-invoice-tight .fiscal-signoff {
+    margin-top: 0.5rem;
+  }
+  .desk-print-flow {
+    display: block !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
+    transform: none !important;
+    zoom: unset !important;
+  }
+  .print-hide,
+  .print\:hidden {
+    display: none !important;
+  }
+  html,
+  body,
+  [data-desk-root],
+  .folio-print-stage,
+  .folio-print-stage section {
+    background: #fff !important;
+  }
+  html[data-doc-paper="a4"] .folio-fit-zoom > .folio-a4 + .folio-a4 {
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+}
+
+/* =========================================================================
+   Enterprise performance: layout containment + 3D glass utilities
+   (3d-glassmorphism.mdc / TECH-STACK-UPGRADES / high-perf-glassmorphism)
+   ========================================================================= */
+
+.contain-calendar-grid {
+  contain: layout style paint;
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px 600px;
+}
+
+.glass-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-specular), var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  border-radius: 1rem;
+  transform: translateZ(0);
+  color: var(--foreground);
+  font-weight: 500;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.25s ease;
+}
+
+.glass-card:hover {
+  box-shadow: var(--glass-specular), 0 20px 40px -10px rgba(0, 0, 0, 0.18),
+    0 0 20px rgba(59, 130, 246, 0.15);
+}
+
+.glass-elevated {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-specular), 0 25px 60px -15px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-radius: 1.25rem;
+  transform: translateZ(0);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.erp-cold-glass,
+.cold-glass,
+.glass-panel {
+  background: var(--glass-surface-light);
+  border: 1px solid var(--glass-border-light);
+  box-shadow: var(--glass-specular-light), 0 8px 32px 0 rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(var(--glass-blur-radius));
+  -webkit-backdrop-filter: blur(var(--glass-blur-radius));
+  transform: translateZ(0);
+}
+
+.dark .erp-cold-glass,
+.dark .cold-glass,
+.dark .glass-panel {
+  background: var(--glass-surface-dark);
+  border: 1px solid var(--glass-border-dark);
+  box-shadow: var(--glass-specular-dark), 0 8px 32px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* =========================================================================
+   v2 Sovereign cockpit — dark cold glass (do not reuse public .glass-card)
+   ========================================================================= */
+
+.v2-cockpit {
+  color-scheme: dark;
+  --foreground: #e2e8f0;
+  --glass-bg: var(--glass-surface-dark);
+  --glass-border: var(--glass-border-dark);
+  --glass-specular: var(--glass-specular-dark);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  background-color: #030712;
+}
+
+.v2-cockpit-ambient {
+  background-image:
+    radial-gradient(ellipse 90% 55% at 50% -15%, rgba(59, 130, 246, 0.14), transparent 58%),
+    radial-gradient(ellipse 70% 45% at 100% 100%, rgba(245, 158, 11, 0.07), transparent 52%),
+    radial-gradient(ellipse 50% 40% at 0% 80%, rgba(16, 185, 129, 0.05), transparent 50%);
+}
+
+.v2-chrome-bar {
+  background: rgba(15, 23, 42, 0.92);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: var(--glass-specular-dark), 0 4px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(var(--glass-blur-radius));
+  -webkit-backdrop-filter: blur(var(--glass-blur-radius));
+  transform: translateZ(0);
+}
+
+.v2-rail {
+  background: rgba(2, 6, 23, 0.94);
+}
+
+.v2-cockpit .glass-card {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: var(--glass-specular-dark), var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur-radius));
+  -webkit-backdrop-filter: blur(var(--glass-blur-radius));
+  color: #e2e8f0;
+  font-weight: 500;
+}
+
+.v2-cockpit .glass-card:hover {
+  box-shadow: var(--glass-specular-dark), 0 20px 40px -10px rgba(0, 0, 0, 0.55),
+    0 0 20px rgba(99, 102, 241, 0.12);
+}
+
+@keyframes neo-pin-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(3px);
+  }
+}
+
+.animate-shake {
+  animation: neo-pin-shake 0.32s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .v2-cockpit .glass-card {
+    transition: none !important;
+  }
+  .v2-cockpit .glass-card:hover {
+    box-shadow: var(--glass-specular-dark), var(--glass-shadow);
+  }
+  .animate-shake {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .v2-cockpit .glass-card,
+  .v2-chrome-bar {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: #0f172a !important;
+  }
+}
+
+.glass-badge-clean {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #059669;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
+}
+
+.glass-badge-dirty {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #dc2626;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.2);
+}
+
+.glass-badge-vip {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #d97706;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+}
+
+/* --- Ambient chromatic mesh (cheerful desk / booking canvas) --- */
+.bg-happy-mesh {
+  /* Cool ice chromatics only — no warm muddy beige wash */
+  background:
+    radial-gradient(circle at 12% 18%, rgba(14, 165, 233, 0.08) 0%, transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(2, 132, 199, 0.06) 0%, transparent 45%),
+    radial-gradient(circle at 78% 82%, rgba(16, 185, 129, 0.06) 0%, transparent 42%),
+    radial-gradient(circle at 18% 88%, rgba(99, 102, 241, 0.05) 0%, transparent 40%),
+    #F8FAFC;
+}
+
+/* Master lively 3D glass card */
+.glass-happy-card {
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+    0 12px 30px -8px rgba(0, 0, 0, 0.06);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border-radius: 1.25rem;
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s ease;
+  transform: translateZ(0);
+}
+
+.dark .glass-happy-card {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.25),
+    0 20px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+.glass-glow-gold:hover {
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+    0 20px 40px -10px rgba(245, 158, 11, 0.35);
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.glass-glow-mint:hover {
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+    0 20px 40px -10px rgba(16, 185, 129, 0.35);
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.glass-glow-turquoise:hover {
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+    0 20px 40px -10px rgba(2, 132, 199, 0.35);
+  border-color: rgba(56, 189, 248, 0.5);
+}
+
+.glass-happy-modal {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 1),
+    0 30px 60px -15px rgba(15, 23, 42, 0.18);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 1.5rem;
+  transform: translateZ(0);
+}
+
+.dark .glass-happy-modal {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.3),
+    0 35px 70px -15px rgba(0, 0, 0, 0.7);
+}
+
+.glass-happy-table-container {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.95);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+    0 15px 35px -10px rgba(15, 23, 42, 0.06);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-radius: 1.25rem;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.dark .glass-happy-table-container {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
+    0 25px 50px -15px rgba(0, 0, 0, 0.6);
+}
+
+.glass-table-row {
+  transition:
+    transform 0.15s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.glass-table-row:hover {
+  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow:
+    inset 2px 0 0 0 #0284c7,
+    0 4px 15px rgba(2, 132, 199, 0.12);
+}
+
+.dark .glass-table-row:hover {
+  background: rgba(30, 41, 59, 0.75);
+  box-shadow:
+    inset 3px 0 0 0 #38bdf8,
+    0 8px 25px rgba(56, 189, 248, 0.18);
+}
+
+/* Status left-border stripes for list cards */
+.stripe-gold {
+  box-shadow: inset 3px 0 0 0 var(--color-gold);
+}
+.stripe-mint {
+  box-shadow: inset 3px 0 0 0 var(--color-mint);
+}
+.stripe-lapis {
+  box-shadow: inset 3px 0 0 0 var(--color-lapis);
+}
+.stripe-coral {
+  box-shadow: inset 3px 0 0 0 var(--color-coral);
+}
+.stripe-ruby {
+  box-shadow: inset 3px 0 0 0 var(--color-ruby);
+}
+.stripe-violet {
+  box-shadow: inset 3px 0 0 0 var(--color-violet);
+}
+
+/* --- Desk Neo-Glass (crystal clean — luminous slate shadows, no coffee brown) --- */
+.erp {
+  --neo-fill: rgba(255, 255, 255, 0.85);
+  --neo-rim: rgba(255, 255, 255, 0.95);
+  --neo-text: #0F172A;
+  --neo-shadow-out:
+    0 10px 25px -5px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.03),
+    0 0 0 1px rgba(255, 255, 255, 0.8);
+  --neo-shadow-in:
+    inset 2px 2px 5px rgba(15, 23, 42, 0.08),
+    inset -2px -2px 5px rgba(255, 255, 255, 0.9);
+  --neo-specular: inset 0 1px 1px 0 rgba(255, 255, 255, 1);
+  --neo-blur: 16px;
+}
+
+.dark .erp,
+.erp.dark {
+  --neo-fill: rgba(18, 22, 28, 0.78);
+  --neo-rim: rgba(255, 255, 255, 0.12);
+  --neo-shadow-out:
+    6px 6px 16px rgba(0, 0, 0, 0.45),
+    -3px -3px 10px rgba(255, 255, 255, 0.04);
+  --neo-shadow-in:
+    inset 4px 4px 12px rgba(0, 0, 0, 0.55),
+    inset -2px -2px 8px rgba(255, 255, 255, 0.06);
+  --neo-specular: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+
+.erp[data-desk-theme="dusk"],
+.fo-command {
+  --neo-fill: rgba(18, 22, 28, 0.78);
+  --neo-rim: rgba(255, 255, 255, 0.12);
+  --neo-text: var(--foreground);
+  --neo-shadow-out:
+    6px 6px 16px rgba(0, 0, 0, 0.45),
+    -3px -3px 10px rgba(255, 255, 255, 0.04);
+  --neo-shadow-in:
+    inset 4px 4px 12px rgba(0, 0, 0, 0.55),
+    inset -2px -2px 8px rgba(255, 255, 255, 0.06);
+  --neo-specular: inset 0 1px 1px rgba(255, 255, 255, 0.18);
+}
+
+.neo-card {
+  background: var(--neo-fill);
+  color: var(--neo-text);
+  border: 1px solid var(--neo-rim);
+  border-radius: 1.125rem;
+  box-shadow: var(--neo-specular), var(--neo-shadow-out);
+  backdrop-filter: blur(var(--neo-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--neo-blur)) saturate(160%);
+  transform: translateZ(0);
+  font-weight: 500;
+}
+
+.neo-btn {
+  box-shadow: var(--neo-specular), var(--neo-shadow-out);
+  border-color: color-mix(in oklab, var(--neo-rim) 80%, transparent);
+  transform: translateZ(0);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neo-btn:active,
+.neo-btn[data-pressed="true"] {
+  box-shadow: var(--neo-shadow-in);
+  transform: translateY(1px) translateZ(0);
+}
+
+.neo-well {
+  overflow: hidden;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--neo-fill) 55%, rgba(15, 23, 42, 0.06));
+  box-shadow: var(--neo-shadow-in);
+  transform: translateZ(0);
+}
+
+.neo-well.neo-well-flush {
+  border-radius: 0;
+}
+
+.track-gradient-coral {
+  background: linear-gradient(90deg, #fb7185 0%, #ef4444 55%, #f59e0b 100%);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.35);
+}
+
+.track-gradient-mint {
+  background: linear-gradient(90deg, #34d399 0%, #10b981 55%, #2dd4bf 100%);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+}
+
+.track-gradient-violet {
+  background: linear-gradient(90deg, #a78bfa 0%, #8b5cf6 50%, #6366f1 100%);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.35);
+}
+
+/*
+ * Opt-in Neo-Glass only — no blanket remap on every card/button.
+ * Elevated panels: add `.neo-card` (or glass-happy / glass-card).
+ * Primary / money CTAs only get extruded depth.
+ */
+.erp [data-slot="button"][data-variant="default"]:not([data-neo="off"]),
+.erp [data-slot="button"][data-variant="citrus"]:not([data-neo="off"]) {
+  box-shadow: var(--neo-specular), var(--neo-shadow-out);
+  transform: translateZ(0);
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.erp [data-slot="button"][data-variant="default"]:not([data-neo="off"]):active,
+.erp [data-slot="button"][data-variant="citrus"]:not([data-neo="off"]):active {
+  box-shadow: var(--neo-shadow-in);
+  transform: translateY(1px) translateZ(0);
+}
+
+/* Floating 3D glass bottom dock — thumb zone (phone / small tablet) */
+.glass-dock-mobile {
+  position: fixed;
+  bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%) translateZ(0);
+  width: calc(100% - 1.5rem);
+  max-width: 480px;
+  height: var(--mobile-dock-height);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.9),
+    0 18px 40px -8px rgba(15, 23, 42, 0.12),
+    0 0 0 1px rgba(2, 132, 199, 0.16);
+  backdrop-filter: blur(22px) saturate(1.35);
+  -webkit-backdrop-filter: blur(22px) saturate(1.35);
+  border-radius: 9999px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 0.5rem;
+}
+
+.dark .glass-dock-mobile {
+  background: rgba(15, 23, 42, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.2),
+    0 20px 40px -10px rgba(0, 0, 0, 0.5);
+}
+
+.touch-press {
+  transition:
+    transform 0.12s cubic-bezier(0.16, 1, 0.3, 1),
+    opacity 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.touch-press:active {
+  transform: scale(0.94);
+  opacity: 0.85;
+}
+
+/* Mobile dock clearance only — scoped so it cannot override md:pb-* utilities. */
+@media (max-width: 767px) {
+  .pb-safe-dock {
+    padding-bottom: calc(
+      var(--mobile-dock-height) + 1.5rem + env(safe-area-inset-bottom, 0px)
+    );
+  }
+}
+
+/* Rack OCC footer clearance on mobile */
+.rack-scroll-clearance {
+  padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+}
+@media (max-width: 767px) {
+  .rack-scroll-clearance {
+    padding-bottom: calc(32px + 0.5rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card,
+  .glass-elevated,
+  .erp-cold-glass,
+  .cold-glass,
+  .glass-panel,
+  .glass-dock-mobile,
+  .glass-happy-card,
+  .glass-happy-modal,
+  .glass-happy-table-container {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--paper-0, #fff) !important;
+  }
+
+  .dark .glass-dock-mobile,
+  .dark .glass-happy-card,
+  .dark .glass-happy-modal,
+  .dark .glass-happy-table-container {
+    background: var(--paper-0, #0f172a) !important;
+  }
+
+  .neo-card,
+  .glass-happy-card,
+  .glass-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    background: var(--paper-0, #F8FAFC) !important;
+  }
+
+  .erp[data-desk-theme="dusk"] .neo-card,
+  .dark .neo-card,
+  .fo-command .neo-card {
+    background: var(--paper-0, #0f172a) !important;
+  }
+}
+
+@media print {
+  .neo-card {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    background: #fff !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-card,
+  .glass-elevated {
+    transition: none !important;
+  }
+  .glass-card:hover {
+    box-shadow: var(--glass-specular), var(--glass-shadow);
+  }
+  .touch-press,
+  .touch-press:active {
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .neo-btn,
+  .erp [data-slot="button"][data-variant="default"],
+  .erp [data-slot="button"][data-variant="citrus"] {
+    transition: none !important;
+  }
+  .neo-btn:active,
+  .erp [data-slot="button"][data-variant="default"]:active,
+  .erp [data-slot="button"][data-variant="citrus"]:active {
+    transform: none !important;
+  }
+}
+
+
+/* =========================================================================
+   SOVEREIGN GLASS & 0-LATENCY MASTER SYSTEM (ECCD & Atheros Benchmark)
+   Authoritative Reference: C:\GitHub\POS\docs\MASTER-DESIGN-SYSTEM.md
+   ========================================================================= */
+
+:root {
+  /* Bhutan Sovereign Jewel Palette */
+  --sovereign-pine: #1a4332;
+  --sovereign-pine-light: #2d6a4f;
+  --sovereign-saffron: #d97706;
+  --sovereign-saffron-light: #f59e0b;
+
+  /* Specular Glass Values (Light: Frosted Ceramic) */
+  --sovereign-glass-bg: rgba(255, 255, 255, 0.78);
+  --sovereign-glass-blur: 24px;
+  --sovereign-specular-t: rgba(255, 255, 255, 0.90);
+  --sovereign-specular-b: rgba(0, 0, 0, 0.08);
+  --sovereign-specular-side: rgba(255, 255, 255, 0.60);
+  --sovereign-shadow: 0 12px 40px rgba(0, 0, 0, 0.06), inset 0 1px 1px #ffffff;
+}
+
+.dark,
+[data-theme="dark"] {
+  /* Specular Glass Values (Dark: Smoked Obsidian) */
+  --sovereign-glass-bg: rgba(9, 9, 11, 0.75);
+  --sovereign-specular-t: rgba(255, 255, 255, 0.22);
+  --sovereign-specular-b: rgba(0, 0, 0, 0.35);
+  --sovereign-specular-side: rgba(255, 255, 255, 0.08);
+  --sovereign-shadow: 0 16px 50px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+}
+
+/* Master Sovereign Specular Glass Card */
+.sovereign-glass {
+  background: var(--sovereign-glass-bg);
+  backdrop-filter: blur(var(--sovereign-glass-blur)) saturate(180%);
+  -webkit-backdrop-filter: blur(var(--sovereign-glass-blur)) saturate(180%);
+  border-top: 1px solid var(--sovereign-specular-t);
+  border-bottom: 1px solid var(--sovereign-specular-b);
+  border-left: 1px solid var(--sovereign-specular-side);
+  border-right: 1px solid var(--sovereign-specular-side);
+  box-shadow: var(--sovereign-shadow);
+  border-radius: 1.25rem;
+  transform: translateZ(0);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease;
+}
+
+.sovereign-glass:hover {
+  transform: translateY(-2px) translateZ(0);
+}
+
+/* Dense Pine Spreadsheet Row Standards */
+.sovereign-table-row {
+  transition: background-color 0.12s ease, transform 0.12s ease;
+}
+.sovereign-table-row:hover {
+  background: rgba(26, 67, 50, 0.04);
+}
+.dark .sovereign-table-row:hover {
+  background: rgba(45, 106, 79, 0.12);
+}
+
+/* Tabular Numerals Guarantee (Linear & Stripe Standard) */
+.tabular-stat {
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+
+/* ─── Sovereign Glass Toast System (Atheros 3D + DesignMotion) ─── */
+.sovereign-toast {
+  box-shadow:
+    0 20px 45px -12px rgba(0, 0, 0, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.85),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.05);
+}
+
+.dark .sovereign-toast,
+[data-theme="dark"] .sovereign-toast {
+  box-shadow:
+    0 24px 55px -12px rgba(0, 0, 0, 0.75),
+    inset 0 1px 1px rgba(255, 255, 255, 0.18),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
+}
+
+/* 1px Specular Top Edge */
+.sovereign-toast::before {
+  content: "";
+  position: absolute;
+  inset-x: 0;
+  top: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.95) 50%, transparent);
+  pointer-events: none;
+}
+
+.dark .sovereign-toast::before,
+[data-theme="dark"] .sovereign-toast::before {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3) 50%, transparent);
+}
+
+/* Micro-sheen reflection animation on entry */
+@keyframes toast-sheen {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.sovereign-toast::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    115deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 60%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: toast-sheen 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+}
+
+
+/* ─── 3D Atheros Specular Top Chrome ─────────────────────────────── */
+.glass-top-chrome {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.04);
+}
+
+.dark .glass-top-chrome,
+[data-theme="dark"] .glass-top-chrome {
+  background: rgba(9, 9, 11, 0.82);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* ─── 3D Atheros Specular Side Rail ─────────────────────────────── */
+.glass-side-rail {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.03);
+}
+
+.dark .glass-side-rail,
+[data-theme="dark"] .glass-side-rail {
+  background: rgba(9, 9, 11, 0.75);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 4px 0 30px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── 3D Floating Glass Nav Pill ────────────────────────────────── */
+.glass-nav-pill {
+  position: relative;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 4px 14px -2px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px #fff;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dark .glass-nav-pill,
+[data-theme="dark"] .glass-nav-pill {
+  background: rgba(24, 24, 27, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow:
+    0 4px 18px -2px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+
+/* ─── Enterprise 3D Glass Table Container ────────────────────────── */
+.glass-happy-table-container {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 1.25rem;
+  box-shadow:
+    0 16px 40px -12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
+}
+
+.dark .glass-happy-table-container,
+[data-theme="dark"] .glass-happy-table-container {
+  background: rgba(9, 9, 11, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    0 20px 50px -12px rgba(0, 0, 0, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.12);
+}
+
+
+/* ─── No Scrollbar Utility ────────────────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>SOULTRIPS bills — MAP &amp; CP · 9–10 Nov 2026</title>
+<style>
+:root{--ink:#1a1410;--muted:#5c534c;--box:#f7f4ef;--gold:#b8893a;--maroon:#6e2c2c}
+*{box-sizing:border-box}
+html,body{margin:0;color:var(--ink);font:13px/1.45 "Segoe UI",system-ui,sans-serif;background:#ece7df;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.no-print{max-width:210mm;margin:12px auto 0;display:flex;justify-content:space-between;gap:10px;padding:0 8px;align-items:center}
+.no-print p{margin:0;color:var(--muted);font-size:12.5px}
+.no-print button{border:0;background:var(--ink);color:#fff;padding:10px 18px;font:700 13px/1 "Segoe UI",system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;cursor:pointer}
+.summary{width:210mm;margin:12px auto;padding:14px 16px;background:#fff;border:1px solid #d8d0c6}
+.summary h1{margin:0 0 8px;font-size:18px}
+.rategrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 12px}
+.ratebox{padding:10px 12px;background:var(--box);border-left:3px solid var(--gold);font-size:12.5px}
+.summary table{width:100%;border-collapse:collapse;font-size:12.5px}
+.summary th,.summary td{border-bottom:1px solid #ddd6cc;padding:7px 6px;text-align:left}
+.summary .num{text-align:right;font-variant-numeric:tabular-nums}
+.summary .grand td{font-weight:750;border-top:2px solid var(--ink);padding-top:10px}
+.sheet{width:210mm;min-height:297mm;margin:12px auto 28px;padding:16mm;background:#fff;box-shadow:0 2px 18px rgba(0,0,0,.08);display:flex;flex-direction:column;page-break-after:always}
+header{display:flex;justify-content:space-between;gap:18px;border-bottom:2.5px solid var(--ink);padding-bottom:12px}
+.brand{display:flex;gap:12px}
+.brand img{width:52px;height:52px;object-fit:contain}
+.hotel-name{margin:0;font-size:22px;font-weight:750}
+.legal{margin:2px 0 6px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--maroon);font-weight:700}
+address{font-style:normal;font-size:12px;color:#3a322c}
+.doc-meta{text-align:right}
+.doc-meta .kind{margin:0;font-size:11px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--maroon)}
+.doc-meta h2{margin:2px 0 8px;font-size:20px}
+.doc-meta table{border-collapse:collapse;margin-left:auto}
+.doc-meta td{padding:1px 0 1px 14px;font-size:12px}
+.doc-meta td:first-child{color:var(--muted);text-align:right}
+.parties{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0 8px}
+.label{margin:0 0 4px;font-size:10px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+.party{border:1px solid #d8d0c6;background:var(--box);padding:10px 12px;min-height:92px}
+[contenteditable="true"]{outline:none}
+.blank{border-bottom:1px solid #8a8076;min-width:10em;display:inline-block;min-height:1.15em}
+table.lines{width:100%;border-collapse:collapse;margin-top:14px}
+table.lines th{background:var(--ink);color:#fff;font-size:11px;letter-spacing:.08em;text-transform:uppercase;text-align:left;padding:8px 10px}
+table.lines th.num,table.lines td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+table.lines td{border-bottom:1px solid #ddd6cc;padding:10px;vertical-align:top}
+table.lines .desc{font-weight:650}
+table.lines .hint{display:block;margin-top:3px;font-size:11.5px;color:var(--muted);font-weight:400}
+.totals{margin-left:auto;width:62%;border-collapse:collapse}
+.totals td{padding:7px 10px;font-size:13px}
+.totals td:last-child{text-align:right;font-variant-numeric:tabular-nums;width:8.5rem}
+.totals .muted{color:var(--muted)}
+.totals .grand{border-top:2px solid var(--ink);font-size:16px;font-weight:750}
+.notes{margin-top:14px;font-size:12px}
+.notes ul{margin:4px 0 0;padding-left:1.15em}
+.sign{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:auto;padding-top:28px}
+.sign .line{border-bottom:1.5px solid var(--ink);height:40px;margin:8px 0 6px}
+.sign .lab{font-size:11px;color:var(--muted)}
+footer{margin-top:18px;padding-top:10px;border-top:1px solid #d8d0c6;font-size:10.5px;color:var(--muted)}
+@page{size:A4 portrait;margin:12mm}
+@media print{html,body{background:#fff}.no-print,.summary{display:none!important}.sheet{margin:0;padding:0;width:auto;min-height:auto;box-shadow:none}}
+</style>
+</head>
+<body>
+  <div class="no-print">
+    <p>SOULTRIPS · MAP D5600/S4200 · CP D4200/S3600 · checkouts 9–10 Nov</p>
+    <button type="button" onclick="window.print()">Print A4</button>
+  </div>
+  <section class="summary">
+    <h1>SOULTRIPS — checkout bills</h1>
+    <div class="rategrid">
+      <div class="ratebox"><strong>MAP</strong><br/>Double / twin <strong>Nu 5,600</strong><br/>Single <strong>Nu 4,200</strong></div>
+      <div class="ratebox"><strong>CP</strong><br/>Double / twin <strong>Nu 4,200</strong><br/>Single <strong>Nu 3,600</strong></div>
+    </div>
+    <table>
+      <thead><tr><th>#</th><th>Ref</th><th>Plan</th><th>Mix</th><th>Stay</th><th class="num">Total</th></tr></thead>
+      <tbody>
+        
+    <tr>
+      <td>1</td>
+      <td>02160</td>
+      <td>MAP</td>
+      <td>Deluxe single</td>
+      <td>8–9 Nov 2026</td>
+      <td class="num">4,200.00</td>
+    </tr>
+    <tr>
+      <td>2</td>
+      <td>01895</td>
+      <td>MAP</td>
+      <td>7 pax · 03 Twin + 01 Single</td>
+      <td>9–10 Nov 2026</td>
+      <td class="num">21,000.00</td>
+    </tr>
+    <tr>
+      <td>3</td>
+      <td>01895</td>
+      <td>CP</td>
+      <td>6 pax · 02 Twin + 02 Single</td>
+      <td>9–10 Nov 2026</td>
+      <td class="num">15,600.00</td>
+    </tr>
+    <tr>
+      <td>4</td>
+      <td>02130</td>
+      <td>MAP</td>
+      <td>Deluxe single</td>
+      <td>8–10 Nov 2026</td>
+      <td class="num">8,400.00</td>
+    </tr>
+      </tbody>
+    </table>
+    <p style="margin:10px 0 0;color:var(--muted);font-size:12px">#2 (MAP) and #3 (CP) are alternate mixes for the same ref 01895 — print only the one that matched the stay.</p>
+  </section>
+  
+  <article class="sheet">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>Next to Shop No. 7 / Asha Bakery<br/>Olakha, Thimphu, Bhutan<br/>T +975 1619 3410 · pelbusuites@gmail.com</address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · SOULTRIPS MAP</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">10 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Agent</td><td><strong>SOULTRIPS</strong></td></tr>
+          <tr><td>Agent ref</td><td><strong>02160</strong></td></tr>
+          <tr><td>Stay</td><td><strong>8–9 Nov 2026</strong></td></tr>
+          <tr><td>Plan</td><td><strong>MAP</strong> · D 5,600.00 / S 4,200.00</td></tr>
+          <tr><td>Currency</td><td>BTN</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>SOULTRIPS</strong><br/>
+          Ref <strong>02160</strong><br/>
+          Deluxe single<br/>
+          
+          soultrip@gmail.com
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          8–9 Nov 2026 · <strong>1</strong> night(s)<br/>
+          Rooms: <strong>301</strong><br/>
+          Meal plan <strong>MAP</strong> (incl. 10% S.C.)
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead><tr><th>#</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="desc">Deluxe single · MAP</span><span class="hint">MAP single Nu 4,200 · 1 night</span></td>
+          <td class="num">1</td>
+          <td class="num">4,200.00</td>
+          <td class="num">4,200.00</td>
+        </tr></tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>4,200.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 4,200.00</td></tr>
+    </table>
+    <div class="notes"><strong>Notes</strong><ul><li>Checkout morning 9 Nov · sheet MAP (CP alt would be Nu 3,600).</li></ul></div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Agent</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · SOULTRIPS MoU · no GST</footer>
+  </article>
+
+  <article class="sheet">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>Next to Shop No. 7 / Asha Bakery<br/>Olakha, Thimphu, Bhutan<br/>T +975 1619 3410 · pelbusuites@gmail.com</address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · SOULTRIPS MAP</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">10 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Agent</td><td><strong>SOULTRIPS</strong></td></tr>
+          <tr><td>Agent ref</td><td><strong>01895</strong></td></tr>
+          <tr><td>Stay</td><td><strong>9–10 Nov 2026</strong></td></tr>
+          <tr><td>Plan</td><td><strong>MAP</strong> · D 5,600.00 / S 4,200.00</td></tr>
+          <tr><td>Currency</td><td>BTN</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>SOULTRIPS</strong><br/>
+          Ref <strong>01895</strong><br/>
+          7 pax · 03 Twin + 01 Single<br/>
+          Guide: Tshewang Dema · 17810255<br/>
+          soultrip@gmail.com
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          9–10 Nov 2026 · <strong>1</strong> night(s)<br/>
+          Rooms: <strong>ST block · re-check 9–10 Nov</strong><br/>
+          Meal plan <strong>MAP</strong> (incl. 10% S.C.)
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead><tr><th>#</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="desc">Deluxe twin / double · MAP</span><span class="hint">MAP double Nu 5,600 · sheet C11 MAP</span></td>
+          <td class="num">3</td>
+          <td class="num">5,600.00</td>
+          <td class="num">16,800.00</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><span class="desc">Deluxe single · MAP</span><span class="hint">MAP single Nu 4,200</span></td>
+          <td class="num">1</td>
+          <td class="num">4,200.00</td>
+          <td class="num">4,200.00</td>
+        </tr></tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>21,000.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 21,000.00</td></tr>
+    </table>
+    <div class="notes"><strong>Notes</strong><ul><li>Sheet C11 = MAP mix. (J13 CP mix billed separately as #3 if that mix was occupied.)</li></ul></div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Agent</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · SOULTRIPS MoU · no GST</footer>
+  </article>
+
+  <article class="sheet">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>Next to Shop No. 7 / Asha Bakery<br/>Olakha, Thimphu, Bhutan<br/>T +975 1619 3410 · pelbusuites@gmail.com</address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · SOULTRIPS CP</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">10 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Agent</td><td><strong>SOULTRIPS</strong></td></tr>
+          <tr><td>Agent ref</td><td><strong>01895</strong></td></tr>
+          <tr><td>Stay</td><td><strong>9–10 Nov 2026</strong></td></tr>
+          <tr><td>Plan</td><td><strong>CP</strong> · D 4,200.00 / S 3,600.00</td></tr>
+          <tr><td>Currency</td><td>BTN</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>SOULTRIPS</strong><br/>
+          Ref <strong>01895</strong><br/>
+          6 pax · 02 Twin + 02 Single<br/>
+          Guide: Tshewang Dema · 17810255<br/>
+          soultrip@gmail.com
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          9–10 Nov 2026 · <strong>1</strong> night(s)<br/>
+          Rooms: <strong>ST block · re-check 9–10 Nov</strong><br/>
+          Meal plan <strong>CP</strong> (incl. 10% S.C.)
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead><tr><th>#</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="desc">Deluxe twin / double · CP</span><span class="hint">CP double Nu 4,200 · sheet J13 CP</span></td>
+          <td class="num">2</td>
+          <td class="num">4,200.00</td>
+          <td class="num">8,400.00</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td><span class="desc">Deluxe single · CP</span><span class="hint">CP single Nu 3,600</span></td>
+          <td class="num">2</td>
+          <td class="num">3,600.00</td>
+          <td class="num">7,200.00</td>
+        </tr></tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>15,600.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 15,600.00</td></tr>
+    </table>
+    <div class="notes"><strong>Notes</strong><ul><li>Sheet J13 CP mix. Do not send both #2 and #3 — pick the mix that actually stayed.</li></ul></div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Agent</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · SOULTRIPS MoU · no GST</footer>
+  </article>
+
+  <article class="sheet">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>Next to Shop No. 7 / Asha Bakery<br/>Olakha, Thimphu, Bhutan<br/>T +975 1619 3410 · pelbusuites@gmail.com</address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · SOULTRIPS MAP</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">10 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Agent</td><td><strong>SOULTRIPS</strong></td></tr>
+          <tr><td>Agent ref</td><td><strong>02130</strong></td></tr>
+          <tr><td>Stay</td><td><strong>8–10 Nov 2026</strong></td></tr>
+          <tr><td>Plan</td><td><strong>MAP</strong> · D 5,600.00 / S 4,200.00</td></tr>
+          <tr><td>Currency</td><td>BTN</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>SOULTRIPS</strong><br/>
+          Ref <strong>02130</strong><br/>
+          Deluxe single<br/>
+          Guide: Sonam Dendup · 17828751<br/>
+          soultrip@gmail.com
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          8–10 Nov 2026 · <strong>2</strong> night(s)<br/>
+          Rooms: <strong>Deluxe single</strong><br/>
+          Meal plan <strong>MAP</strong> (incl. 10% S.C.)
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead><tr><th>#</th><th>Description</th><th class="num">Qty</th><th class="num">Rate</th><th class="num">Amount</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td><span class="desc">Deluxe single · MAP</span><span class="hint">MAP single Nu 4,200 · 2 nights</span></td>
+          <td class="num">2</td>
+          <td class="num">4,200.00</td>
+          <td class="num">8,400.00</td>
+        </tr></tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>8,400.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 8,400.00</td></tr>
+    </table>
+    <div class="notes"><strong>Notes</strong><ul><li>Checkout morning 10 Nov. Switch to CP Nu 3,600×2 if meal plan was CP.</li></ul></div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Agent</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · SOULTRIPS MoU · no GST</footer>
+  </article>
+</body>
+</html>

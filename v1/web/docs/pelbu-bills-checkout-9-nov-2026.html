@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Bills — Pelbu Suites Olakha · Checkouts 9 Nov 2026</title>
+  <style>
+    :root {
+      --ink: #1a1410;
+      --muted: #5c534c;
+      --soft: #e8e2da;
+      --box: #f7f4ef;
+      --gold: #b8893a;
+      --maroon: #6e2c2c;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      color: var(--ink);
+      font: 13px/1.45 "Segoe UI", system-ui, sans-serif;
+      background: #ece7df;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .no-print {
+      max-width: 210mm;
+      margin: 12px auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 0 8px;
+    }
+    .no-print p { margin: 0; color: var(--muted); font-size: 12.5px; }
+    .no-print button {
+      border: 0;
+      background: var(--ink);
+      color: #fff;
+      padding: 10px 18px;
+      font: 700 13px/1 "Segoe UI", system-ui, sans-serif;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+    .summary {
+      width: 210mm;
+      margin: 12px auto;
+      padding: 14px 16px;
+      background: #fff;
+      border: 1px solid #d8d0c6;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+    }
+    .summary h1 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+    .summary table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .summary th, .summary td {
+      border-bottom: 1px solid #ddd6cc;
+      padding: 7px 6px;
+      text-align: left;
+    }
+    .summary th.num, .summary td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .summary .grand td {
+      font-weight: 750;
+      border-top: 2px solid var(--ink);
+      padding-top: 10px;
+    }
+    .sheet {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 12px auto 28px;
+      padding: 16mm 16mm 14mm;
+      background: #fff;
+      box-shadow: 0 2px 18px rgba(0,0,0,.08);
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      align-items: flex-start;
+      border-bottom: 2.5px solid var(--ink);
+      padding-bottom: 12px;
+    }
+    .brand { display: flex; gap: 12px; align-items: flex-start; min-width: 0; }
+    .brand img { width: 52px; height: 52px; object-fit: contain; flex-shrink: 0; }
+    .hotel-name { margin: 0; font-size: 22px; letter-spacing: .04em; font-weight: 750; line-height: 1.1; }
+    .legal {
+      margin: 2px 0 6px;
+      font-size: 11px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--maroon);
+      font-weight: 700;
+    }
+    address {
+      font-style: normal;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #3a322c;
+    }
+    .doc-meta { text-align: right; flex-shrink: 0; }
+    .doc-meta .kind {
+      margin: 0;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .22em;
+      text-transform: uppercase;
+      color: var(--maroon);
+    }
+    .doc-meta h2 { margin: 2px 0 8px; font-size: 20px; }
+    .doc-meta table { border-collapse: collapse; margin-left: auto; }
+    .doc-meta td { padding: 1px 0 1px 14px; font-size: 12px; vertical-align: top; }
+    .doc-meta td:first-child { color: var(--muted); text-align: right; }
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin: 16px 0 8px;
+    }
+    .label {
+      margin: 0 0 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .party {
+      border: 1px solid #d8d0c6;
+      background: var(--box);
+      padding: 10px 12px;
+      min-height: 92px;
+    }
+    [contenteditable="true"] { outline: none; }
+    [contenteditable="true"]:hover,
+    [contenteditable="true"]:focus { background: #fff8ee; }
+    .blank {
+      border-bottom: 1px solid #8a8076;
+      min-width: 10em;
+      display: inline-block;
+      min-height: 1.15em;
+    }
+    table.lines { width: 100%; border-collapse: collapse; margin-top: 14px; }
+    table.lines th {
+      background: var(--ink);
+      color: #fff;
+      font-size: 11px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      text-align: left;
+      padding: 8px 10px;
+    }
+    table.lines th.num, table.lines td.num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    table.lines td {
+      border-bottom: 1px solid #ddd6cc;
+      padding: 10px;
+      vertical-align: top;
+    }
+    table.lines .desc { font-weight: 650; }
+    table.lines .hint {
+      display: block;
+      margin-top: 3px;
+      font-size: 11.5px;
+      color: var(--muted);
+      font-weight: 400;
+    }
+    .totals {
+      margin-top: 0;
+      margin-left: auto;
+      width: 62%;
+      border-collapse: collapse;
+    }
+    .totals td { padding: 7px 10px; font-size: 13px; }
+    .totals td:last-child {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      width: 8.5rem;
+    }
+    .totals .muted { color: var(--muted); }
+    .totals .grand {
+      border-top: 2px solid var(--ink);
+      font-size: 16px;
+      font-weight: 750;
+    }
+    .totals .grand td { padding-top: 10px; }
+    .words {
+      margin: 14px 0 0;
+      padding: 10px 12px;
+      background: var(--box);
+      border-left: 3px solid var(--gold);
+      font-size: 12.5px;
+    }
+    .notes { margin-top: 14px; font-size: 12px; color: #3a322c; }
+    .notes ul { margin: 4px 0 0; padding-left: 1.15em; }
+    .notes li { margin: 3px 0; }
+    .sign {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-top: auto;
+      padding-top: 28px;
+    }
+    .sign .line {
+      border-bottom: 1.5px solid var(--ink);
+      height: 40px;
+      margin: 8px 0 6px;
+    }
+    .sign .lab { font-size: 11px; color: var(--muted); }
+    footer {
+      margin-top: 18px;
+      padding-top: 10px;
+      border-top: 1px solid #d8d0c6;
+      font-size: 10.5px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+    @page { size: A4 portrait; margin: 12mm; }
+    @media print {
+      html, body { background: #fff; }
+      .no-print, .summary { display: none !important; }
+      .sheet {
+        margin: 0;
+        padding: 0;
+        width: auto;
+        min-height: auto;
+        box-shadow: none;
+        page-break-after: always;
+      }
+      .sheet:last-of-type { page-break-after: auto; }
+      [contenteditable="true"]:hover,
+      [contenteditable="true"]:focus { background: transparent; }
+    }
+  </style>
+</head>
+<body>
+  <div class="no-print">
+    <p>Checkout bills · 9 Nov 2026 · from <em>Reservation 2026 (8).xlsx</em> + Innora walk-in 407 · GST not charged (Olakha). Print all or one sheet.</p>
+    <button type="button" onclick="window.print()">Print A4</button>
+  </div>
+
+  <section class="summary" aria-label="Checkout bill summary">
+    <h1>Checkouts on 9 Nov 2026 — bill pack</h1>
+    <p style="margin:0 0 10px;color:var(--muted);font-size:12.5px;">
+      Source: rack sheet November 2026 (last night 8 Nov → checkout morning 9 Nov). Rates from cell notes. Amounts include 10% S.C. · no GST.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Agent / guest</th>
+          <th>Room</th>
+          <th>Stay</th>
+          <th>Plan</th>
+          <th class="num">Nightly</th>
+          <th class="num">Nights</th>
+          <th class="num">Total BTN</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>Yak Holidays · Mr. Joseph Balint × 2</td>
+          <td>502 Suite</td>
+          <td>7–9 Nov</td>
+          <td>MAP</td>
+          <td class="num">5,400</td>
+          <td class="num">2</td>
+          <td class="num">10,800</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>SOULTRIPS · ref 02160 · deluxe single</td>
+          <td>301 Twin</td>
+          <td>8–9 Nov</td>
+          <td>MAP</td>
+          <td class="num">4,200</td>
+          <td class="num">1</td>
+          <td class="num">4,200</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>Kuenshey Tours · VIP · Vietnamese single</td>
+          <td>302 Twin</td>
+          <td>8–9 Nov</td>
+          <td>MAP</td>
+          <td class="num">3,524</td>
+          <td class="num">1</td>
+          <td class="num">3,524</td>
+        </tr>
+        <tr>
+          <td>4</td>
+          <td>Walk-in · PSBK-2026-00104</td>
+          <td>407 King</td>
+          <td>8–9 Nov</td>
+          <td>MAP</td>
+          <td class="num">3,500</td>
+          <td class="num">1</td>
+          <td class="num">3,500</td>
+        </tr>
+        <tr class="grand">
+          <td colspan="7">Pack total</td>
+          <td class="num">22,024</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- 1 · Yak Holidays / 502 -->
+  <article class="sheet" aria-label="Invoice Yak Holidays 502">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery<br />
+            Olakha, Thimphu, Bhutan · TPN on request<br />
+            T +975 1619 3410 · pelbusuites@gmail.com
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · tax invoice</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">9 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Conf.</td><td><strong>PS-2026-00244</strong></td></tr>
+          <tr><td>Stay</td><td><strong>7–9 Nov 2026</strong></td></tr>
+          <tr><td>Pax / rooms</td><td><strong>2 pax · 1 Suite (502)</strong></td></tr>
+          <tr><td>Currency</td><td>BTN (Ngultrum)</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>Yak Holidays</strong><br />
+          Guest: Mr. Joseph Balint × 2 pax<br />
+          Guide: Phub Gyeltshen · 17635965
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          Check-in <strong>7 Nov 2026</strong><br />
+          Check-out <strong>9 Nov 2026</strong> · 2 nights<br />
+          Room <strong>502 · Suite</strong> (rack note: Deluxe MAP)<br />
+          Meal plan <strong>MAP</strong>
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Rate</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>
+            <span class="desc">Room night · Suite 502 · MAP</span>
+            <span class="hint">Incl. 10% service charge · agreed MAP Nu 5,400 (sheet note) · 7 &amp; 8 Nov</span>
+          </td>
+          <td class="num">2</td>
+          <td class="num">5,400.00</td>
+          <td class="num">10,800.00</td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>10,800.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 10,800.00</td></tr>
+    </table>
+    <p class="words">Amount in words: <strong>Ngultrum ten thousand eight hundred only.</strong></p>
+    <div class="notes">
+      <strong>Notes</strong>
+      <ul>
+        <li>Source: Reservation 2026 (8).xlsx · cell YH on Suite 502 · “MAP.(5400)”.</li>
+        <li>Credit to travel agent · settle to Yak Holidays AR unless paid at desk.</li>
+      </ul>
+    </div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Guest / agent</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · rates include 10% S.C. · GST not applicable on this property yet · generated for checkout 9 Nov 2026.</footer>
+  </article>
+
+  <!-- 2 · SOULTRIPS / 301 -->
+  <article class="sheet" aria-label="Invoice Soultrips 301">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery<br />
+            Olakha, Thimphu, Bhutan<br />
+            T +975 1619 3410 · pelbusuites@gmail.com
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · tax invoice</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">9 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Agent ref</td><td><strong>SOULTRIPS 02160</strong></td></tr>
+          <tr><td>Stay</td><td><strong>8–9 Nov 2026</strong></td></tr>
+          <tr><td>Pax / rooms</td><td><strong>1 pax · 1 Single (301)</strong></td></tr>
+          <tr><td>Currency</td><td>BTN (Ngultrum)</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>SOULTRIPS</strong><br />
+          Ref <strong>02160</strong><br />
+          soultrip@gmail.com
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          Check-in <strong>8 Nov 2026</strong><br />
+          Check-out <strong>9 Nov 2026</strong> · 1 night<br />
+          Room <strong>301 · Deluxe Twin</strong> (used as single)<br />
+          Meal plan <strong>MAP</strong>
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Rate</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>
+            <span class="desc">Room night · Deluxe single · MAP</span>
+            <span class="hint">Incl. 10% S.C. · SOULTRIPS single MAP Nu 4,200 · night of 8 Nov</span>
+          </td>
+          <td class="num">1</td>
+          <td class="num">4,200.00</td>
+          <td class="num">4,200.00</td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>4,200.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 4,200.00</td></tr>
+    </table>
+    <p class="words">Amount in words: <strong>Ngultrum four thousand two hundred only.</strong></p>
+    <div class="notes">
+      <strong>Notes</strong>
+      <ul>
+        <li>Sheet note: “Single(Nu. 4200) under MAP · CP single would be Nu 3,600”.</li>
+        <li>Charge MAP as occupied. Credit SOULTRIPS AR.</li>
+      </ul>
+    </div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Guest / agent</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · SOULTRIPS contract rates · checkout 9 Nov 2026.</footer>
+  </article>
+
+  <!-- 3 · Kuenshey VIP / 302 -->
+  <article class="sheet" aria-label="Invoice Kuenshey VIP 302">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery<br />
+            Olakha, Thimphu, Bhutan<br />
+            T +975 1619 3410 · pelbusuites@gmail.com
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · tax invoice</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">9 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Rack code</td><td><strong>VIP</strong></td></tr>
+          <tr><td>Stay</td><td><strong>8–9 Nov 2026</strong></td></tr>
+          <tr><td>Pax / rooms</td><td><strong>1 pax · 1 Single (302)</strong></td></tr>
+          <tr><td>Currency</td><td>BTN (Ngultrum)</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>Kuenshey Tours</strong><br />
+          Guest: Vietnamese single (VIP rack)<br />
+          Guide / contact: <span class="blank" contenteditable="true">tashi 77255810</span>
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          Check-in <strong>8 Nov 2026</strong><br />
+          Check-out <strong>9 Nov 2026</strong> · 1 night<br />
+          Room <strong>302 · Deluxe Twin</strong> (single use)<br />
+          Meal plan <strong>MAP</strong>
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Rate</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>
+            <span class="desc">Room night · Deluxe single · MAP</span>
+            <span class="hint">Incl. 10% S.C. · sheet note Nu 3,524 MAP (CP would be Nu 2,838)</span>
+          </td>
+          <td class="num">1</td>
+          <td class="num">3,524.00</td>
+          <td class="num">3,524.00</td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>3,524.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 3,524.00</td></tr>
+    </table>
+    <p class="words">Amount in words: <strong>Ngultrum three thousand five hundred twenty-four only.</strong></p>
+    <div class="notes">
+      <strong>Notes</strong>
+      <ul>
+        <li>Source: rack VIP on Twin 302 · “kuenshey tours · 1 single · Vietnamese · Nu 3524 MAP”.</li>
+        <li>Bill Kuenshey Tours AR unless cash at desk.</li>
+      </ul>
+    </div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Guest / agent</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · checkout 9 Nov 2026.</footer>
+  </article>
+
+  <!-- 4 · Walk-in 407 -->
+  <article class="sheet" aria-label="Invoice Walk-in 407">
+    <header>
+      <div class="brand">
+        <img src="https://res.cloudinary.com/hkkchsfy/image/upload/w_160,h_160,c_fit,f_png,q_auto:best/pelbu/brand/h2q193tfpc5qrgchfjj1" alt="Pelbu Suites" />
+        <div>
+          <p class="hotel-name">PELBU SUITES</p>
+          <p class="legal">Hotel · Olakha, Thimphu</p>
+          <address>
+            Next to Shop No. 7 / Asha Bakery<br />
+            Olakha, Thimphu, Bhutan<br />
+            T +975 1619 3410 · pelbusuites@gmail.com
+          </address>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <p class="kind">Room · tax invoice</p>
+        <h2>INVOICE</h2>
+        <table>
+          <tr><td>Date</td><td><span contenteditable="true">9 Nov 2026</span></td></tr>
+          <tr><td>Invoice no.</td><td><span class="blank" contenteditable="true">INV-</span></td></tr>
+          <tr><td>Conf.</td><td><strong>PSBK-2026-00104</strong></td></tr>
+          <tr><td>Stay</td><td><strong>8–9 Nov 2026</strong></td></tr>
+          <tr><td>Pax / rooms</td><td><strong>Walk-in · 1 room (407)</strong></td></tr>
+          <tr><td>Currency</td><td>BTN (Ngultrum)</td></tr>
+        </table>
+      </div>
+    </header>
+    <div class="parties">
+      <div>
+        <p class="label">Bill to</p>
+        <div class="party" contenteditable="true">
+          <strong>Walk-in guest</strong><br />
+          Name: <span class="blank" contenteditable="true"></span><br />
+          (not on rack sheet — from Innora departure 9 Nov)
+        </div>
+      </div>
+      <div>
+        <p class="label">Stay</p>
+        <div class="party">
+          Check-in <strong>8 Nov 2026</strong><br />
+          Check-out <strong>9 Nov 2026</strong> · 1 night<br />
+          Room <strong>407 · Deluxe King</strong><br />
+          Meal plan <strong>MAP</strong>
+        </div>
+      </div>
+    </div>
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Description</th>
+          <th class="num">Qty</th>
+          <th class="num">Rate</th>
+          <th class="num">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>
+            <span class="desc">Room night · Deluxe King 407 · MAP</span>
+            <span class="hint">Incl. 10% S.C. · agreed nightly Nu 3,500 from Innora booking</span>
+          </td>
+          <td class="num">1</td>
+          <td class="num">3,500.00</td>
+          <td class="num">3,500.00</td>
+        </tr>
+      </tbody>
+    </table>
+    <table class="totals">
+      <tr class="muted"><td>Subtotal (incl. S.C.)</td><td>3,500.00</td></tr>
+      <tr class="muted"><td>GST</td><td>—</td></tr>
+      <tr class="grand"><td>Amount due</td><td>Nu 3,500.00</td></tr>
+    </table>
+    <p class="words">Amount in words: <strong>Ngultrum three thousand five hundred only.</strong></p>
+    <div class="notes">
+      <strong>Notes</strong>
+      <ul>
+        <li>Innora: PSBK-2026-00104 · checked_out · folio open with no lines yet — post room charge if settling in desk.</li>
+        <li>Guest name blank in booking_guests — fill before sending.</li>
+      </ul>
+    </div>
+    <div class="sign">
+      <div><div class="line"></div><div class="lab">Guest</div></div>
+      <div><div class="line"></div><div class="lab">For Pelbu Suites</div></div>
+    </div>
+    <footer>Pelbu Suites Olakha · checkout 9 Nov 2026.</footer>
+  </article>
+</body>
+</html>

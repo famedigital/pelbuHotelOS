@@ -1,0 +1,18 @@
+{
+  "name": "hotel-os-bhutan",
+  "private": true,
+  "version": "2.0.0",
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:desk": "pnpm --dir v2 --filter @hos-v2/desk dev",
+    "dev:api": "pnpm --dir v2 --filter @hos-v2/api dev",
+    "build:v2": "pnpm --dir v2 -r run build",
+    "typecheck:v2": "pnpm --dir v2 -r run typecheck",
+    "test:v2": "pnpm --dir v2 test",
+    "cutover:go-no-go": "pnpm --dir v2 cutover:go-no-go",
+    "migrate:v2:additive": "node scripts/apply-v2-migrations.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

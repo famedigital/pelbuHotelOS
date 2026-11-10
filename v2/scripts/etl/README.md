@@ -21,6 +21,10 @@ Staff PINs are **not** copied from Innora Auth (SOURCE-MAP 7.6). First unlock af
 
 # Ops (agents + active bookings + assignments + folios + sequences)
 # On droplet: bash scripts/cutover/droplet-run-ops-etl.sh /tmp/02_etl.sql
+
+# Partners vault (all approved agents + national/property guides → v2)
+# On droplet: bash scripts/cutover/droplet-run-ops-etl.sh /tmp/03_etl.sql
+#   (copy v2/scripts/etl/03_agents_guides_vault.sql → /tmp/03_etl.sql first)
 ```
 
 ```bash

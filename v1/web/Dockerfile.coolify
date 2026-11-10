@@ -1,0 +1,37 @@
+FROM node:22-bookworm-slim AS deps
+WORKDIR /app/web
+COPY web/package.json web/package-lock.json* ./
+# Coolify injects NODE_ENV=production at build time, which makes npm skip
+# devDependencies. Tailwind and TypeScript live there and are required to build.
+RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install --include=dev; fi
+
+FROM node:22-bookworm-slim AS builder
+# web/ builds at /app/web so `../packages/core` (shared @hotel-os/core money
+# core, compiled from source by Turbopack) sits at /app/packages/core.
+WORKDIR /app/web
+COPY --from=deps /app/web/node_modules ./node_modules
+COPY packages/core/package.json /app/packages/core/package.json
+COPY packages/core/src /app/packages/core/src
+COPY web/ ./
+ENV NEXT_TELEMETRY_DISABLED=1
+# Cap heap so BuildKit + Supabase stack on the 8Gi droplet do not thrash swap.
+ENV NODE_OPTIONS=--max-old-space-size=2048
+ARG NEXT_PUBLIC_SUPABASE_URL
+ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=$NEXT_PUBLIC_SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=$NEXT_PUBLIC_SUPABASE_ANON_KEY
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+RUN npm run build
+
+FROM node:22-bookworm-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+# Next image loader + config need source files at runtime
+COPY --from=builder /app/web ./
+EXPOSE 3000
+CMD ["npm", "start"]
