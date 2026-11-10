@@ -24,6 +24,7 @@ import { telegramWebhookSecret } from "./modules/hermes/bot-api.js";
 import {
   admsHandshakeBody,
   lateMinutesForPunch,
+  normalizeActorRole,
   parseAttlogBody,
   pickShiftForPunch,
 } from "@hos-v2/domain";
@@ -147,7 +148,9 @@ app.post<{
   const actor: Actor = {
     propertyId: claims.propertyId,
     tenantId: claims.organizationId ?? claims.propertyId,
-    role: String(claims.deskRole || claims.role || bodyActor?.role || "fo_agent"),
+    role: normalizeActorRole(
+      claims.deskRole || claims.role || bodyActor?.role || "fo_agent",
+    ),
     staffId: claims.staffId ?? claims.sub,
   };
   if (bodyActor?.propertyId && bodyActor.propertyId !== claims.propertyId) {

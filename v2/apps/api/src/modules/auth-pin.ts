@@ -38,7 +38,14 @@ function homeRouteForRole(deskRole: string | null | undefined, fallback: string)
   if (role === "hk" || role === "housekeeping") return "/housekeeping";
   if (role === "owner" || role === "gm") return "/owner";
   if (role === "hr" || role === "hr_admin") return "/hr";
-  if (role === "front_desk" || role === "fo_agent" || role === "fo_manager") return "/desk";
+  if (
+    role === "fo" ||
+    role === "front_desk" ||
+    role === "fo_agent" ||
+    role === "fo_manager"
+  ) {
+    return "/desk";
+  }
   if (role === "night_auditor") return "/night-audit";
   return fallback || "/desk";
 }
