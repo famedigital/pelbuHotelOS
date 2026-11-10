@@ -1,8 +1,14 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Badge, Button, EmptyState, GlassPanel, KpiCard,
+import {
+  Badge,
+  Button,
+  EmptyState,
+  GlassPanel,
+  KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu, taxBreakdown, useFrontOfficeStore } from "../lib/front-office-store";
 import {
@@ -55,6 +61,16 @@ export function LaundryPage() {
     <ModuleFrame
       title="Laundry & Valet"
       description="Bag intake · express · folio post"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "open", label: "Open", swatch: "var(--hos-primary)" },
+            { id: "express", label: "Express", swatch: "var(--hos-brass)" },
+            { id: "posted", label: "Posted", swatch: "var(--hos-emerald)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -194,7 +210,61 @@ export function LaundryPage() {
               description="Intake a bag for an in-house guest to begin."
             />
           ) : (
-            <div className="mt-3 overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+            <>
+            <ul className="mt-3 m-0 grid list-none gap-2 p-0 md:hidden">
+              {bags.map((b) => (
+                <li
+                  key={b.id}
+                  className="hos-cell flex flex-col gap-2 rounded-xl border border-[var(--hos-line)] p-3"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-mono text-[12px] font-bold text-[var(--hos-primary)]">
+                        {b.bagNo}
+                      </div>
+                      <button
+                        type="button"
+                        className="mt-0.5 text-left text-[13px] font-semibold text-[var(--hos-ink)] underline"
+                        onClick={() => openStay(b.stayId)}
+                      >
+                        Rm {b.roomNumber} · {b.guestName}
+                      </button>
+                    </div>
+                    <Badge
+                      tone={
+                        b.status === "posted"
+                          ? "success"
+                          : b.status === "ready"
+                            ? "teal"
+                            : "default"
+                      }
+                    >
+                      {b.status}
+                    </Badge>
+                  </div>
+                  <div className="text-[11px] text-[var(--hos-ink-3)]">
+                    {SERVICE_LABEL[b.service]} · {b.speed} · {formatNu(b.netAmount)}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {b.status !== "posted" && b.status !== "delivered" ? (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="!min-h-9"
+                        onClick={() => {
+                          const res = advanceBag(b.id);
+                          if (!res.ok) toast.error(res.error);
+                          else toast.message("Bag advanced");
+                        }}
+                      >
+                        Advance
+                      </Button>
+                    ) : null}
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-3 hidden overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] md:block">
               <table className="w-full min-w-[720px] text-left text-xs">
                 <thead>
                   <tr className="border-b border-[var(--hos-line)] text-[10px] uppercase text-[var(--hos-ink-3)]">
@@ -286,6 +356,7 @@ export function LaundryPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </GlassPanel>
       </div>

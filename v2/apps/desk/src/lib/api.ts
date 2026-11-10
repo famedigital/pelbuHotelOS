@@ -30,6 +30,14 @@ function sessionBearer(): string | null {
   }
 }
 
+/** Fired when active `hos.v2.propertyId` changes (hotel switch / login). */
+export const HOS_PROPERTY_CHANGED_EVENT = "hos:v2:property-changed";
+
+export function notifyPropertyChanged(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(HOS_PROPERTY_CHANGED_EVENT));
+}
+
 /** Active tenant from hotel login; falls back to local demo id only. */
 export function sessionPropertyId(): string {
   try {

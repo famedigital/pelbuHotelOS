@@ -1,6 +1,13 @@
 import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { Badge, Button, GlassPanel, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+} from "@hos-v2/ui";
 import { useExtrasStore } from "../lib/extras-store";
 
 export function ChannelPage() {
@@ -20,23 +27,34 @@ export function ChannelPage() {
       title="Channel · Channex ARI"
       description="Room types · rates · stop-sell · min stay · Booking.com / Agoda / MMT / Expedia"
       actions={
-        <motion.div whileTap={reduce ? undefined : { scale: 0.97 }}>
-          <Button
-            onClick={() => {
-              void forceChannelPush().then((res) => {
-                if (!res.ok) {
-                  toast.error("Channel ingest failed", { description: res.error });
-                  return;
-                }
-                toast.success("Channel booking created", {
-                  description: `createReservation · ${res.bookingId.slice(0, 8)}…`,
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "sync", label: "Synced", swatch: "var(--hos-emerald)" },
+              { id: "stop", label: "Stop-sell", swatch: "var(--hos-ruby)" },
+              { id: "push", label: "Force push", swatch: "var(--hos-primary)" },
+            ]}
+          />
+          <motion.div whileTap={reduce ? undefined : { scale: 0.97 }}>
+            <Button
+              onClick={() => {
+                void forceChannelPush().then((res) => {
+                  if (!res.ok) {
+                    toast.error("Channel ingest failed", { description: res.error });
+                    return;
+                  }
+                  toast.success("Channel booking created", {
+                    description: `createReservation · ${res.bookingId.slice(0, 8)}…`,
+                  });
                 });
-              });
-            }}
-          >
-            1-Tap Force Push
-          </Button>
-        </motion.div>
+              }}
+            >
+              1-Tap Force Push
+            </Button>
+          </motion.div>
+        </div>
       }
     >
     <div className="flex flex-col gap-4">

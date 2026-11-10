@@ -7,7 +7,9 @@ import {
   EmptyState,
   GlassPanel,
   KpiCard,
+  ModuleFrame,
   MorphTabs,
+  StatusLegend,
 } from "@hos-v2/ui";
 import {
   formatNu,
@@ -190,22 +192,22 @@ export function ReservationsPage() {
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="m-0 text-2xl font-bold tracking-tight text-[var(--hos-ink)]">
-              Reservations
-            </h1>
-            <Badge tone="default" className="border border-[var(--hos-primary)]">
-              Master Hub
-            </Badge>
-          </div>
-          <p className="m-0 mt-0.5 text-xs text-[var(--hos-ink-3)]">
-            Avatar ledger · nationality flags · 1-tap StayHub / check-in
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+    <ModuleFrame
+      title="Reservations"
+      description="Avatar ledger · nationality flags · 1-tap StayHub / check-in"
+      eyebrow="Master Hub"
+      actions={
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "conf", label: "Confirmed", swatch: "var(--hos-primary)" },
+              { id: "held", label: "Held", swatch: "var(--hos-brass)" },
+              { id: "in", label: "In-house", swatch: "var(--hos-emerald)" },
+              { id: "out", label: "Checked-out", swatch: "var(--hos-ink-3)" },
+            ]}
+          />
           <Button size="sm" variant="secondary" onClick={exportManifest}>
             Export Manifest
           </Button>
@@ -213,8 +215,9 @@ export function ReservationsPage() {
             Fast Book ⌘B
           </Button>
         </div>
-      </div>
-
+      }
+    >
+      <div className="flex flex-col gap-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard label="Confirmed" value={arriving} delta="Awaiting arrival" />
         <KpiCard label="Holds" value={held} delta="Expire 18:00" />
@@ -448,5 +451,6 @@ export function ReservationsPage() {
         )}
       </GlassPanel>
     </div>
+    </ModuleFrame>
   );
 }

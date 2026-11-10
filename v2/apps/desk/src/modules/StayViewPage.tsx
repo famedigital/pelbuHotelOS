@@ -27,10 +27,12 @@ import {
   X,
 } from "lucide-react";
 import {
+  AttentionChip,
   Badge,
   Button,
   GlassElevated,
   MorphTabs,
+  StatusLegend,
   useIsPhone,
 } from "@hos-v2/ui";
 import {
@@ -447,10 +449,13 @@ function StayRibbon({
     stay.groupId ? s.groupMeta[stay.groupId]?.color : undefined,
   );
 
-  /* Solid enterprise bars — group tint when linked */
+  /* Solid enterprise bars — group tint when linked; departed = muted slate */
   let tone =
     "border-[color-mix(in_srgb,var(--hos-emerald)_45%,transparent)] bg-[var(--hos-emerald)]";
-  if (stay.vip) {
+  if (stay.status === "checked_out") {
+    tone =
+      "border-[color-mix(in_srgb,var(--hos-ink-3)_40%,transparent)] bg-[color-mix(in_srgb,var(--hos-ink-2)_72%,#64748b)] opacity-90";
+  } else if (stay.vip) {
     tone =
       "border-[color-mix(in_srgb,var(--hos-brass)_50%,transparent)] bg-[var(--hos-brass)]";
   } else if (stay.status === "checked_in") {
@@ -485,7 +490,7 @@ function StayRibbon({
       }
       whileTap={reduce ? undefined : { scale: 0.97, y: 1 }}
       transition={{ type: "spring", stiffness: 520, damping: 28 }}
-      className={`absolute top-1 z-[1] flex h-8 cursor-grab items-center gap-1 overflow-hidden rounded-md border px-2 text-left text-white shadow-sm active:cursor-grabbing ${tone} ${
+      className={`absolute top-1 z-[1] flex h-8 cursor-grab items-center gap-1 overflow-hidden rounded-lg border px-2 text-left text-white shadow-[0_4px_12px_-6px_rgba(0,0,0,0.45)] active:cursor-grabbing before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-white/35 after:absolute after:inset-y-0 after:right-0 after:w-1 after:bg-black/20 ${tone} ${
         isDragging ? "opacity-50" : ""
       } ${highlight ? "ring-2 ring-white ring-offset-1 ring-offset-[var(--hos-primary)] z-[3]" : ""} ${
         dimmed ? "opacity-35" : ""
@@ -885,7 +890,7 @@ export function StayViewPage() {
     const roomStays = stays.filter(
       (s) =>
         s.roomId === room.id &&
-        !["cancelled", "no_show", "checked_out"].includes(s.status) &&
+        !["cancelled", "no_show"].includes(s.status) &&
         s.checkIn < addDays(rackAnchorDate, horizonDays) &&
         s.checkOut > rackAnchorDate,
     );
@@ -1057,52 +1062,61 @@ export function StayViewPage() {
     id: AttentionFocus;
     label: string;
     count: number;
-    tone: string;
+    tone: "primary" | "emerald" | "brass" | "ruby" | "muted";
   }[] = [
     {
       id: "need_rooms",
       label: "Need rooms",
       count: attentionStats.needRooms,
-      tone: "border-amber-500/30 bg-amber-500/10 text-[var(--hos-brass-ink)]",
+      tone: "brass",
     },
     {
       id: "arrivals",
       label: "Arrivals",
       count: attentionStats.arrivals,
-      tone: "border-[color-mix(in_srgb,var(--hos-primary)_35%,transparent)] bg-[color-mix(in_srgb,var(--hos-primary)_10%,transparent)] text-[var(--hos-primary)]",
+      tone: "primary",
     },
     {
       id: "dirty",
       label: "Dirty",
       count: attentionStats.dirty,
-      tone: "border-[color-mix(in_srgb,var(--hos-ruby)_35%,transparent)] bg-[color-mix(in_srgb,var(--hos-ruby)_10%,transparent)] text-[var(--hos-ruby)]",
+      tone: "ruby",
     },
     {
       id: "due",
       label: "Balances due",
       count: attentionStats.due,
-      tone: "border-[color-mix(in_srgb,var(--hos-ruby)_35%,transparent)] bg-[color-mix(in_srgb,var(--hos-ruby)_8%,transparent)] text-[var(--hos-ruby)]",
+      tone: "ruby",
     },
     {
       id: "vip",
       label: "VIP",
       count: attentionStats.vip,
-      tone: "border-[color-mix(in_srgb,var(--hos-brass)_40%,transparent)] bg-[color-mix(in_srgb,var(--hos-brass)_12%,transparent)] text-[var(--hos-brass-ink)]",
+      tone: "brass",
     },
+  ];
+
+  const rackLegend = [
+    { id: "in", label: "In-house", swatch: "var(--hos-primary)" },
+    { id: "arr", label: "Arrival", swatch: "var(--hos-emerald)" },
+    { id: "vip", label: "VIP", swatch: "var(--hos-brass)" },
+    { id: "held", label: "Held", swatch: "var(--hos-brass)" },
+    { id: "out", label: "Departed", swatch: "var(--hos-ink-3)" },
+    { id: "due", label: "Balance due", swatch: "var(--hos-ruby)" },
   ];
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <div
-        className="relative flex h-full min-h-0 flex-col gap-2 overflow-hidden"
+        className="hos-rack-premium relative flex h-full min-h-0 flex-col gap-2 overflow-hidden"
         onMouseUp={finishPaint}
         onMouseLeave={() => {
           if (paint) finishPaint();
         }}
       >
-        {/* Smart toolbar — search first, attention chips, lazy horizon */}
+        {/* Command chrome — LivePanel-grade frost; opaque rack below */}
         {/* z-30 above rack sticky date headers (z-4/5) so month jump isn’t buried */}
-        <div className="relative z-30 flex shrink-0 flex-col gap-1.5 rounded-none border-x-0 border-t-0 border-b border-[var(--hos-line)] bg-[var(--hos-cell)] px-2 py-2 md:rounded-2xl md:border md:px-3 [transform:translateZ(0)]">
+        <div className="hos-module-chrome relative z-30 flex shrink-0 flex-col gap-1.5 rounded-none border-x-0 border-t-0 px-2 py-2 md:rounded-2xl md:px-3">
           <div className="flex min-h-9 flex-wrap items-center gap-2">
             <div className="flex shrink-0 items-center gap-2">
               <h1 className="m-0 whitespace-nowrap text-sm font-medium tracking-normal text-[var(--hos-ink)]">
@@ -1414,13 +1428,17 @@ export function StayViewPage() {
             <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-[var(--hos-ink-3)]">
               Do next
             </span>
+            <StatusLegend items={rackLegend} dense className="mr-1 hidden lg:flex" />
             {attentionChips.map((chip) => {
               if (chip.count === 0 && attention !== chip.id) return null;
               const active = attention === chip.id;
               return (
-                <button
+                <AttentionChip
                   key={chip.id}
-                  type="button"
+                  label={chip.label}
+                  count={chip.count}
+                  active={active}
+                  tone={chip.tone}
                   onClick={() => {
                     const next = active ? "all" : chip.id;
                     setAttention(next);
@@ -1435,15 +1453,7 @@ export function StayViewPage() {
                       openStay(attentionStats.dueStays[0]!.id);
                     }
                   }}
-                  className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold transition ${
-                    active
-                      ? "border-[var(--hos-primary)] bg-[var(--hos-primary)] text-white"
-                      : chip.tone
-                  }`}
-                >
-                  {chip.label}
-                  <span className="font-mono tabular-nums">{chip.count}</span>
-                </button>
+                />
               );
             })}
             {filtersActive ? (

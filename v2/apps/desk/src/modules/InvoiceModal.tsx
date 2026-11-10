@@ -217,7 +217,8 @@ export function InvoiceModal({
   const chargeLines = lines.filter((l) => l.kind !== "payment");
   const paymentLines = lines.filter((l) => l.kind === "payment");
   const agentBill =
-    paper.source === "agent" && Boolean(paper.agencyName?.trim());
+    (stream === "master" || paper.source === "agent") &&
+    Boolean(paper.agencyName?.trim());
   const nextFiscalHint = peekGaplessDocNo(agentBill ? "PSBN" : "INV");
   const number =
     kind === "tax" && taxIssued
@@ -243,11 +244,9 @@ export function InvoiceModal({
   const scPct = scEnabled ? Math.round(scRate * 100) : 0;
   const gstPct = bstEnabled ? Math.round(bstRate * 100) : 0;
   const billTo =
-    paper.source === "agent" && paper.agencyName
-      ? paper.agencyName
-      : paper.guestName;
+    agentBill && paper.agencyName ? paper.agencyName : paper.guestName;
   const guestDetail = [
-    paper.source === "agent" ? paper.guestName : null,
+    agentBill ? paper.guestName : null,
     paper.nationality || null,
     paper.passportOrCid ? `ID ${paper.passportOrCid}` : null,
   ]

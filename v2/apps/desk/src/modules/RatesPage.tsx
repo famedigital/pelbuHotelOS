@@ -8,6 +8,7 @@ import {
   ModuleFrame,
   MorphTabs,
   Odometer,
+  StatusLegend,
   useIsPhone,
 } from "@hos-v2/ui";
 import {
@@ -304,7 +305,12 @@ export function RatesPage() {
       toast.error(res.error);
       return;
     }
-    toast.success("Rate card created", { description: newName || newCode });
+    toast.success("Rate card created", {
+      description:
+        newKind === "agent" || newKind === "mou"
+          ? `${newName || newCode} · Assign this card to an agent for Fast Book MoU pickup`
+          : newName || newCode,
+    });
     setShowNew(false);
     setNewCode("");
     setNewName("");
@@ -325,6 +331,15 @@ export function RatesPage() {
       description="Card matrix · occupancy bands · share / print · ARI"
       actions={
         <div className="flex flex-wrap items-center gap-1.5">
+          <StatusLegend
+            dense
+            className="hidden lg:flex"
+            items={[
+              { id: "rack", label: "Rack", swatch: "var(--hos-primary)" },
+              { id: "mou", label: "MoU", swatch: "var(--hos-brass)" },
+              { id: "promo", label: "Promo", swatch: "var(--hos-emerald)" },
+            ]}
+          />
           <Button
             size="sm"
             className="hos-btn-ink !rounded-xl"

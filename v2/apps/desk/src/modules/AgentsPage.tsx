@@ -23,6 +23,7 @@ import {
   GlassTiltCard,
   KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import {
   TYPES,
@@ -322,6 +323,15 @@ export function AgentsPage() {
       description="Partnered agents · MoU rates · payments · FO status · credit aging · SOA"
       actions={
         <>
+          <StatusLegend
+            dense
+            className="hidden lg:flex"
+            items={[
+              { id: "ok", label: "Within limit", swatch: "var(--hos-emerald)" },
+              { id: "near", label: "Near limit", swatch: "var(--hos-brass)" },
+              { id: "over", label: "Overdue", swatch: "var(--hos-ruby)" },
+            ]}
+          />
           <Button size="sm" variant="secondary" asChild>
             <Link to="/partner">
               <Users className="size-3.5" aria-hidden />
@@ -474,7 +484,39 @@ export function AgentsPage() {
           ) : agents.length === 0 ? (
             <EmptyState title="No agents" description="Seed commercial operators to run city ledger." />
           ) : (
-            <div className="overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+            <>
+            <ul className="m-0 grid list-none gap-2 p-0 md:hidden">
+              {directory.map((a) => {
+                const row = partneredRows.find((r) => r.agentId === a.id);
+                const ar = row?.arOutstanding ?? a.usedCredit;
+                return (
+                  <li key={a.id}>
+                    <button
+                      type="button"
+                      onClick={() => open360(a.id)}
+                      className="hos-cell flex w-full flex-col gap-1.5 rounded-xl border border-[var(--hos-line)] p-3 text-left"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <strong className="min-w-0 truncate text-[13px] text-[var(--hos-ink)]">
+                          {a.name}
+                        </strong>
+                        <Badge tone="teal">{a.code}</Badge>
+                      </div>
+                      <div className="text-[11px] text-[var(--hos-ink-3)]">
+                        {row?.mouStatus ?? "no MoU"} · {row?.rateCardCode ?? "—"}
+                      </div>
+                      <div className="flex justify-between font-mono text-[12px] tabular-nums">
+                        <span className="text-[var(--hos-ink-3)]">AR</span>
+                        <span className="font-semibold text-[var(--hos-ink)]">
+                          {formatNu(ar)}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] md:block">
               <table
                 className="w-full min-w-[960px] text-left text-xs"
                 data-testid="agents-partnered-directory"
@@ -571,6 +613,7 @@ export function AgentsPage() {
                 </tbody>
               </table>
             </div>
+            </>
           )}
         </GlassTiltCard>
 

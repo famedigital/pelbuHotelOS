@@ -21,6 +21,7 @@ import {
   GlassTiltCard,
   ModuleFrame,
   MorphTabs,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { canIssueCashAdvance } from "@hos-v2/domain";
 import { formatNu } from "../lib/front-office-store";
@@ -302,6 +303,15 @@ export function PurchasesPage() {
       eyebrow="Procurement · Bhutan GST"
       actions={
         <>
+          <StatusLegend
+            dense
+            className="hidden lg:flex"
+            items={[
+              { id: "open", label: "Open AP", swatch: "var(--hos-brass)" },
+              { id: "paid", label: "Paid", swatch: "var(--hos-emerald)" },
+              { id: "cash", label: "Cash float", swatch: "var(--hos-primary)" },
+            ]}
+          />
           <Button
             size="sm"
             className="hos-btn-tactile gap-1.5 !rounded-full"

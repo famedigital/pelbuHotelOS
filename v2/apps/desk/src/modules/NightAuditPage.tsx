@@ -8,6 +8,7 @@ import {
   GlassPanel,
   KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import {
   CheckCircle2,
@@ -121,6 +122,15 @@ export function NightAuditPage() {
       description="Autonomous 1-click rollover · pre-flight gates · fiscal seal · Bhutan DRC pack"
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "ok", label: "Clear", swatch: "var(--hos-emerald)" },
+              { id: "warn", label: "Soft gate", swatch: "var(--hos-brass)" },
+              { id: "block", label: "Hard gate", swatch: "var(--hos-ruby)" },
+            ]}
+          />
           <Badge
             tone={readiness.blockers === 0 ? "success" : "danger"}
             className="border border-[var(--hos-line)]"

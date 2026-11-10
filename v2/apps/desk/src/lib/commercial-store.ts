@@ -131,6 +131,18 @@ type CommercialState = {
     agentId: string,
     rateCardId: string,
   ) => { ok: true } | { ok: false; error: string };
+  /** Replace seed agents with vault rows from GET /v1/partners/snapshot. */
+  hydrateAgents: (
+    rows: {
+      id: string;
+      name: string;
+      code: string;
+      creditLimit: number;
+      creditHold: boolean;
+      contact: string;
+      status: string;
+    }[],
+  ) => void;
   quoteDisplay: (net: number) => {
     net: number;
     sc: number;
@@ -563,6 +575,59 @@ export const useCommercialStore = create<CommercialState>((set, get) => {
         ),
       }));
       return { ok: true };
+    },
+
+    hydrateAgents: (rows) => {
+      if (rows.length === 0) return;
+      const prevById = new Map(get().agents.map((a) => [a.id, a]));
+      const defaultCard =
+        get().rateCards.find((c) => c.code === "AGT-COMMON" && c.active)?.id ??
+        get().rateCards.find((c) => c.kind === "agent" && c.active)?.id ??
+        "rc-agt-common";
+      const yangphelCard =
+        get().rateCards.find((c) => c.code === "AGT1" && c.active)?.id ?? defaultCard;
+      const ethoCard =
+        get().rateCards.find((c) => c.code === "AGT6" && c.active)?.id ?? defaultCard;
+
+      const mapped: Agent[] = rows.map((row) => {
+        const prev = prevById.get(row.id);
+        const nameLower = row.name.toLowerCase();
+        const codeUpper = row.code.toUpperCase();
+        let rateCardId = defaultCard;
+        if (
+          prev?.rateCardId &&
+          get().rateCards.some((c) => c.id === prev.rateCardId && c.active)
+        ) {
+          /* Preserve in-session Assign overrides. */
+          rateCardId = prev.rateCardId;
+        } else if (
+          codeUpper === "YAP" ||
+          codeUpper === "AGT1" ||
+          nameLower.includes("yangphel")
+        ) {
+          rateCardId = yangphelCard;
+        } else if (
+          codeUpper === "EM" ||
+          codeUpper === "AGT6" ||
+          nameLower.includes("etho metho")
+        ) {
+          rateCardId = ethoCard;
+        }
+        return {
+          id: row.id,
+          name: row.name,
+          code: row.code,
+          contact: row.contact || prev?.contact || "",
+          creditLimit: row.creditLimit,
+          usedCredit: prev?.usedCredit ?? 0,
+          termsDays: prev?.termsDays ?? 30,
+          rateCardId,
+          aging: prev?.aging ?? { current: 0, d30: 0, d60: 0, d90: 0 },
+          active: row.status !== "rejected" && row.status !== "suspended",
+          creditHold: row.creditHold || prev?.creditHold,
+        };
+      });
+      set({ agents: mapped });
     },
 
     quoteDisplay: (net) => {

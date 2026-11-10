@@ -1,5 +1,7 @@
 /** Hotel gate + staff/portal sessions (exclusive per role). */
 
+import { notifyPropertyChanged } from "./api";
+
 const HOTEL_TOKEN = "hos.v2.hotel.token";
 const HOTEL_PROPERTY = "hos.v2.hotel.property";
 const PORTAL_TOKEN = "hos.v2.portal.token";
@@ -23,6 +25,7 @@ export function writeHotelGate(token: string, property: SessionProperty): void {
   // Existing hotels must never re-trigger the new-tenant setup wizard.
   localStorage.setItem("hos_hotel_onboarded", "true");
   localStorage.setItem("hos_hotel_onboard_dismissed", "true");
+  notifyPropertyChanged();
 }
 
 export function readHotelToken(): string | null {
@@ -53,6 +56,7 @@ export function writePortalSession(
   sessionStorage.setItem(PORTAL_META, JSON.stringify({ ...meta, property }));
   localStorage.setItem("hos.v2.propertyId", property.id);
   localStorage.setItem("hos.v2.propertySlug", property.slug);
+  notifyPropertyChanged();
 }
 
 export function readPortalToken(): string | null {

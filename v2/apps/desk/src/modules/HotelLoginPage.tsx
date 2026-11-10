@@ -27,11 +27,11 @@ export function HotelLoginPage() {
   return (
     <AuthGateShell
       kicker="Hotel desk"
-      title={properties ? "Choose property" : "Sign in to your hotel"}
+      title={properties ? "Choose property" : "Hotel sign in"}
       lead={
         properties
-          ? "Select which property’s staff PIN pad to open."
-          : "Org email and password unlock the desk. Staff then enter their own PIN."
+          ? "Open the PIN pad for the property you run tonight."
+          : "Hotel email unlocks the property. Each staff member then enters their own PIN."
       }
       photoSrc="/auth/night.png"
       footer={

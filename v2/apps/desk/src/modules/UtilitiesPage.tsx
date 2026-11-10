@@ -2,6 +2,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard, SpotlightCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu, useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
 
@@ -26,6 +27,16 @@ export function UtilitiesPage() {
     <ModuleFrame
       title="Utilities"
       description="Power · water · meter readings"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "ok", label: "Current", swatch: "var(--hos-emerald)" },
+            { id: "due", label: "Due soon", swatch: "var(--hos-brass)" },
+            { id: "late", label: "Overdue", swatch: "var(--hos-ruby)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

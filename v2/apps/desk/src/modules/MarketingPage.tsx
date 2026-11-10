@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard, MorphTabs,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { useExtrasStore } from "../lib/extras-store";
 import { SocialClipsStudio } from "./marketing/SocialClipsStudio";
@@ -33,6 +34,16 @@ export function MarketingPage() {
     <ModuleFrame
       title="Marketing"
       description="Campaigns · offers"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "on", label: "Live", swatch: "var(--hos-emerald)" },
+            { id: "off", label: "Paused", swatch: "var(--hos-ink-3)" },
+            { id: "clip", label: "Clips", swatch: "var(--hos-primary)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4 pb-24">
       <div>

@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import { z } from "zod";
 import { globalOutbox, type Actor, type OutboxEvent } from "./platform/command.js";
 import { store } from "./platform/memory-store.js";
 import { MODULE_REGISTRY, commandHandlers } from "./modules/registry.js";
@@ -292,6 +293,107 @@ app.get<{ Querystring: { propertyId?: string } }>("/v1/rates/snapshot", async (r
   };
 });
 
+/** Desk commercial + registry hydrate — agents/guides from v2 vault (ETL from public). */
+app.get<{ Querystring: { propertyId?: string } }>(
+  "/v1/partners/snapshot",
+  async (req, reply) => {
+    const propertyId = req.query.propertyId;
+    if (!propertyId) {
+      return reply.code(400).send({ ok: false, error: "propertyId required" });
+    }
+    const parsed = z.string().uuid().safeParse(propertyId);
+    if (!parsed.success) {
+      return reply.code(400).send({ ok: false, error: "propertyId must be a UUID" });
+    }
+    const dbGate = requireDb();
+    if (!dbGate.ok) {
+      return reply.code(503).send({ ok: false, error: "DATABASE_REQUIRED" });
+    }
+    const pid = parsed.data.replace(/'/g, "''");
+    try {
+      type AgentRow = {
+        id: string;
+        name: string;
+        code: string;
+        credit_limit: string | number;
+        credit_hold: boolean;
+        contact: string | null;
+        status: string | null;
+      };
+      type GuideRow = {
+        id: string;
+        name: string;
+        tcr: string;
+        phone: string | null;
+        languages: string[] | null;
+        verified: boolean;
+        active: boolean;
+      };
+      const agents = (await queryRaw(
+        `SELECT
+           a.id::text AS id,
+           a.name,
+           a.code,
+           a.credit_limit,
+           a.credit_hold,
+           NULLIF(trim(concat_ws(' · ',
+             NULLIF(trim(pa.contact_phone), ''),
+             NULLIF(trim(pa.contact_email), '')
+           )), '') AS contact,
+           COALESCE(pa.status, 'approved') AS status
+         FROM v2.agents a
+         LEFT JOIN v2.etl_id_map m
+           ON m.entity = 'agent'
+          AND m.property_id = a.property_id
+          AND m.v2_id = a.id
+         LEFT JOIN public.agents pa
+           ON pa.id = COALESCE(m.public_id, a.id)
+         WHERE a.property_id = '${pid}'::uuid
+         ORDER BY a.name ASC`,
+      )) as AgentRow[];
+      const guides = (await queryRaw(
+        `SELECT
+           g.id::text AS id,
+           g.full_name AS name,
+           g.tcr_license_no AS tcr,
+           g.phone,
+           g.languages,
+           (g.status = 'active' OR g.active = true) AS verified,
+           g.active
+         FROM v2.tour_guides g
+         WHERE g.property_id = '${pid}'::uuid
+         ORDER BY g.full_name ASC`,
+      )) as GuideRow[];
+      return {
+        ok: true,
+        propertyId: parsed.data,
+        agents: (agents ?? []).map((a) => ({
+          id: a.id,
+          name: a.name,
+          code: a.code,
+          creditLimit: Number(a.credit_limit) || 0,
+          creditHold: Boolean(a.credit_hold),
+          contact: a.contact ?? "",
+          status: a.status ?? "approved",
+        })),
+        guides: (guides ?? []).map((g) => ({
+          id: g.id,
+          name: g.name,
+          tcr: g.tcr,
+          phone: g.phone ?? "",
+          languages: Array.isArray(g.languages) ? g.languages.join(" · ") : "",
+          verified: Boolean(g.verified),
+          active: Boolean(g.active),
+        })),
+      };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "partners snapshot failed";
+      req.log.error({ err }, "partners/snapshot failed");
+      return reply.code(500).send({ ok: false, error: message });
+    }
+  },
+);
+
 function enrichBooking(b: (typeof store.bookings)[number]) {
   const guestFolio = store.folios.find((f) => f.bookingId === b.id && f.payerType === "guest");
   const agencyFolio = store.folios.find((f) => f.bookingId === b.id && f.payerType === "agent");
@@ -329,7 +431,8 @@ function enrichBooking(b: (typeof store.bookings)[number]) {
       ? "Yangphel Adventure Travel"
       : b.source === "agent_portal" && /Druk/i.test(b.guestName)
         ? "Druk Asia Tours & Treks"
-        : null);
+        : null) ||
+    null;
   return {
     ...b,
     guestId: b.guestId,

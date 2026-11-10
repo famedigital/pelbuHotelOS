@@ -77,7 +77,7 @@ export function StaySheet({
             />
           ) : null}
 
-          <header className="shrink-0 border-b border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-1.5 sm:px-3.5 sm:py-2">
+          <header className="hos-module-chrome shrink-0 rounded-none border-x-0 border-t-0 px-3 py-1.5 sm:px-3.5 sm:py-2">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 {compactTitle || (isPhone && header) ? (

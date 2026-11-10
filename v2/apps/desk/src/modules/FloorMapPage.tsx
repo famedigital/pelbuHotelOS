@@ -1,7 +1,11 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
-import { Badge, GlassPanel, SpotlightCard,
+import {
+  Badge,
+  GlassPanel,
   ModuleFrame,
+  SpotlightCard,
+  StatusLegend,
 } from "@hos-v2/ui";
 import {
   useFrontOfficeStore,
@@ -154,16 +158,22 @@ export function FloorMapPage() {
   return (
     <ModuleFrame
       title="Floor Map"
-      description="Spatial room status"
+      description="Dual-signal room tiles · HK fill + stay border · click opens StayHub"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "vacant", label: "Vacant", swatch: "var(--hos-canvas-2)" },
+            { id: "arriving", label: "Arriving", swatch: "var(--hos-emerald)" },
+            { id: "in", label: "In-house", swatch: "var(--hos-primary)" },
+            { id: "dep", label: "Departing", swatch: "var(--hos-brass)" },
+            { id: "dirty", label: "Dirty HK", swatch: "var(--hos-ruby)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="m-0 text-2xl font-bold text-[var(--hos-ink)]">3D Floor Map</h1>
-          <p className="m-0 mt-0.5 text-xs text-[var(--hos-ink-3)]">
-            Dual-signal room tiles · HK fill + stay border · click opens StayHub
-          </p>
-        </div>
         <div className="flex flex-wrap gap-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
           <span className="inline-flex items-center gap-1">
             <span className="size-2.5 rounded-sm bg-[rgba(16,185,129,0.5)]" /> Clean

@@ -34,7 +34,10 @@ export function GlassShell({
 /** Luxury bento / worklist panel — opaque cell over mesh. */
 export function GlassPanel({ className, children, as: Tag = "div", ...rest }: GlassProps) {
   return (
-    <Tag className={cn("hos-luxury-card [transform:translateZ(0)]", className)} {...rest}>
+    <Tag
+      className={cn("hos-luxury-card hos-board-chrome [transform:translateZ(0)]", className)}
+      {...rest}
+    >
       {children}
     </Tag>
   );

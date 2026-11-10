@@ -13,7 +13,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Badge, Button, Odometer } from "@hos-v2/ui";
+import { Badge, Button, Odometer, StatusLegend } from "@hos-v2/ui";
 import {
   folioBalance,
   formatNu,
@@ -613,7 +613,7 @@ export function DepartmentPrintModal({
       }`}
     >
       {/* Chrome header — glass elevated, not on sheet */}
-      <header className="no-print shrink-0 border-b border-[var(--hos-line)] bg-[color-mix(in_srgb,var(--hos-surface)_92%,transparent)] px-3 py-2.5 backdrop-blur-md sm:px-4">
+      <header className="hos-module-chrome no-print shrink-0 rounded-none border-x-0 border-t-0 px-3 py-2.5 sm:px-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
@@ -630,6 +630,16 @@ export function DepartmentPrintModal({
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
+            <StatusLegend
+              dense
+              className="hidden lg:flex"
+              items={[
+                { id: "kitchen", label: "Kitchen", swatch: "var(--hos-brass)" },
+                { id: "fb", label: "F&B", swatch: "var(--hos-emerald)" },
+                { id: "hk", label: "HK", swatch: "var(--hos-primary)" },
+                { id: "fo", label: "FO", swatch: "var(--hos-ink-2)" },
+              ]}
+            />
             <Button
               size="sm"
               variant="secondary"

@@ -1,7 +1,15 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, EmptyState, GlassPanel, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  EmptyState,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+} from "@hos-v2/ui";
 import {
   folioBalance,
   formatNu,
@@ -81,6 +89,15 @@ export function GuestsPage() {
       description="CID/Passport dossiers · LTV · VIP / frequent / spender flags · stay history"
       actions={
         <>
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "vip", label: "VIP", swatch: "var(--hos-brass)" },
+              { id: "freq", label: "Frequent", swatch: "var(--hos-primary)" },
+              { id: "spend", label: "Spender", swatch: "var(--hos-emerald)" },
+            ]}
+          />
           <Badge tone="default" className="border border-[var(--hos-primary)]">
             Identity Vault
           </Badge>

@@ -194,6 +194,18 @@ type ExtrasState = {
     phone: string;
     languages: string;
   }) => GuideReg;
+  /** Replace seed guides with vault rows from GET /v1/partners/snapshot. */
+  hydrateGuides: (
+    rows: {
+      id: string;
+      name: string;
+      tcr: string;
+      phone: string;
+      languages: string;
+      verified: boolean;
+      active: boolean;
+    }[],
+  ) => void;
   issueVoucher: (memberId: string, points: number) => { ok: true; code: string } | { ok: false; error: string };
   enrolLoyalty: (name: string, phone: string) => LoyaltyMember;
   bookEvent: (input: Omit<EventBooking, "id" | "status">) => EventBooking;
@@ -784,6 +796,36 @@ export const useExtrasStore = create<ExtrasState>((set, get) => ({
       });
     });
     return row;
+  },
+
+  hydrateGuides: (rows) => {
+    if (rows.length === 0) return;
+    const prevById = new Map(get().guides.map((g) => [g.id, g]));
+    const mapped: GuideReg[] = rows
+      .filter((r) => r.active !== false)
+      .map((row) => {
+        const prev = prevById.get(row.id);
+        const name = row.name.trim() || "Guide";
+        const initials = name
+          .split(/\s+/)
+          .map((p) => p[0] ?? "")
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
+        return {
+          id: row.id,
+          name,
+          tcr: row.tcr.trim(),
+          phone: row.phone.trim(),
+          languages: row.languages.trim() || prev?.languages || "Dzongkha · English",
+          verified: row.verified,
+          initials: initials || prev?.initials || "GD",
+          activeTours: prev?.activeTours ?? [],
+          mealVoucherActive: prev?.mealVoucherActive ?? false,
+          guideBed: prev?.guideBed ?? null,
+        };
+      });
+    set({ guides: mapped });
   },
 
   issueVoucher: (memberId, points) => {

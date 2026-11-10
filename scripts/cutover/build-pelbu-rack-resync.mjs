@@ -10,12 +10,17 @@ import path from "path";
 import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { parseRack } from "../../v1/web/scripts/lib/pelbu-olakha-rack.mjs";
+import {
+  resolveAgentName,
+  isJunkAgentCode,
+} from "./pelbu-agent-directory.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const XLSX_PATH =
   process.argv[2] || "C:/Users/rajiv/Downloads/Reservation 2026 (8).xlsx";
 const PROPERTY_SLUG = "pelbu-olakha";
-const TODAY = new Date().toISOString().slice(0, 10);
+/** Business “today” for checkout / in-house (Thimphu). Override: TODAY=2026-11-10 node … */
+const TODAY = process.env.TODAY || new Date().toISOString().slice(0, 10);
 const FROM = "2026-08-01";
 
 function uuidFrom(seed) {
@@ -133,8 +138,15 @@ function splitInclusive(total) {
 }
 
 /** Rate-card fallback nightly all-in (agent) when comment has no total. */
-function cardNightlyAllIn(meal, isSuite) {
+function cardNightlyAllIn(meal, isSuite, agentCode = "", occ = "D") {
   const m = meal || "EP";
+  const code = String(agentCode || "").toUpperCase();
+  // Locked SOULTRIPS MoU (double/twin vs single)
+  if (code === "ST" || code === "SOULTRIPS") {
+    if (m === "MAP" || m === "AP") return occ === "S" ? 4200 : 5600;
+    if (m === "CP") return occ === "S" ? 3600 : 4200;
+    return occ === "S" ? 3200 : 3600;
+  }
   if (isSuite) {
     if (m === "MAP" || m === "AP") return 10600;
     if (m === "CP") return 9300;
@@ -144,6 +156,17 @@ function cardNightlyAllIn(meal, isSuite) {
   if (m === "AP") return 6300;
   if (m === "CP") return 3450;
   return 3200;
+}
+
+function occupancyHint(stay, door) {
+  const raw = `${stay.raw_comment || ""} ${stay.guest_name || ""}`;
+  if (/\b1\s*(deluxe\s+)?single\b|\bsingle\s*room\b|\b01\s*deluxe\s*single\b/i.test(raw))
+    return "S";
+  if (/\bx\s*01\s*pax\b|\b01\s*pax\b|\b1\s*pax\b/i.test(raw) && !/\bx\s*0?[2-9]/i.test(raw))
+    return "S";
+  // Multi-door parties: if comment says N singles, leave default D unless one door marked
+  void door;
+  return "D";
 }
 
 function sqlStr(s) {
@@ -157,21 +180,19 @@ const stays = parsed.stays.filter(
 
 const agentBest = new Map();
 for (const stay of stays) {
-  const code = String(stay.agent_code || "").toUpperCase();
-  if (!code) continue;
-  const name = (stay.agent_name || "").trim();
-  const prev = agentBest.get(code) || { code, name: code, hits: 0 };
-  if (name && name !== code) {
-    prev.name = name;
-    prev.hits += 1;
-  }
+  const code = String(stay.agent_code || "").trim().toUpperCase();
+  if (!code || isJunkAgentCode(code)) continue;
+  const resolved = resolveAgentName(code, stay.agent_name || "");
+  const prev = agentBest.get(code) || { code, name: resolved, hits: 0 };
+  prev.name = resolveAgentName(code, stay.agent_name || prev.name);
+  prev.hits += 1;
   agentBest.set(code, prev);
 }
 
 const agents = [...agentBest.values()].map((a) => ({
   id: uuidFrom(`agent:${PROPERTY_SLUG}:${a.code}`),
   code: a.code,
-  name: a.name || a.code,
+  name: resolveAgentName(a.code, a.name),
 }));
 
 const groups = [];
@@ -184,14 +205,16 @@ for (const stay of stays) {
     .sort();
   if (!doors.length) continue;
 
-  const agentCode = String(stay.agent_code || "").toUpperCase();
+  const agentCode = String(stay.agent_code || "").trim().toUpperCase();
+  if (!agentCode || isJunkAgentCode(agentCode)) continue;
+  const agentName = resolveAgentName(agentCode, stay.agent_name || "");
   const agentId = uuidFrom(`agent:${PROPERTY_SLUG}:${agentCode}`);
   const meal = mealFromNotes(stay.raw_comment, stay.meal_plan_code);
   const guest = guestLabel(stay);
   const nationality = (stay.nationality || "").slice(0, 80);
   const notes = notesFor(stay);
-  const status = mapStatus(stay);
-  const gName = groupName(stay, doors);
+  const holdOrCancel = mapStatus(stay); // preserve cancelled / held from sheet
+  const gName = groupName({ ...stay, agent_name: agentName }, doors);
 
   let groupId = null;
   if (doors.length > 1 || gName) {
@@ -199,7 +222,7 @@ for (const stay of stays) {
     groupId = uuidFrom(gSeed);
     groups.push({
       id: groupId,
-      name: gName || `${stay.agent_name || agentCode} · ${doors.length} rm`,
+      name: gName || `${agentName} · ${doors.length} rm`,
       agentId,
     });
     if (doors.length > 1) multiRoomGroups += 1;
@@ -220,11 +243,17 @@ for (const stay of stays) {
     if (!nights.length) continue;
     const checkIn = nights[0];
     const checkOut = addDays(nights[nights.length - 1], 1);
+    // Date-drive FO status from THIS door's nights (ignore parser's pre-set in-house).
+    const status =
+      holdOrCancel === "cancelled" || holdOrCancel === "held" || holdOrCancel === "no_show"
+        ? holdOrCancel
+        : mapStatus({ check_in: checkIn, check_out: checkOut, status: "" });
     const seed = `${PROPERTY_SLUG}|rack|${door}|${checkIn}|${checkOut}|${agentCode}`;
     const isSuite = Number(door) >= 500;
+    const occ = occupancyHint(stay, door);
     let roomTotal = perRoomQuote;
     if (!(roomTotal > 0)) {
-      roomTotal = cardNightlyAllIn(meal, isSuite) * nights.length;
+      roomTotal = cardNightlyAllIn(meal, isSuite, agentCode, occ) * nights.length;
     }
     const money = splitInclusive(roomTotal);
     const nightlyNet = money
@@ -241,6 +270,7 @@ for (const stay of stays) {
       chargeId: uuidFrom(`ch:${seed}`),
       agentId,
       agentCode,
+      agentName,
       groupId,
       roomNumber: door,
       guestName: guest,

@@ -1,5 +1,6 @@
 import { Badge, GlassPanel, KpiCard, SpotlightCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
 
@@ -17,6 +18,16 @@ export function AmcPage() {
     <ModuleFrame
       title="AMC Contracts"
       description="Lift · gen · boiler renewal alerts"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "ok", label: "Active", swatch: "var(--hos-emerald)" },
+            { id: "warn", label: "Renew soon", swatch: "var(--hos-brass)" },
+            { id: "exp", label: "Expiring", swatch: "var(--hos-ruby)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

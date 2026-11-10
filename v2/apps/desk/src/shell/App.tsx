@@ -1,8 +1,22 @@
-import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
+import { createPortal } from "react-dom";
 import { motion } from "motion/react";
 import {
   CalendarDays,
   CloudOff,
+  KeyRound,
+  LogOut,
   Moon,
   Printer,
   Search,
@@ -32,7 +46,10 @@ import {
 } from "../lib/front-office-store";
 import { useFiscalStore } from "../lib/fiscal-store";
 import { useSettingsStore } from "../lib/settings-store";
-import { apiGet, runCommandRaw, sessionPropertyId } from "../lib/api";
+import { clearHotelGate } from "../lib/auth-session";
+import { clearDeskSession } from "../lib/desk-session";
+import { apiGet, HOS_PROPERTY_CHANGED_EVENT, runCommandRaw, sessionPropertyId } from "../lib/api";
+import { hydratePartnersRemote } from "../lib/partners-remote";
 import { nightAuditReadiness } from "../lib/action-dispatcher";
 import {
   flushOfflineBuffer,
@@ -244,6 +261,108 @@ function navBadge(
   return null;
 }
 
+function ProfileMenuPortal({
+  open,
+  anchorRef,
+  theme,
+  onClose,
+  onSwitchStaff,
+  onToggleTheme,
+  onLogoutHotel,
+}: {
+  open: boolean;
+  anchorRef: RefObject<HTMLElement | null>;
+  theme: "light" | "midnight";
+  onClose: () => void;
+  onSwitchStaff: () => void;
+  onToggleTheme: () => void;
+  onLogoutHotel: () => void;
+}) {
+  const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef.current) {
+      setPos(null);
+      return;
+    }
+    const place = () => {
+      const r = anchorRef.current!.getBoundingClientRect();
+      setPos({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, anchorRef]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointer = (e: PointerEvent) => {
+      const t = e.target;
+      if (!(t instanceof Element)) {
+        onClose();
+        return;
+      }
+      if (t.closest("[data-hos-profile-menu]") || t.closest("[data-hos-profile-panel]")) {
+        return;
+      }
+      onClose();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, onClose]);
+
+  if (!open || !pos || typeof document === "undefined") return null;
+
+  return createPortal(
+    <div
+      role="menu"
+      data-hos-profile-panel
+      className="hos-board-chrome fixed z-[200] w-48 overflow-hidden p-1"
+      style={{ top: pos.top, right: pos.right }}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] font-semibold text-[var(--hos-ink)] hover:bg-[var(--hos-canvas-2)]"
+        onClick={onSwitchStaff}
+      >
+        <KeyRound className="size-3.5" />
+        Switch staff
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] font-semibold text-[var(--hos-ink)] hover:bg-[var(--hos-canvas-2)]"
+        onClick={onToggleTheme}
+      >
+        {theme === "light" ? <Moon className="size-3.5" /> : <Sun className="size-3.5" />}
+        {theme === "light" ? "Midnight" : "Light desk"}
+      </button>
+      <button
+        type="button"
+        role="menuitem"
+        className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[12px] font-semibold text-[var(--hos-ruby)] hover:bg-[var(--hos-canvas-2)]"
+        onClick={onLogoutHotel}
+      >
+        <LogOut className="size-3.5" />
+        Log out hotel
+      </button>
+    </div>,
+    document.body,
+  );
+}
+
 export function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -256,6 +375,8 @@ export function App() {
   const [dispatcherOpen, setDispatcherOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
   const [moreOpen, setMoreOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileAnchorRef = useRef<HTMLButtonElement | null>(null);
   const [offlineSnap, setOfflineSnap] = useState<OfflineBufferSnapshot>({
     pending: 0,
     online: true,
@@ -401,10 +522,11 @@ export function App() {
     let cancelled = false;
     let attempt = 0;
     const run = () => {
+      const propertyId = sessionPropertyId();
       void hydrateFromApi().then((res) => {
         if (cancelled) return;
         if (!res.ok) {
-          console.warn("[shell] FO hydrate deferred", res.error);
+          console.warn("[shell] FO hydrate deferred", res.error, { propertyId });
           attempt += 1;
           if (attempt < 4) {
             window.setTimeout(run, 600 * attempt);
@@ -413,12 +535,34 @@ export function App() {
         }
         if (res.merged > 0) {
           toast.message(`FO board hydrated · ${res.merged} API booking(s)`);
+        } else {
+          console.warn("[shell] FO hydrate returned 0 bookings", { propertyId });
+        }
+      });
+      void hydratePartnersRemote().then((res) => {
+        if (cancelled) return;
+        if (!res.ok) {
+          console.warn("[shell] partners hydrate deferred", res.error, {
+            propertyId,
+          });
+          return;
+        }
+        if (res.agents > 0 || res.guides > 0) {
+          toast.message(
+            `Partners vault · ${res.agents} agent(s) · ${res.guides} guide(s)`,
+          );
         }
       });
     };
     run();
+    const onPropertyChanged = () => {
+      attempt = 0;
+      run();
+    };
+    window.addEventListener(HOS_PROPERTY_CHANGED_EVENT, onPropertyChanged);
     return () => {
       cancelled = true;
+      window.removeEventListener(HOS_PROPERTY_CHANGED_EVENT, onPropertyChanged);
     };
   }, [hydrateFromApi]);
 
@@ -668,6 +812,23 @@ export function App() {
   const toggleTheme = () =>
     setTheme((t) => (t === "light" ? "midnight" : "light"));
 
+  const closeProfile = useCallback(() => setProfileOpen(false), []);
+  const onProfileSwitchStaff = useCallback(() => {
+    setProfileOpen(false);
+    clearDeskSession();
+    navigate("/pin");
+  }, [navigate]);
+  const onProfileToggleTheme = useCallback(() => {
+    setProfileOpen(false);
+    toggleTheme();
+  }, []);
+  const onProfileLogoutHotel = useCallback(() => {
+    setProfileOpen(false);
+    clearDeskSession();
+    clearHotelGate();
+    navigate("/login/hotel");
+  }, [navigate]);
+
   const railWidth = railCollapsed ? 64 : 210;
 
   const isDeskRoute = location.pathname === "/desk";
@@ -692,64 +853,70 @@ export function App() {
     <div
       className={[
         /* Transparent so GlassShell StillWaterSurface L0 shows through gaps */
-        "grid h-screen overflow-hidden bg-transparent",
+        "grid h-screen max-w-full overflow-x-hidden overflow-y-hidden bg-transparent",
+        isPhone ? "hos-fo-contrast" : "",
         isChromeLess ? "grid-rows-[1fr]" : "grid-rows-[46px_1fr]",
       ].join(" ")}
     >
         {isChromeLess ? null : (
         <header
           data-tour="header"
-          className="hos-surface-glass z-10 flex h-[46px] shrink-0 items-center px-3"
+          className="hos-surface-glass z-10 flex h-[46px] max-w-full shrink-0 items-center overflow-hidden px-3"
         >
-          {/* Phone sticky top bar */}
-          <div className="flex w-full items-center gap-2 md:hidden">
-            <div className="flex min-w-0 items-center gap-2">
+          {/* Phone sticky top bar — keep under 390px (till + 2×48 controls fit) */}
+          <div className="flex w-full min-w-0 items-center gap-1.5 md:hidden">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
               <InnoraLogo size="sm" variant="sovereign" showText={false} />
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <strong className="truncate text-[14px] font-bold tracking-tight text-[var(--hos-ink)]">
+              <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 items-center gap-1">
+                  <strong className="truncate text-[13px] font-bold tracking-tight text-[var(--hos-ink)]">
                     {hotelName}
                   </strong>
-                  <span className="shrink-0 font-mono text-[10px] font-bold tracking-tight text-[var(--hos-brass)]">
+                  <span className="hidden shrink-0 font-mono text-[10px] font-bold tracking-tight text-[var(--hos-brass)] min-[360px]:inline">
                     {"★".repeat(Math.max(1, Math.min(5, dotStars)))}
                   </span>
                 </div>
                 <p className="m-0 truncate font-mono text-[10px] tabular-nums text-[var(--hos-ink-3)]">
-                  {bizLabel} · live desk
+                  {bizLabel}
                 </p>
               </div>
             </div>
-            <div className="ml-auto flex shrink-0 items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1">
               <div
-                className="hos-glass-card flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px]"
+                className="hos-glass-card flex max-w-[7.5rem] items-center gap-1 rounded-full px-2 py-1 text-[10px]"
                 data-glow="emerald"
               >
                 <LedBeacon tone="emerald" />
                 <CurrencyCell
                   amount={tillBalance}
-                  showCents
-                  className="text-[11px] text-[var(--hos-ink)]"
+                  showCents={false}
+                  className="truncate text-[11px] text-[var(--hos-ink)]"
                 />
               </div>
               <button
                 type="button"
-                className="hos-btn-tactile inline-flex size-10 items-center justify-center rounded-xl border border-[var(--hos-glass-border)] bg-[var(--hos-surface)]"
+                className="hos-btn-tactile inline-flex size-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[var(--hos-glass-border)] bg-[var(--hos-surface)]"
                 onClick={() => setPaletteOpen(true)}
                 aria-label="Search"
               >
                 <Search className="size-4" strokeWidth={1.75} />
               </button>
-              <button
-                type="button"
-                onClick={() => navigate("/")}
-                className="hos-btn-tactile flex size-10 items-center justify-center rounded-full border border-[var(--hos-glass-border)] bg-[var(--hos-surface)]"
-                title="Switch Staff PIN"
-                aria-label="Cashier"
-              >
-                <span className="hos-btn-primary flex size-7 items-center justify-center rounded-full text-[10px] font-semibold text-white">
-                  KD
-                </span>
-              </button>
+              <div className="relative" data-hos-profile-menu>
+                <button
+                  ref={profileAnchorRef}
+                  type="button"
+                  onClick={() => setProfileOpen((v) => !v)}
+                  className="hos-btn-tactile flex size-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-[var(--hos-glass-border)] bg-[var(--hos-surface)]"
+                  title="Staff menu"
+                  aria-label="Cashier"
+                  aria-expanded={profileOpen}
+                  aria-haspopup="menu"
+                >
+                  <span className="hos-btn-primary flex size-6 items-center justify-center rounded-full text-[10px] font-semibold text-white">
+                    KD
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
@@ -947,21 +1114,35 @@ export function App() {
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={() => navigate("/")}
-                className="hos-btn-tactile flex items-center gap-1 rounded-full border border-[var(--hos-glass-border)] bg-[var(--hos-surface)] py-0.5 pl-0.5 pr-1.5 text-[10px] font-semibold text-[var(--hos-ink-2)]"
-                title="Switch Staff PIN"
-              >
-                <span className="hos-btn-primary flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white">
-                  KD
-                </span>
-                <span className="hidden lg:inline">Karma</span>
-              </button>
+              <div className="relative" data-hos-profile-menu>
+                <button
+                  ref={profileAnchorRef}
+                  type="button"
+                  onClick={() => setProfileOpen((v) => !v)}
+                  className="hos-btn-tactile flex items-center gap-1 rounded-full border border-[var(--hos-glass-border)] bg-[var(--hos-surface)] py-0.5 pl-0.5 pr-1.5 text-[10px] font-semibold text-[var(--hos-ink-2)]"
+                  title="Staff menu"
+                  aria-expanded={profileOpen}
+                  aria-haspopup="menu"
+                >
+                  <span className="hos-btn-primary flex size-5 items-center justify-center rounded-full text-[9px] font-bold text-white">
+                    KD
+                  </span>
+                  <span className="hidden lg:inline">Karma</span>
+                </button>
+              </div>
             </div>
           </div>
         </header>
         )}
+        <ProfileMenuPortal
+          open={profileOpen}
+          anchorRef={profileAnchorRef}
+          theme={theme}
+          onClose={closeProfile}
+          onSwitchStaff={onProfileSwitchStaff}
+          onToggleTheme={onProfileToggleTheme}
+          onLogoutHotel={onProfileLogoutHotel}
+        />
 
         <div className="flex min-h-0 min-w-0 overflow-hidden">
           {isChromeLess ? null : (
@@ -1083,18 +1264,18 @@ export function App() {
 
           <main
             className={[
-              "desk-main min-h-0 min-w-0 flex-1",
+              "desk-main min-h-0 min-w-0 max-w-full flex-1 box-border",
               isChromeLess
                 ? "p-0"
                 : isStayViewRoute
                   /* Edge-to-edge rack on phone; dock clearance matches glass-dock height once */
-                  ? "px-0 pt-0 pb-[calc(var(--mobile-dock-height)+env(safe-area-inset-bottom,0px))] md:p-2"
+                  ? "px-0 pt-0 pb-[var(--mobile-dock-clearance)] md:p-2 md:pb-2"
                   /* Symmetric gutters; md+ has no dock so drop the dock clearance */
-                  : "px-3 pt-3 pb-[calc(var(--mobile-dock-height)+env(safe-area-inset-bottom,0px))] md:p-3",
+                  : "px-3 pt-3 pb-[var(--mobile-dock-clearance)] md:p-3 md:pb-3",
               /* Non–zero-scroll modules need both axes (wide ledgers / mobile) */
               isZeroScrollRoute
                 ? "flex flex-col overflow-hidden"
-                : "hos-scrollbar-slim overflow-auto",
+                : "hos-scrollbar-slim overflow-x-hidden overflow-y-auto",
             ].join(" ")}
           >
             <PageTransition

@@ -746,8 +746,8 @@ export function PinGateway() {
   const [weatherLoading, setWeatherLoading] = useState(true);
 
   const STAFF = useMemo(() => {
-    /* Exclusive: only API staff for the hotel-gated property — no field/demo presets. */
-    return liveStaff;
+    /* Live property staff first; local Vite demo presets when API has no DB. */
+    return liveStaff.length > 0 ? liveStaff : DEMO_STAFF;
   }, [liveStaff]);
 
   const selected = STAFF.find((s) => s.id === selectedId) ?? STAFF[0] ?? null;
@@ -850,6 +850,7 @@ export function PinGateway() {
         updateProfile({ hotelName: property.name });
         localStorage.setItem("hos.v2.propertySlug", property.slug);
         localStorage.setItem("hos.v2.propertyId", property.id);
+        window.dispatchEvent(new Event("hos:v2:property-changed"));
         const mapped = staff.map(staffFromApi);
         setLiveStaff(mapped);
         if (mapped[0]) setSelectedId(mapped[0].id);
@@ -1112,134 +1113,55 @@ export function PinGateway() {
     );
   }
 
-  /* —— Phone: immersive hero + premium vault —— */
+  /* —— Phone: neumorph hero station + pad (full name first) —— */
   if (isPhone) {
     return (
       <Shell accent={selected.accent} onMove={onStageMove} stageRef={stageRef}>
         <div
-          className="hos-pin-mobile relative z-[1] mx-auto flex h-full w-full max-w-md flex-col px-[var(--pin-pad-x)] pb-[max(0.55rem,env(safe-area-inset-bottom))] pt-[max(0.5rem,env(safe-area-inset-top))]"
+          className="hos-pin-mobile hos-pin-neo hos-fo-contrast relative z-[1] mx-auto flex h-full w-full max-w-lg flex-col px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.65rem,env(safe-area-inset-top))]"
           data-density={shortPhone ? "short" : "comfort"}
         >
-          <div className="hos-pin-mobile-mesh" aria-hidden />
-
-          <header className="hos-pin-mobile-header relative z-[1] flex shrink-0 items-start justify-between gap-2.5">
-            <div className="min-w-0">
-              <div
-                className={[
-                  "flex items-center gap-2",
-                  shortPhone ? "mb-1" : "mb-2",
-                ].join(" ")}
-              >
-                <InnorahotelLogo size={shortPhone ? 34 : 38} variant="sovereign" showText={false} />
-                <div className="min-w-0">
-                  <strong className="block truncate text-[13px] font-black tracking-tight text-[var(--hos-ink)]">
-                    {hotelName}
-                  </strong>
-                  <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--hos-ink-3)] font-mono">
-                    innorahotel.com · {dzongkhag}
-                  </span>
-                </div>
-              </div>
-              <motion.h1
-                key={greeting}
-                className="hos-pin-mobile-greeting font-black text-[var(--hos-ink)]"
-                initial={reduce ? false : { opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={easeVolary}
-              >
-                {greeting}
-              </motion.h1>
-              <p className="hos-pin-mobile-sub m-0 mt-1 text-[12px] font-medium text-[var(--hos-ink-3)]">
-                Select your station · enter PIN
-              </p>
+          <header className="relative z-[1] flex shrink-0 items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <InnorahotelLogo size={32} variant="sovereign" showText={false} />
+              <strong className="truncate text-[15px] font-black tracking-tight text-[var(--hos-ink)]">
+                {hotelName}
+              </strong>
             </div>
-            <div className="flex shrink-0 flex-col items-end gap-1.5">
-              <button
-                type="button"
-                className="hos-glass-card inline-flex items-center gap-1 rounded-[10px] px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--hos-ink-2)]"
-                onClick={logoutHotel}
-                data-testid="pin-logout-hotel"
-                aria-label="Log out of hotel"
-              >
-                <LogOut className="size-3" strokeWidth={2} aria-hidden />
-                Log out
-              </button>
-              <div
-                className={[
-                  "hos-glass-card text-right shadow-[var(--hos-shadow-volaro)]",
-                  shortPhone
-                    ? "rounded-[12px] px-2 py-1.5"
-                    : "rounded-[14px] px-2.5 py-1.5",
-                ].join(" ")}
-              >
-                <span className="mb-0.5 flex items-center justify-end gap-1 text-[8px] font-bold uppercase tracking-[0.14em] text-[var(--hos-ink-3)]">
-                  <span className="hos-live-dot" data-status="live" /> Live
-                </span>
-                <div
-                  className={[
-                    "font-mono font-black tabular-nums tracking-tight text-[var(--hos-ink)]",
-                    shortPhone ? "text-[1rem]" : "text-[1.1rem]",
-                  ].join(" ")}
-                >
-                  {clock}
-                </div>
-                <div className="text-[9px] font-semibold text-[var(--hos-ink-3)]">
-                  {dateLabel}
-                </div>
-              </div>
-            </div>
+            <button
+              type="button"
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl text-[var(--hos-ink)]"
+              onClick={logoutHotel}
+              data-testid="pin-logout-hotel"
+              aria-label="Log out of hotel"
+            >
+              <LogOut className="size-4" strokeWidth={2.25} aria-hidden />
+            </button>
           </header>
 
-          <div className="relative z-[1] mb-[calc(var(--pin-gap-y)*0.75)] shrink-0">
-            <PinPlaceWeather
-              compact={shortPhone}
-              hotelName={hotelName}
-              dzongkhag={dzongkhag}
-              weather={weather}
-              loading={weatherLoading}
-            />
-          </div>
-
-          <div className="hos-pin-mobile-staff relative z-[1] shrink-0">
-            <p className="mb-1.5 px-0.5 text-[9px] font-black uppercase tracking-[0.16em] text-[var(--hos-ink-3)]">
-              On duty
+          {properties.length > 1 ? (
+            <select
+              className="relative z-[1] mt-2 w-full rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2.5 text-[13px] font-bold text-[var(--hos-ink)]"
+              value={propertySlug}
+              onChange={(e) => onPropertyChange(e.target.value)}
+              aria-label="Select hotel"
+            >
+              {properties.map((p) => (
+                <option key={p.id} value={p.slug}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {staffError ? (
+            <p className="relative z-[1] mt-1.5 text-[11px] font-semibold text-[var(--hos-ruby)]">
+              {staffError}
             </p>
-            {properties.length > 1 ? (
-              <label className="mb-2 block px-0.5">
-                <span className="mb-1 block text-[9px] font-black uppercase tracking-[0.16em] text-[var(--hos-ink-3)]">
-                  Hotel
-                </span>
-                <select
-                  className="hos-glass-card w-full rounded-[12px] border border-white/20 bg-white/40 px-2.5 py-2 text-[12px] font-semibold text-[var(--hos-ink)]"
-                  value={propertySlug}
-                  onChange={(e) => onPropertyChange(e.target.value)}
-                  aria-label="Select hotel"
-                >
-                  {properties.map((p) => (
-                    <option key={p.id} value={p.slug}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {staffError ? (
-              <p className="mb-1.5 px-0.5 text-[10px] font-semibold text-[var(--hos-danger,#ef4444)]">
-                {staffError} · demo stations shown
-              </p>
-            ) : null}
-            <StaffPicker
-              staff={STAFF}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              mode="avatars"
-              reduce={reduce}
-            />
-          </div>
+          ) : null}
 
           <motion.div
-            className="hos-pin-vault relative z-[1] mt-auto"
-            initial={reduce ? false : { opacity: 0, y: 22 }}
+            className="hos-pin-vault relative z-[1] mt-3 flex min-h-0 flex-1 flex-col justify-between gap-3"
+            initial={reduce ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={easeVolary}
             style={
@@ -1248,109 +1170,67 @@ export function PinGateway() {
               } as CSSProperties
             }
           >
-            <div
-              className="pointer-events-none absolute -right-8 -top-10 size-28 rounded-full opacity-35 blur-2xl sm:size-36"
-              style={{ background: selected.accent }}
-              aria-hidden
-            />
-
-            <div
-              className="hos-pin-vault-identity relative"
-              data-hero="true"
-              data-compact={compactIdentity ? "true" : undefined}
-            >
-              {!shortPhone ? (
-                <motion.div
-                  key={selected.id}
-                  initial={reduce ? false : { opacity: 0, scale: 0.96 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={springSnappy}
-                  className={
-                    compactIdentity
-                      ? "flex items-center gap-2.5"
-                      : "flex flex-col items-center gap-1.5"
-                  }
-                >
-                  <span
-                    className="flex shrink-0 items-center justify-center font-black text-white shadow-[0_16px_36px_-14px_rgba(0,0,0,0.5)]"
-                    style={{
-                      width: "var(--pin-hero-avatar)",
-                      height: "var(--pin-hero-avatar)",
-                      borderRadius: "calc(var(--pin-hero-avatar) * 0.32)",
-                      fontSize: "calc(var(--pin-hero-avatar) * 0.28)",
-                      background: `linear-gradient(145deg, ${selected.accent}, #111)`,
-                    }}
-                  >
-                    {selected.initials}
-                  </span>
-                  <div className="hos-pin-vault-meta text-center">
-                    <div className="text-[15px] font-black tracking-tight text-[var(--hos-ink)] sm:text-[16px]">
-                      {selected.name}
-                    </div>
-                    <div className="mt-0.5 text-[11px] font-semibold text-[var(--hos-ink-3)]">
-                      {selected.role} · {selected.badge}
-                    </div>
-                  </div>
-                </motion.div>
-              ) : (
-                <div className="hos-pin-vault-meta text-center">
-                  <div className="text-[14px] font-black tracking-tight text-[var(--hos-ink)]">
-                    {selected.name.split(" ")[0]} · {selected.badge}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--hos-ink-3)]">
-                  <Fingerprint className="size-3" strokeWidth={2} />
-                  {pinHint}
-                </span>
-                <PinDots digits={digits} shake={shake} reduce={reduce} premium />
-              </div>
-            </div>
-
-            <Keypad
-              unlocking={unlocking}
-              accent={selected.accent}
-              reduce={reduce}
-              onKey={onKey}
-              premium
-            />
-
-            <div className="relative shrink-0">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={unlocking ? "go" : digits.length === 4 ? "ready" : "idle"}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                >
-                  {unlocking ? (
-                    <div className="hos-pin-unlock flex items-center justify-center gap-2 rounded-full bg-[#111] px-4 text-[13px] font-bold text-white shadow-[0_16px_36px_-16px_#111]">
-                      <ShieldCheck className="size-4" strokeWidth={2} />
-                      Opening cockpit…
-                    </div>
-                  ) : (
-                    <Button
-                      magnetic
-                      disabled={digits.length < 4}
-                      className="hos-btn-ink hos-btn-spring hos-pin-unlock w-full !rounded-full text-[14px] font-bold disabled:!bg-[var(--hos-ink-3)]"
-                      onClick={() => digits.length === 4 && tryUnlock(digits)}
-                    >
-                      <Lock className="mr-1.5 size-3.5" strokeWidth={2} />
-                      Unlock desk
-                    </Button>
-                  )}
-                </motion.div>
-              </AnimatePresence>
-            </div>
-
-            <p className="hos-pin-mobile-sub m-0 text-center text-[9px] font-semibold text-[var(--hos-ink-3)]">
-              Demo training PIN ·{" "}
-              <span className="font-mono tracking-wider">
-                {selected.badge} {selected.pin}
+            <div className="flex shrink-0 flex-col items-center gap-2 pt-1">
+              <span
+                className="hos-pin-hero-avatar flex size-16 items-center justify-center rounded-[1.35rem] text-[18px] font-black text-white"
+                style={{
+                  background: `linear-gradient(145deg, ${selected.accent} 0%, #111 100%)`,
+                }}
+              >
+                {selected.initials}
               </span>
-            </p>
+              <div className="text-center">
+                <div className="text-[20px] font-black tracking-tight text-[var(--hos-ink)]">
+                  {selected.name}
+                </div>
+                <div className="mt-0.5 text-[12px] font-semibold text-[var(--hos-ink-2)]">
+                  {selected.role}
+                  {selected.badge ? ` · ${selected.badge}` : ""}
+                </div>
+              </div>
+              <div className="w-full max-w-sm">
+                <StaffPicker
+                  staff={STAFF}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  mode="avatars"
+                  reduce={reduce}
+                />
+              </div>
+              <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-2)]">
+                {pinHint}
+              </span>
+              <PinDots digits={digits} shake={shake} reduce={reduce} premium />
+            </div>
+
+            <div className="flex min-h-0 flex-1 flex-col justify-center">
+              <Keypad
+                unlocking={unlocking}
+                accent={selected.accent}
+                reduce={reduce}
+                onKey={onKey}
+                premium
+              />
+            </div>
+
+            <div className="shrink-0 pb-1">
+              {unlocking ? (
+                <div className="hos-pin-unlock flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#111] px-4 text-[14px] font-bold text-white">
+                  <ShieldCheck className="size-4" strokeWidth={2} />
+                  Opening desk…
+                </div>
+              ) : (
+                <Button
+                  magnetic
+                  disabled={digits.length < 4}
+                  className="hos-btn-ink hos-btn-spring hos-pin-unlock w-full !min-h-12 !rounded-full text-[15px] font-bold disabled:!bg-[var(--hos-ink-3)]"
+                  onClick={() => digits.length === 4 && tryUnlock(digits)}
+                >
+                  <Lock className="mr-1.5 size-4" strokeWidth={2.25} />
+                  Unlock
+                </Button>
+              )}
+            </div>
           </motion.div>
         </div>
       </Shell>

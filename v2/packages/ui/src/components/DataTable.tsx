@@ -43,7 +43,7 @@ export function DataTable<T>({
   }
 
   return (
-    <div className={cn("hos-table-shell hos-scrollbar-slim", className)}>
+    <div className={cn("hos-table-shell hos-data-plane hos-scrollbar-slim", className)}>
       <table className="hos-data">
         <thead>
           {table.getHeaderGroups().map((hg) => (

@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu, ymd } from "../lib/front-office-store";
 import { useExtrasStore } from "../lib/extras-store";
@@ -25,6 +26,16 @@ export function EventsPage() {
     <ModuleFrame
       title="Events & Banquets"
       description="Function diary · BEO"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "conf", label: "Confirmed", swatch: "var(--hos-emerald)" },
+            { id: "tent", label: "Tentative", swatch: "var(--hos-brass)" },
+            { id: "inv", label: "Invoiced", swatch: "var(--hos-primary)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

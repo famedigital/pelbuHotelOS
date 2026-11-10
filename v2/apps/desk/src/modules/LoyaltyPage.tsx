@@ -3,6 +3,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { useExtrasStore } from "../lib/extras-store";
 
@@ -31,6 +32,16 @@ export function LoyaltyPage() {
     <ModuleFrame
       title="Loyalty"
       description="Druk · Tashi · Norbu points ledger"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "druk", label: "Druk Gold", swatch: "var(--hos-brass)" },
+            { id: "tashi", label: "Tashi", swatch: "var(--hos-ink-3)" },
+            { id: "norbu", label: "Norbu", swatch: "var(--hos-primary)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

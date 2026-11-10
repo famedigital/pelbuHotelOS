@@ -1,6 +1,13 @@
 import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
-import { Badge, Button, GlassPanel, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+} from "@hos-v2/ui";
 import { DRC_REPORTS, useFiscalStore } from "../lib/fiscal-store";
 
 export function ReportsPage() {
@@ -16,16 +23,27 @@ export function ReportsPage() {
       title="Reports Studio"
       description="16 DRC reports · BST-3 pack — live from desk RAM engine"
       actions={
-        <Button
-          size="sm"
-          onClick={() =>
-            toast.success(`Exported ${meta.title}`, {
-              description: "PDF + XLSX queued for owner inbox",
-            })
-          }
-        >
-          Export PDF / XLSX
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "drc", label: "DRC", swatch: "var(--hos-primary)" },
+              { id: "live", label: "Live RAM", swatch: "var(--hos-emerald)" },
+              { id: "pack", label: "BST-3", swatch: "var(--hos-brass)" },
+            ]}
+          />
+          <Button
+            size="sm"
+            onClick={() =>
+              toast.success(`Exported ${meta.title}`, {
+                description: "PDF + XLSX queued for owner inbox",
+              })
+            }
+          >
+            Export PDF / XLSX
+          </Button>
+        </div>
       }
     >
     <div className="flex flex-col gap-4">

@@ -8,6 +8,7 @@ import {
   MorphTabs,
   SpotlightCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu } from "../lib/front-office-store";
 import { useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
@@ -93,6 +94,16 @@ export function RegistryPage() {
     <ModuleFrame
       title="Guides & Fleet Marketplace"
       description="Innora-wide find · requests · TCB registry · opaque room commissions"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "guide", label: "Guides", swatch: "var(--hos-primary)" },
+            { id: "fleet", label: "Fleet", swatch: "var(--hos-brass)" },
+            { id: "amc", label: "AMC alert", swatch: "var(--hos-ruby)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

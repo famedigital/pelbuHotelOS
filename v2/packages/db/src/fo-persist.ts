@@ -6,6 +6,7 @@
 import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "./client.js";
 import {
+  agents,
   bookingLines,
   bookings,
   folioLines,
@@ -687,6 +688,9 @@ export type FoHydrateSnapshot = {
     status: string;
     guestId: string | null;
     guestName: string;
+    agentId: string | null;
+    /** Resolved travel-agent display name for desk Agency bill. */
+    agencyName: string | null;
     groupId: string | null;
     checkIn: string;
     checkOut: string;
@@ -763,6 +767,7 @@ export async function loadFrontOfficeSnapshot(
     const roomRows = await db.select().from(rooms);
     const guestRows = await db.select().from(guests);
     const groupRows = await db.select().from(groups);
+    const agentRows = await db.select().from(agents);
     const bookingRows = await db.select().from(bookings);
     const lineRows = await db.select().from(bookingLines);
     const assignRows = await db.select().from(roomAssignments);
@@ -771,6 +776,7 @@ export async function loadFrontOfficeSnapshot(
     const chargeRows = await db.select().from(folioLines);
 
     const guestNameById = new Map(guestRows.map((g) => [g.id, g.fullName]));
+    const agentNameById = new Map(agentRows.map((a) => [a.id, a.name]));
     const bookingIdByLine = new Map(lineRows.map((l) => [l.id, l.bookingId]));
 
     const activeRoomByLine = new Map<string, string>();
@@ -849,6 +855,8 @@ export async function loadFrontOfficeSnapshot(
           status: b.status,
           guestId: b.guestId,
           guestName: (b.guestId && guestNameById.get(b.guestId)) || "Guest",
+          agentId: b.agentId ?? null,
+          agencyName: (b.agentId && agentNameById.get(b.agentId)) || null,
           groupId: b.groupId,
           checkIn: String(b.checkIn),
           checkOut: String(b.checkOut),

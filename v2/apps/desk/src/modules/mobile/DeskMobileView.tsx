@@ -2,7 +2,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, EmptyState, Odometer } from "@hos-v2/ui";
-import { CalendarDays, Crown, KeyRound, MoonStar, Zap } from "lucide-react";
+import { CalendarDays, Crown, KeyRound, LayoutGrid, MoonStar, Table2, Zap } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   formatNu,
@@ -18,6 +18,7 @@ import { staysForCalendarDay } from "./MobileMonthCalendar";
 import { MobileCalendarSheet } from "./MobileCalendarSheet";
 
 type Tab = "arrivals" | "inHouse" | "departures" | "tomorrow" | "day";
+type ListMode = "table" | "cards";
 
 function initials(name: string): string {
   return name
@@ -28,11 +29,12 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-/** Phone Desk — enterprise KPI rail, ink segments, boarding-pass ops. */
+/** Phone Desk — table (default) + boarding-pass cards for Arrivals / In-house / Checkout. */
 export function DeskMobileView() {
   const reduce = useReducedMotion();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("arrivals");
+  const [listMode, setListMode] = useState<ListMode>("table");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
@@ -135,7 +137,7 @@ export function DeskMobileView() {
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "arrivals", label: "Arrivals", count: arrivals.length },
     { id: "inHouse", label: "In-house", count: inHouse.length },
-    { id: "departures", label: "Out", count: departures.length },
+    { id: "departures", label: "Checkout", count: departures.length },
     { id: "tomorrow", label: "Tomorrow", count: tomorrowArrivals.length },
     ...(tab === "day" || calSelected !== today
       ? [
@@ -237,6 +239,40 @@ export function DeskMobileView() {
         >
           <Crown className="size-3.5" strokeWidth={2} />
         </button>
+        <div
+          className="flex shrink-0 overflow-hidden rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]"
+          role="group"
+          aria-label="List layout"
+        >
+          <button
+            type="button"
+            onClick={() => setListMode("table")}
+            className={`hos-btn-tactile inline-flex min-h-9 min-w-9 items-center justify-center px-2 ${
+              listMode === "table"
+                ? "bg-[var(--hos-primary)] text-white"
+                : "text-[var(--hos-ink-2)]"
+            }`}
+            aria-pressed={listMode === "table"}
+            aria-label="Table view"
+            title="Table view"
+          >
+            <Table2 className="size-3.5" strokeWidth={2} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setListMode("cards")}
+            className={`hos-btn-tactile inline-flex min-h-9 min-w-9 items-center justify-center px-2 ${
+              listMode === "cards"
+                ? "bg-[var(--hos-primary)] text-white"
+                : "text-[var(--hos-ink-2)]"
+            }`}
+            aria-pressed={listMode === "cards"}
+            aria-label="Card view"
+            title="Card view"
+          >
+            <LayoutGrid className="size-3.5" strokeWidth={2} />
+          </button>
+        </div>
       </div>
 
       <div className="hos-mobile-segment-rail -mx-1 px-1">
@@ -306,6 +342,117 @@ export function DeskMobileView() {
               </Button>
             }
           />
+        ) : listMode === "table" ? (
+          <div className="overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+            <table className="w-full min-w-[34rem] border-collapse text-left text-[11px]">
+              <thead>
+                <tr className="border-b border-[var(--hos-line)] text-[9px] font-bold uppercase tracking-[0.08em] text-[var(--hos-ink-3)]">
+                  <th className="px-2.5 py-2">Guest</th>
+                  <th className="px-2 py-2">Rm</th>
+                  <th className="px-2 py-2">Stay</th>
+                  <th className="px-2 py-2">Meal</th>
+                  <th className="px-2 py-2 text-right">Balance</th>
+                  <th className="px-2.5 py-2 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--hos-line)]">
+                {rows.map((s) => {
+                  const bal = folioBalance(s);
+                  const canCheckIn =
+                    ["confirmed", "held"].includes(s.status) && Boolean(s.roomId);
+                  const canCheckOut = s.status === "checked_in";
+                  return (
+                    <tr
+                      key={s.id}
+                      className="active:bg-[rgba(37,99,235,0.06)]"
+                      onClick={() => openStay(s.id)}
+                    >
+                      <td className="max-w-[9rem] px-2.5 py-2.5">
+                        <div className="truncate font-semibold text-[var(--hos-ink)]">
+                          {s.guestName}
+                          {s.vip ? " ★" : ""}
+                        </div>
+                        <div className="truncate font-mono text-[10px] text-[var(--hos-ink-3)]">
+                          {s.confirmationNo}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2.5 font-mono font-bold tabular-nums text-[var(--hos-primary)]">
+                        {s.roomNumber ?? "—"}
+                      </td>
+                      <td className="whitespace-nowrap px-2 py-2.5 tabular-nums text-[var(--hos-ink-2)]">
+                        {nightsBetween(s.checkIn, s.checkOut)}N
+                        <div className="text-[10px] text-[var(--hos-ink-3)]">
+                          {s.checkIn.slice(5)}→{s.checkOut.slice(5)}
+                        </div>
+                      </td>
+                      <td className="px-2 py-2.5 font-mono text-[var(--hos-ink-2)]">
+                        {s.mealPlan}
+                      </td>
+                      <td
+                        className={[
+                          "px-2 py-2.5 text-right font-mono font-bold tabular-nums",
+                          bal > 0.5
+                            ? "text-[var(--hos-ruby)]"
+                            : "text-[var(--hos-emerald)]",
+                        ].join(" ")}
+                      >
+                        {formatNu(bal)}
+                      </td>
+                      <td
+                        className="px-2.5 py-2 text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {canCheckIn ? (
+                          <Button
+                            size="sm"
+                            className="hos-btn-ink !min-h-8 !rounded-lg !px-2.5 text-[11px]"
+                            onClick={() => {
+                              void (async () => {
+                                const res = await checkIn(s.id);
+                                if (!res.ok) toast.error(res.error);
+                                else
+                                  toast.success(`Checked in · Rm ${s.roomNumber}`);
+                              })();
+                            }}
+                          >
+                            CI
+                          </Button>
+                        ) : canCheckOut ? (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="!min-h-8 !rounded-lg !px-2.5 text-[11px]"
+                            onClick={() => {
+                              void (async () => {
+                                const res = await checkOut(s.id);
+                                if (!res.ok) {
+                                  toast.error(res.error);
+                                  if (bal > 0.5) openStay(s.id);
+                                  return;
+                                }
+                                toast.success("Checked out");
+                              })();
+                            }}
+                          >
+                            CO
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="!min-h-8 !rounded-lg !px-2.5 text-[11px]"
+                            onClick={() => openStay(s.id)}
+                          >
+                            Folio
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         ) : (
           rows.map((s, i) => {
             const bal = folioBalance(s);

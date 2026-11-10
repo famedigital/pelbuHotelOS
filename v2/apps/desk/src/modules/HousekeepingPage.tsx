@@ -1,7 +1,15 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Badge, Button, GlassPanel, KpiCard, ModuleFrame, useIsPhone } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+  useIsPhone,
+} from "@hos-v2/ui";
 import { useFrontOfficeStore, type HkStatus } from "../lib/front-office-store";
 import { useOpsStore } from "../lib/ops-store";
 import { HousekeepingMobileView } from "./mobile/HousekeepingMobileView";
@@ -84,9 +92,20 @@ export function HousekeepingPage() {
       title="Housekeeping"
       description="Floor grid · maid assign · 1-tap status · FD vs HK discrepancy · maintenance OOO"
       actions={
-        <Badge tone="default" className="border border-[var(--hos-primary)]">
-          Discrepancy Grid
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            items={[
+              { id: "dirty", label: "Dirty", swatch: "var(--hos-ruby)" },
+              { id: "clean", label: "Clean", swatch: "var(--hos-emerald)" },
+              { id: "occ", label: "Occupied", swatch: "var(--hos-primary)" },
+              { id: "ooo", label: "OOO", swatch: "var(--hos-ink-3)" },
+            ]}
+          />
+          <Badge tone="default" className="border border-[var(--hos-primary)]">
+            Discrepancy Grid
+          </Badge>
+        </div>
       }
     >
     <div className="flex flex-col gap-4">

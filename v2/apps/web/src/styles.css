@@ -1,14 +1,15 @@
+/* Public innorahotel.com — unslop: quiet chrome, night photo carries color */
 :root {
-  --ink: #f6f1e7;
-  --ink-dim: rgba(246, 241, 231, 0.72);
-  --ink-faint: rgba(246, 241, 231, 0.48);
-  --void: #05070c;
-  --brass: #c9a227;
-  --brass-bright: #e4c56a;
-  --line: rgba(246, 241, 231, 0.14);
+  --ink: #f3eee4;
+  --ink-2: rgba(243, 238, 228, 0.72);
+  --ink-3: rgba(243, 238, 228, 0.48);
+  --void: #0a0c10;
+  --surface: #12161e;
+  --brass: #c4a35a;
+  --line: rgba(243, 238, 228, 0.1);
   --font-display: "Fraunces", "Times New Roman", serif;
   --font-body: "Sora", system-ui, sans-serif;
-  --max: 1180px;
+  --max: 1120px;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -41,6 +42,7 @@ body {
   background: var(--void);
   color: var(--ink);
   font-family: var(--font-body);
+  font-weight: 400;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -55,7 +57,7 @@ button {
 }
 
 .wrap {
-  width: min(100% - 2.5rem, var(--max));
+  width: min(100% - 40px, var(--max));
   margin-inline: auto;
 }
 
@@ -65,23 +67,24 @@ button {
   inset-inline: 0;
   top: 0;
   z-index: 30;
-  padding: 1.5rem 0;
+  padding: 20px 0;
 }
 
 .nav-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 16px;
 }
 
 .nav-links {
   display: none;
-  gap: 1.75rem;
-  font-size: 0.78rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-dim);
+  gap: 28px;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
 }
 
 .nav-links a:hover {
@@ -91,20 +94,21 @@ button {
 .nav-cta {
   display: inline-flex;
   align-items: center;
-  min-height: 44px;
-  padding: 0 1.2rem;
-  border: 1px solid var(--brass);
-  color: var(--brass-bright);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  transition: background 180ms var(--ease), color 180ms var(--ease);
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  transition: background-color 140ms ease, border-color 140ms ease;
 }
 
 .nav-cta:hover {
-  background: var(--brass);
-  color: #1a1408;
+  border-color: var(--brass);
+  color: var(--brass);
 }
 
 /* —— Hero —— */
@@ -127,15 +131,7 @@ button {
   height: 100%;
   object-fit: cover;
   object-position: center 30%;
-  filter: saturate(0.92) contrast(1.05);
-  transform: scale(1.03);
-  animation: ken 36s var(--ease) infinite alternate;
-}
-
-@keyframes ken {
-  to {
-    transform: scale(1.09) translate3d(-1%, -0.8%, 0);
-  }
+  filter: saturate(0.92) contrast(1.04);
 }
 
 .hero-shade {
@@ -143,49 +139,49 @@ button {
   inset: 0;
   z-index: -1;
   background:
-    linear-gradient(90deg, rgba(5, 7, 12, 0.78) 0%, rgba(5, 7, 12, 0.35) 48%, rgba(5, 7, 12, 0.55) 100%),
-    linear-gradient(180deg, rgba(5, 7, 12, 0.25) 0%, rgba(5, 7, 12, 0.15) 40%, rgba(5, 7, 12, 0.92) 100%);
+    linear-gradient(90deg, rgba(10, 12, 16, 0.82) 0%, rgba(10, 12, 16, 0.28) 52%, rgba(10, 12, 16, 0.5) 100%),
+    linear-gradient(180deg, rgba(10, 12, 16, 0.2) 0%, rgba(10, 12, 16, 0.12) 42%, rgba(10, 12, 16, 0.9) 100%);
 }
 
 .hero-copy {
-  padding: 0 0 5.5rem;
-  max-width: 38rem;
+  padding: 0 0 80px;
+  max-width: 36rem;
 }
 
 .hero-kicker {
-  margin: 0 0 1.25rem;
-  font-size: 0.72rem;
-  font-weight: 600;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--brass-bright);
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--brass);
 }
 
 .hero-brand {
-  margin: 0 0 1rem;
+  margin: 0 0 12px;
   font-family: var(--font-display);
-  font-size: clamp(4.2rem, 14vw, 7.5rem);
+  font-size: clamp(56px, 12vw, 96px);
   font-weight: 500;
-  letter-spacing: -0.04em;
-  line-height: 0.88;
+  letter-spacing: -0.03em;
+  line-height: 0.92;
 }
 
 .hero-line {
-  margin: 0 0 1.75rem;
-  font-family: var(--font-display);
-  font-size: clamp(1.35rem, 2.8vw, 1.85rem);
+  margin: 0 0 28px;
+  font-family: var(--font-body);
+  font-size: clamp(18px, 2.4vw, 22px);
   font-weight: 400;
-  font-style: italic;
-  letter-spacing: -0.02em;
-  color: var(--ink-dim);
-  max-width: 22ch;
-  line-height: 1.25;
+  font-style: normal;
+  letter-spacing: -0.01em;
+  color: var(--ink-2);
+  max-width: 28ch;
+  line-height: 1.4;
 }
 
 .hero-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.85rem;
+  gap: 12px;
   align-items: center;
 }
 
@@ -193,77 +189,81 @@ button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 52px;
-  padding: 0 1.6rem;
-  background: linear-gradient(135deg, var(--brass-bright), var(--brass));
-  color: #1a1408;
-  font-size: 0.8rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
+  min-height: 48px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background: var(--brass);
+  color: #14110a;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   border: 0;
-  transition: transform 160ms var(--ease), box-shadow 160ms var(--ease);
-  box-shadow: 0 18px 40px rgba(201, 162, 39, 0.22);
+  box-shadow: none;
+  transition: background-color 140ms ease;
 }
 
 .btn-solid:hover {
-  transform: translateY(-1px);
+  background: #d4b46a;
 }
 
 .btn-line {
   display: inline-flex;
   align-items: center;
-  min-height: 52px;
-  padding: 0 1.2rem;
+  min-height: 48px;
+  padding: 0 16px;
+  border-radius: 10px;
   border: 1px solid var(--line);
   color: var(--ink);
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
   background: transparent;
+  transition: border-color 140ms ease;
 }
 
 .btn-line:hover {
-  border-color: var(--ink-dim);
+  border-color: var(--ink-2);
 }
 
 /* —— Editorial bands —— */
 .band {
-  padding: 6.5rem 0;
+  padding: 88px 0;
   border-top: 1px solid var(--line);
 }
 
 .band-kicker {
-  margin: 0 0 0.85rem;
-  font-size: 0.7rem;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  margin: 0 0 8px;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: var(--brass);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .band-title {
-  margin: 0 0 1rem;
+  margin: 0 0 12px;
   font-family: var(--font-display);
-  font-size: clamp(2rem, 4.2vw, 3.2rem);
+  font-size: clamp(28px, 4vw, 44px);
   font-weight: 500;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  max-width: 16ch;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  max-width: 18ch;
 }
 
 .band-body {
   margin: 0;
   max-width: 36rem;
-  color: var(--ink-dim);
-  font-size: 1.05rem;
-  line-height: 1.65;
+  color: var(--ink-2);
+  font-size: 16px;
+  line-height: 1.6;
+  font-weight: 400;
 }
 
 .split {
   display: grid;
-  gap: 2.5rem;
+  gap: 40px;
   align-items: center;
 }
 
@@ -271,7 +271,9 @@ button {
   position: relative;
   overflow: hidden;
   border: 1px solid var(--line);
+  border-radius: 12px;
   aspect-ratio: 4 / 3;
+  background: var(--surface);
 }
 
 .frame img {
@@ -283,15 +285,17 @@ button {
 
 .frame-caption {
   position: absolute;
-  left: 1rem;
-  bottom: 1rem;
-  padding: 0.45rem 0.7rem;
-  background: rgba(5, 7, 12, 0.72);
+  left: 12px;
+  bottom: 12px;
+  padding: 6px 10px;
+  background: rgba(10, 12, 16, 0.78);
   border: 1px solid var(--line);
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-dim);
+  border-radius: 6px;
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+  font-weight: 400;
 }
 
 .portals {
@@ -302,43 +306,45 @@ button {
 
 .portal-row {
   display: grid;
-  gap: 0.35rem;
-  padding: 1.5rem 0;
+  gap: 4px;
+  padding: 20px 0;
   border-bottom: 1px solid var(--line);
-  transition: padding 180ms var(--ease);
+  transition: background-color 140ms ease;
 }
 
 .portal-row:hover {
-  padding-left: 0.5rem;
+  background: color-mix(in srgb, var(--ink) 3%, transparent);
 }
 
 .portal-row strong {
   font-family: var(--font-display);
-  font-size: 1.45rem;
+  font-size: 22px;
   font-weight: 500;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.015em;
 }
 
 .portal-row p {
   margin: 0;
-  color: var(--ink-faint);
-  font-size: 0.92rem;
+  color: var(--ink-3);
+  font-size: 14px;
   line-height: 1.5;
   max-width: 40rem;
 }
 
 .portal-row span {
-  margin-top: 0.45rem;
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--brass-bright);
+  margin-top: 6px;
+  font-size: 13px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--brass);
+  font-weight: 500;
 }
 
 .desk-shot {
   border: 1px solid var(--line);
+  border-radius: 12px;
   overflow: hidden;
-  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.4);
 }
 
 .desk-shot img {
@@ -348,25 +354,25 @@ button {
 }
 
 .finale {
-  text-align: center;
-  padding: 5rem 0 6rem;
+  text-align: left;
+  padding: 72px 0 88px;
 }
 
 .finale .band-title {
-  margin-inline: auto;
-  max-width: 14ch;
+  margin-inline: 0;
+  max-width: 16ch;
 }
 
 .finale .band-body {
-  margin: 0 auto 2rem;
+  margin: 0 0 24px;
 }
 
 .footer {
-  padding: 2rem 0 4.5rem;
+  padding: 24px 0 72px;
   border-top: 1px solid var(--line);
-  color: var(--ink-faint);
-  font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  color: var(--ink-3);
+  font-size: 12px;
+  letter-spacing: 0;
   text-align: center;
 }
 
@@ -377,11 +383,10 @@ button {
   z-index: 40;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  padding: 0.75rem 0.85rem calc(0.75rem + env(safe-area-inset-bottom, 0px));
-  background: rgba(5, 7, 12, 0.92);
+  gap: 8px;
+  padding: 12px 12px calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface);
   border-top: 1px solid var(--line);
-  backdrop-filter: blur(16px);
 }
 
 @media (min-width: 860px) {
@@ -406,9 +411,10 @@ button {
   }
 
   .portal-row {
-    grid-template-columns: 180px 1fr auto;
+    grid-template-columns: 160px 1fr auto;
     align-items: baseline;
-    gap: 1.5rem;
+    gap: 24px;
+    padding-inline: 8px;
   }
 
   .portal-row span {

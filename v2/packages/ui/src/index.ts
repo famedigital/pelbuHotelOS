@@ -158,6 +158,13 @@ export {
   STAY_SHEET_MODAL_ROOT_ID,
 } from "./components/StaySheet.js";
 export { ModuleFrame } from "./components/ModuleFrame.js";
+export {
+  StatusLegend,
+  AttentionChip,
+  type StatusLegendItem,
+  type AttentionChipProps,
+} from "./components/StatusLegend.js";
+export { InspectorCard } from "./components/InspectorCard.js";
 export { ResponsiveDataList } from "./components/ResponsiveDataList.js";
 export {
   Field,

@@ -18,6 +18,7 @@ import {
   KpiCard,
   MorphTabs,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu, useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
 import { useExtrasStore } from "../lib/extras-store";
@@ -314,6 +315,17 @@ export function BankReconPage() {
     <ModuleFrame
       title="Bank Reconciliation"
       description="Statement match · till bridge"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "match", label: "Matched", swatch: "var(--hos-emerald)" },
+            { id: "open", label: "Open", swatch: "var(--hos-brass)" },
+            { id: "in", label: "In", swatch: "var(--hos-primary)" },
+            { id: "out", label: "Out", swatch: "var(--hos-ruby)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

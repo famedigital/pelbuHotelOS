@@ -3,6 +3,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { useExtrasStore } from "../lib/extras-store";
 
@@ -26,6 +27,16 @@ export function InnoraAiPage() {
     <ModuleFrame
       title="Innora AI"
       description="Desk copilots · proposed actions"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "ask", label: "Ask", swatch: "var(--hos-primary)" },
+            { id: "draft", label: "Draft", swatch: "var(--hos-brass)" },
+            { id: "byok", label: "BYOK", swatch: "var(--hos-emerald)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

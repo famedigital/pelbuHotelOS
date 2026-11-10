@@ -29,7 +29,7 @@ export function AuthGateShell({
       <div className="auth-gate-veil" aria-hidden="true" />
       <div className="auth-gate-panel">
         <div className="auth-gate-brand">
-          <InnoraLogo size="md" showText tagline="HOTEL OS" variant="gold" />
+          <InnoraLogo size="md" showText tagline="Hotel OS" variant="sovereign" />
         </div>
         <p className="auth-gate-kicker">{kicker}</p>
         <h1 className="auth-gate-title">{title}</h1>

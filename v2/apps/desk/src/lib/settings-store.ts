@@ -111,7 +111,7 @@ type SettingsState = {
 };
 
 export const useSettingsStore = create<SettingsState>((set) => ({
-  hotelName: "Pelbu Suites Olakha",
+  hotelName: "Demo Hotel",
   dzongkhag: "Thimphu",
   tpn: "",
   dotStars: 4,
@@ -123,13 +123,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   tipPoolSharePct: 100,
   bstEnabled: false,
   bstRate: 0.1,
-  hotelInitial: "PS",
-  psbnPrefix: "PSPSBN",
-  invPrefix: "PSINV",
+  hotelInitial: "DH",
+  psbnPrefix: "DHPSBN",
+  invPrefix: "DHINV",
   drcEinvoiceStatus: "staged",
   mbobMerchantId: "",
   mbobQrNote: "",
-  bnbAccountName: "Pelbu Suites Olakha",
+  bnbAccountName: "Demo Hotel",
   bnbAccountNo: "",
   tillFloatLimit: 10000,
   tillMaxCash: 100000,
@@ -143,7 +143,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     { id: "cat-dq", code: "deluxe_queen", name: "Deluxe Queen", maxOcc: 2 },
     { id: "cat-dk", code: "deluxe_king", name: "Deluxe King", maxOcc: 2 },
     { id: "cat-dt", code: "deluxe_twin", name: "Deluxe Twin", maxOcc: 2 },
-    { id: "cat-su", code: "suite", name: "Pelbu Suite", maxOcc: 2 },
+    { id: "cat-su", code: "suite", name: "Suite", maxOcc: 2 },
   ],
   rooms: [
     { id: "sr-207", number: "207", floorId: "fl-2", categoryId: "cat-dq" },

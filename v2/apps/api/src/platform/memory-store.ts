@@ -92,6 +92,7 @@ export type BookingRow = {
   status: string;
   guestId: string | null;
   guestName: string;
+  agentId?: string | null;
   groupId: string | null;
   checkIn: string;
   checkOut: string;

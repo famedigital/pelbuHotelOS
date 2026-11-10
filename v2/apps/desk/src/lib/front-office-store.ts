@@ -303,6 +303,12 @@ type SettleInput = {
 
 type UiState = {
   selectedStayId: string | null;
+  /**
+   * Epoch ms — StayHub ignores Vaul onOpenChange(false) until this time.
+   * Needed because Fast Book Radix/Vaul focus-restore fires a dismiss right after
+   * Create → Open Stay (fastBookOpen is already false by then).
+   */
+  stayHubDismissGuardUntil: number;
   fastBookOpen: boolean;
   fastBookPrefill: Partial<FastBookInput> | null;
   moveModal: { stayId: string; toRoomId: string } | null;
@@ -376,7 +382,13 @@ type FrontOfficeState = UiState & {
   createBooking: (
     input: FastBookInput,
   ) => Promise<
-    | { ok: true; stay: Stay; stays: Stay[]; groupId: string | null }
+    | {
+        ok: true;
+        stay: Stay;
+        stays: Stay[];
+        groupId: string | null;
+        assignWarning?: string;
+      }
     | { ok: false; error: string }
   >;
   /** True when last hydrate failed — money mutations that need API are blocked. */
@@ -1625,18 +1637,25 @@ export const ROOM_TYPE_OPTIONS: { code: RoomTypeCode; name: string; nightlyNet: 
   { code: "deluxe_queen", name: "Deluxe Queen", nightlyNet: 5900 },
   { code: "deluxe_king", name: "Deluxe King", nightlyNet: 5900 },
   { code: "deluxe_twin", name: "Deluxe Twin", nightlyNet: 5900 },
-  { code: "suite", name: "Pelbu Suite", nightlyNet: 14350 },
+  { code: "suite", name: "Suite", nightlyNet: 14350 },
 ];
 
 let bookingSeq = 1400;
 
+/** Live desk must never paint Yangphel demos. Opt-in local seed via VITE_FO_SEED=1. */
+const LIVE_FO_BOOT = !import.meta.env.DEV;
+const DEV_FO_SEED =
+  import.meta.env.DEV && String(import.meta.env.VITE_FO_SEED ?? "") === "1";
+
 export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
   businessDate: TODAY,
-  rooms: ROOM_SEED,
-  stays: seedStays(),
-  groupMeta: { ...GROUP_META_SEED },
+  /* Local rack still needs room rows; guest stays are opt-in seed only. */
+  rooms: LIVE_FO_BOOT ? [] : ROOM_SEED,
+  stays: DEV_FO_SEED ? seedStays() : [],
+  groupMeta: DEV_FO_SEED ? { ...GROUP_META_SEED } : {},
   liveRevision: 0,
   selectedStayId: null,
+  stayHubDismissGuardUntil: 0,
   fastBookOpen: false,
   fastBookPrefill: null,
   moveModal: null,
@@ -1653,14 +1672,25 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
       set({ apiOffline: true });
       return remote;
     }
-    /* Tenant inventory comes from API — never push demo 101–108 onto a live property. */
-    const rooms = remote.rooms.length > 0 ? remote.rooms : get().rooms;
-    if (remote.rooms.length === 0) {
-      const inv = await ensureInventoryRemote(rooms);
-      if (!inv.ok) {
-        set({ apiOffline: true });
-        return inv;
-      }
+    /* Tenant inventory comes from API — never keep Yangphel ROOM_SEED on a live property. */
+    const rooms =
+      remote.rooms.length > 0
+        ? remote.rooms
+        : LIVE_FO_BOOT
+          ? []
+          : get().rooms;
+    /* Never block FO hydrate on inventory upsert (401 / unauthed desk). */
+    if (remote.rooms.length === 0 && !LIVE_FO_BOOT) {
+      void ensureInventoryRemote(rooms).then((inv) => {
+        if (!inv.ok) {
+          console.warn("[fo] ensureInventory deferred (read path still live)", inv.error);
+        }
+      });
+    }
+    if (remote.rooms.length === 0 && LIVE_FO_BOOT) {
+      console.error(
+        "[fo] hydrate returned 0 rooms for live property — check sessionPropertyId / PIN hotel",
+      );
     }
     const mapOpts = {
       apiRooms: remote.apiRooms,
@@ -1778,7 +1808,16 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
     };
   },
 
-  openStay: (id) => set({ selectedStayId: id }),
+  openStay: (id) =>
+    set(
+      id
+        ? {
+            selectedStayId: id,
+            /* Hold open through Fast Book unmount / focus restore (~Radix exit 200ms). */
+            stayHubDismissGuardUntil: Date.now() + 1200,
+          }
+        : { selectedStayId: null },
+    ),
   setHorizonDays: (days) => set({ horizonDays: days }),
   setRackAnchorDate: (ymdStr) => set({ rackAnchorDate: ymdStr }),
   openFastBook: (prefill = null) => set({ fastBookOpen: true, fastBookPrefill: prefill }),
@@ -2256,6 +2295,7 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
 
     const createdStays: Stay[] = [];
     const claimedRoomIds = new Set<string>();
+    let assignWarning: string | undefined;
     for (let i = 0; i < roomsCount; i += 1) {
       const line = roomLines[i]!;
       const type =
@@ -2321,6 +2361,12 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
             assignedRoom.typeCode !== line.typeCode ? "upgrade" : "assign",
         });
         if (!assigned.ok) {
+          assignWarning = `Room ${assignedRoom.number} not assigned — ${assigned.error}`;
+          console.error(
+            "[createBooking] assign failed",
+            assignedRoom.number,
+            assigned.error,
+          );
           assignedRoom = null;
         } else {
           claimedRoomIds.add(assignedRoom.id);
@@ -2433,9 +2479,10 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
           ...s.stays.filter((st) => !ids.has(st.id) && !ids.has(st.apiBookingId ?? "")),
         ],
         groupMeta: nextMeta,
+        /* Leave StayHub closed here — Fast Book Dialog must unmount first or Vaul
+         * treats the focus restore as StayHub dismiss (Create → Open Stay looked broken). */
         fastBookOpen: false,
         fastBookPrefill: null,
-        selectedStayId: primary.id,
         liveRevision: s.liveRevision + 1,
       };
     });
@@ -2510,6 +2557,7 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
         (c) => get().stays.find((s) => s.id === c.id) ?? c,
       ),
       groupId,
+      assignWarning,
     };
   },
 
@@ -4188,8 +4236,8 @@ useFrontOfficeStore.subscribe((state, prev) => {
 });
 
 export function stayOnDate(stay: Stay, date: string): boolean {
+  /* History must paint on StayView — checked_out still occupied its nights. */
   if (["cancelled", "no_show"].includes(stay.status)) return false;
-  if (stay.status === "checked_out") return false;
   return stay.checkIn <= date && date < stay.checkOut && Boolean(stay.roomId);
 }
 

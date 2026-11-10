@@ -1,16 +1,10 @@
+import { Drawer } from "vaul";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
-import {
-  Badge,
-  Button,
-  EmptyState,
-  butterCard,
-  springButter,
-  springPress,
-  springSoft,
-  staggerButter,
-} from "@hos-v2/ui";
+import { Badge, Button, EmptyState } from "@hos-v2/ui";
+import { MoreHorizontal } from "lucide-react";
 import {
   CATEGORIES,
   formatNu,
@@ -20,10 +14,14 @@ import {
 import { useFrontOfficeStore } from "../../lib/front-office-store";
 import { TipPoolWidget } from "./TipPoolWidget";
 
-/** Phone POS — table grid, category pills, steppers, Fire KOT. */
+/** Phone POS — menu owns the screen; tables / tip / room charge live in sheets. */
 export function PosMobileView() {
   const reduce = useReducedMotion();
   const [roomQuery, setRoomQuery] = useState("");
+  const [tablesOpen, setTablesOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+
   const tables = useFnbStore((s) => s.tables);
   const tableLabel = useFnbStore((s) => s.tableLabel);
   const selectTable = useFnbStore((s) => s.selectTable);
@@ -55,177 +53,116 @@ export function PosMobileView() {
 
   const roomHits = useMemo(() => {
     const q = roomQuery.trim().toLowerCase();
-    if (!q) return inHouse.slice(0, 4);
+    if (!q) return inHouse.slice(0, 6);
     return inHouse
       .filter(
         (s) =>
           (s.roomNumber ?? "").includes(q) ||
           s.guestName.toLowerCase().includes(q),
       )
-      .slice(0, 6);
+      .slice(0, 8);
   }, [inHouse, roomQuery]);
 
   const totals = getCartTotals(cart);
   const cartLine = (menuItemId: string) =>
     cart.find((c) => c.menuItemId === menuItemId && !c.note);
   const lineCount = cart.reduce((n, c) => n + c.qty, 0);
+  const shiftOpen = shift?.status === "open";
 
   return (
-    <div className="hos-mobile-page">
-      <motion.div
-        className="hos-mobile-hero"
-        initial={reduce ? false : { opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={springSoft}
-      >
-        <div>
-          <h1 className="hos-mobile-hero-title">Waiter POS</h1>
-          <p className="hos-mobile-hero-meta">
-            {tableLabel ? `Table ${tableLabel}` : "Pick a table"} ·{" "}
-            {shift?.status === "open" ? "Shift open" : "Shift closed"}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Badge tone={shift?.status === "open" ? "success" : "muted"}>
-            {shift?.status === "open" ? "Live" : "Closed"}
+    <div className="hos-mobile-page !gap-1.5 !overflow-hidden">
+      {/* Compact top strip */}
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          onClick={() => setTablesOpen(true)}
+          className="hos-btn-tactile flex min-h-11 min-w-0 flex-1 items-center justify-between rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 text-left"
+        >
+          <span className="truncate text-[13px] font-bold text-[var(--hos-ink)]">
+            {tableLabel ? `Table ${tableLabel}` : "Pick table"}
+          </span>
+          <span className="text-[11px] font-semibold text-[var(--hos-ink-2)]">
+            Change
+          </span>
+        </button>
+        {shiftOpen ? (
+          <Badge tone="success" className="shrink-0 !px-2.5 !py-2 text-[11px]">
+            Live
           </Badge>
-          {shift?.status !== "open" ? (
-            <Button
-              size="sm"
-              className="hos-btn-ink !min-h-12 !rounded-xl"
-              onClick={() => {
-                void openShift(5000).then((res) => {
-                  if (!res.ok) {
-                    toast.error("Could not open shift", {
-                      description: res.error,
-                    });
-                    return;
-                  }
-                  toast.success(
-                    res.offline ? "Shift open offline" : "Shift opened",
-                    { description: "Opening float Nu. 5,000" },
-                  );
-                });
-              }}
-            >
-              Open
-            </Button>
-          ) : null}
-        </div>
-      </motion.div>
-
-      <TipPoolWidget />
-
-      <motion.div
-        className="grid grid-cols-4 gap-2"
-        variants={reduce ? undefined : staggerButter}
-        initial={reduce ? false : "hidden"}
-        animate="show"
-      >
-        {tables.slice(0, 12).map((t) => (
-          <motion.button
-            key={t.id}
-            type="button"
-            variants={reduce ? undefined : butterCard}
-            whileTap={reduce ? undefined : { scale: 0.94, transition: springPress }}
-            onClick={() => selectTable(t.label)}
-            className={[
-              "relative min-h-12 rounded-[12px] text-[13px] font-bold",
-              tableLabel === t.label
-                ? "bg-[#111] text-white shadow-[0_8px_20px_-10px_#111]"
-                : t.status === "seated"
-                  ? "bg-[rgba(255,149,0,0.18)] text-[var(--hos-ink)]"
-                  : "hos-pos-tile !aspect-auto !min-h-14 !rounded-[12px] text-[var(--hos-ink-2)]",
-            ].join(" ")}
+        ) : (
+          <Button
+            size="sm"
+            className="hos-btn-ink shrink-0 !min-h-11 !rounded-xl !px-3 text-[12px] font-bold"
+            onClick={() => {
+              void openShift(5000).then((res) => {
+                if (!res.ok) {
+                  toast.error("Could not open shift", { description: res.error });
+                  return;
+                }
+                toast.success(res.offline ? "Shift open offline" : "Shift opened");
+              });
+            }}
           >
-            {tableLabel === t.label && !reduce ? (
-              <motion.span
-                layoutId="posTableGlow"
-                className="pointer-events-none absolute inset-0 rounded-[12px] ring-2 ring-white/20"
-                transition={springButter}
-              />
-            ) : null}
-            <span className="relative z-10">{t.label}</span>
-          </motion.button>
-        ))}
-      </motion.div>
+            Open
+          </Button>
+        )}
+        <button
+          type="button"
+          aria-label="More"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] text-[var(--hos-ink)]"
+          onClick={() => setMoreOpen(true)}
+        >
+          <MoreHorizontal className="size-5" strokeWidth={2.25} />
+        </button>
+      </div>
 
-      <motion.div
-        className="hos-glass-card hos-butter-card flex flex-col gap-2 p-3"
-        initial={reduce ? false : { opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ ...springSoft, delay: 0.05 }}
-      >
-        <strong className="text-[13px] text-[var(--hos-ink)]">
-          Post to guest room
-        </strong>
-        <input
-          value={roomQuery}
-          onChange={(e) => setRoomQuery(e.target.value)}
-          placeholder="Rm # or guest name"
-          className="min-h-11 rounded-[10px] border-0 bg-[var(--hos-canvas-2)] px-3 text-[16px] outline-none"
-        />
-        <div className="flex flex-wrap gap-1.5">
-          {roomHits.map((s) => (
-            <motion.button
-              key={s.id}
-              type="button"
-              whileTap={reduce ? undefined : { scale: 0.95 }}
-              onClick={() => {
-                setSelectedStayId(s.id);
-                toast.message(`Charging Rm ${s.roomNumber}`, {
-                  description: s.guestName,
-                });
-              }}
-              className={[
-                "min-h-10 rounded-full px-3 text-[12px] font-semibold",
-                selectedStayId === s.id
-                  ? "bg-[var(--hos-primary)] text-white"
-                  : "bg-[var(--hos-canvas-2)] text-[var(--hos-ink)]",
-              ].join(" ")}
-            >
-              Rm {s.roomNumber} · {s.guestName.split(" ")[0]}
-            </motion.button>
-          ))}
-        </div>
-      </motion.div>
-
-      <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {/* Categories */}
+      <div className="-mx-1 flex shrink-0 gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CATEGORIES.map((c) => (
-          <motion.button
+          <button
             key={c.id}
             type="button"
-            whileTap={reduce ? undefined : { scale: 0.94 }}
             onClick={() => setCategory(c.id)}
             className={[
-              "relative min-h-10 shrink-0 overflow-hidden rounded-full px-3.5 text-[13px] font-semibold",
+              "min-h-10 shrink-0 rounded-full px-3.5 text-[13px] font-bold",
               category === c.id
-                ? "text-white"
-                : "bg-[var(--hos-cell)] text-[var(--hos-ink-2)] shadow-[var(--hos-card-shadow)]",
+                ? "bg-[#111] text-white"
+                : "border border-[var(--hos-line)] bg-[var(--hos-cell)] text-[var(--hos-ink-2)]",
             ].join(" ")}
           >
-            {category === c.id ? (
-              <motion.span
-                layoutId="posCatPill"
-                className="absolute inset-0 rounded-full bg-[#111]"
-                transition={reduce ? { duration: 0 } : springButter}
-              />
-            ) : null}
-            <span className="relative z-10">{c.label}</span>
-          </motion.button>
+            {c.label}
+          </button>
         ))}
       </div>
 
+      {/* Menu owns the screen */}
       <AnimatePresence mode="wait">
         <motion.div
           key={category}
-          className="min-h-0 flex-1 space-y-2 overflow-y-auto pb-20"
-          variants={reduce ? undefined : staggerButter}
-          initial={reduce ? false : "hidden"}
-          animate="show"
-          exit={reduce ? undefined : { opacity: 0, y: -8 }}
+          className="hos-scrollbar-slim min-h-0 flex-1 overflow-y-auto pb-[calc(5.5rem+var(--mobile-dock-clearance))]"
+          initial={reduce ? false : { opacity: 0.6 }}
+          animate={{ opacity: 1 }}
         >
-          {filteredMenu.length === 0 ? (
+          {!shiftOpen ? (
+            <EmptyState
+              title="Shift closed"
+              description="Open a shift to ring menu items."
+              action={
+                <Button
+                  size="sm"
+                  className="hos-btn-ink"
+                  onClick={() => {
+                    void openShift(5000).then((res) => {
+                      if (!res.ok) toast.error(res.error);
+                      else toast.success("Shift opened");
+                    });
+                  }}
+                >
+                  Open shift
+                </Button>
+              }
+            />
+          ) : filteredMenu.length === 0 ? (
             <EmptyState title="No items" description="Pick another category." />
           ) : (
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
@@ -233,57 +170,58 @@ export function PosMobileView() {
                 const line = cartLine(item.id);
                 const qty = line?.qty ?? 0;
                 return (
-                  <motion.div
+                  <div
                     key={item.id}
-                    variants={reduce ? undefined : butterCard}
-                    layout
-                    className="hos-pos-tile relative !justify-between gap-2 p-2.5"
-                    data-active={qty > 0 ? "true" : undefined}
+                    className={[
+                      "relative flex min-h-[7.5rem] flex-col rounded-2xl border p-2.5",
+                      qty > 0
+                        ? "border-[#111] bg-[#111] text-white"
+                        : "border-[var(--hos-line)] bg-[var(--hos-cell)] text-[var(--hos-ink)]",
+                    ].join(" ")}
                   >
                     <button
                       type="button"
+                      disabled={!shiftOpen}
                       className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-1 text-center"
                       onClick={() => addToCart(item.id)}
                     >
                       <span className="text-2xl leading-none">{item.emoji}</span>
-                      <strong className="line-clamp-2 text-[12px] font-bold leading-tight">
+                      <strong className="line-clamp-2 text-[13px] font-bold leading-tight">
                         {item.name}
                       </strong>
-                      <span className="font-mono text-[11px] tabular-nums opacity-80">
+                      <span
+                        className={[
+                          "font-mono text-[12px] font-bold tabular-nums",
+                          qty > 0 ? "text-white/85" : "text-[var(--hos-ink-2)]",
+                        ].join(" ")}
+                      >
                         {formatNu(item.netPrice)}
                       </span>
                     </button>
-                    <div className="flex w-full items-center justify-center gap-1">
-                      <motion.button
-                        type="button"
-                        whileTap={reduce ? undefined : { scale: 0.88 }}
-                        className="flex size-9 items-center justify-center rounded-full bg-[rgba(0,0,0,0.06)] text-[16px] font-bold"
-                        onClick={() => {
-                          if (line) bumpQty(line.key, -1);
-                        }}
-                        aria-label="Decrease"
-                      >
-                        −
-                      </motion.button>
-                      <motion.span
-                        key={qty}
-                        initial={reduce ? false : { scale: 1.2, opacity: 0.5 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="w-6 text-center font-mono text-[13px] font-bold tabular-nums"
-                      >
-                        {qty}
-                      </motion.span>
-                      <motion.button
-                        type="button"
-                        whileTap={reduce ? undefined : { scale: 0.88 }}
-                        className="flex size-9 items-center justify-center rounded-full bg-[#111] text-[16px] font-bold text-white"
-                        onClick={() => addToCart(item.id)}
-                        aria-label="Increase"
-                      >
-                        +
-                      </motion.button>
-                    </div>
-                  </motion.div>
+                    {qty > 0 ? (
+                      <div className="mt-1 flex w-full items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          className="flex size-10 items-center justify-center rounded-full bg-white/15 text-[18px] font-bold"
+                          onClick={() => line && bumpQty(line.key, -1)}
+                          aria-label="Decrease"
+                        >
+                          −
+                        </button>
+                        <span className="w-7 text-center font-mono text-[14px] font-black tabular-nums">
+                          {qty}
+                        </span>
+                        <button
+                          type="button"
+                          className="flex size-10 items-center justify-center rounded-full bg-white text-[18px] font-bold text-[#111]"
+                          onClick={() => addToCart(item.id)}
+                          aria-label="Increase"
+                        >
+                          +
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
@@ -291,32 +229,20 @@ export function PosMobileView() {
         </motion.div>
       </AnimatePresence>
 
-      <motion.div
-        className="fixed inset-x-0 bottom-[calc(var(--mobile-dock-height)+env(safe-area-inset-bottom,0px))] z-30 border-t border-[var(--hos-line)] bg-[var(--hos-surface)] p-3 backdrop-blur-xl md:hidden"
-        initial={reduce ? false : { y: 24, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={springButter}
-      >
-        <div className="mb-2 flex items-center justify-between text-[13px]">
-          <span className="text-[var(--hos-ink-3)]">
-            <motion.span
-              key={lineCount}
-              initial={reduce ? false : { y: 6, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="inline-block"
-            >
-              {lineCount} lines
-            </motion.span>
+      {/* Sticky cart bar */}
+      <div className="fixed inset-x-0 bottom-[var(--mobile-dock-clearance)] z-30 border-t border-[var(--hos-line)] bg-[var(--hos-cell)] p-2.5 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] md:hidden">
+        <div className="mb-1.5 flex items-center justify-between px-0.5 text-[12px]">
+          <span className="font-semibold text-[var(--hos-ink-2)]">
+            {lineCount} items
           </span>
-          <strong className="font-mono tabular-nums text-[var(--hos-ink)]">
+          <strong className="font-mono text-[14px] font-black tabular-nums text-[var(--hos-ink)]">
             {formatNu(totals.total)}
           </strong>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Button
-            magnetic
-            className="hos-btn-ink hos-btn-spring !min-h-12 !min-w-[48px] !rounded-[14px] text-[15px] font-bold"
-            disabled={cart.length === 0}
+            className="hos-btn-ink !min-h-12 !rounded-xl text-[14px] font-bold"
+            disabled={cart.length === 0 || !shiftOpen}
             onClick={() => {
               void fireKot().then((res) => {
                 if (!res.ok) toast.error(res.error);
@@ -330,23 +256,186 @@ export function PosMobileView() {
             Fire KOT
           </Button>
           <Button
-            magnetic
-            className="hos-btn-tactile !min-h-12 !min-w-[48px] !rounded-[14px] text-[15px] font-bold"
-            disabled={cart.length === 0 || !selectedStayId}
-            onClick={() => {
-              void settle("room_charge").then((res) => {
-                if (!res.ok) toast.error(res.error);
-                else
-                  toast.success("Room charged", {
-                    description: res.billNo,
-                  });
-              });
-            }}
+            variant="secondary"
+            className="!min-h-12 !rounded-xl border border-[var(--hos-line)] text-[14px] font-bold"
+            disabled={cart.length === 0}
+            onClick={() => setCartOpen(true)}
           >
-            Room charge
+            Cart
           </Button>
         </div>
-      </motion.div>
+      </div>
+
+      {/* Tables sheet */}
+      <Drawer.Root open={tablesOpen} onOpenChange={setTablesOpen}>
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 z-[60] bg-black/40" />
+          <Drawer.Content className="fixed inset-x-0 bottom-0 z-[70] flex max-h-[70dvh] flex-col rounded-t-2xl border border-[var(--hos-line)] bg-[var(--hos-cell)] outline-none">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-black/15" />
+            <Drawer.Title className="px-4 py-3 text-[16px] font-black text-[var(--hos-ink)]">
+              Tables
+            </Drawer.Title>
+            <div className="grid grid-cols-4 gap-2 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+              {tables.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => {
+                    selectTable(t.label);
+                    setTablesOpen(false);
+                  }}
+                  className={[
+                    "min-h-14 rounded-xl text-[14px] font-bold",
+                    tableLabel === t.label
+                      ? "bg-[#111] text-white"
+                      : "border border-[var(--hos-line)] bg-[var(--hos-canvas-2)] text-[var(--hos-ink)]",
+                  ].join(" ")}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
+
+      {/* Cart / settle sheet */}
+      <Drawer.Root open={cartOpen} onOpenChange={setCartOpen}>
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 z-[60] bg-black/40" />
+          <Drawer.Content className="fixed inset-x-0 bottom-0 z-[70] flex max-h-[85dvh] flex-col rounded-t-2xl border border-[var(--hos-line)] bg-[var(--hos-cell)] outline-none">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-black/15" />
+            <Drawer.Title className="px-4 py-3 text-[16px] font-black text-[var(--hos-ink)]">
+              Cart · {formatNu(totals.total)}
+            </Drawer.Title>
+            <div className="hos-scrollbar-slim min-h-0 flex-1 space-y-2 overflow-y-auto px-4">
+              {cart.length === 0 ? (
+                <p className="py-8 text-center text-[13px] text-[var(--hos-ink-2)]">
+                  Cart empty
+                </p>
+              ) : (
+                cart.map((line) => {
+                  const item = menu.find((m) => m.id === line.menuItemId);
+                  return (
+                    <div
+                      key={line.key}
+                      className="flex items-center gap-2 rounded-xl border border-[var(--hos-line)] px-3 py-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate text-[13px] font-bold text-[var(--hos-ink)]">
+                          {item?.name ?? line.menuItemId}
+                        </div>
+                        <div className="font-mono text-[11px] text-[var(--hos-ink-2)]">
+                          {formatNu(item?.netPrice ?? 0)}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="size-10 rounded-full bg-[var(--hos-canvas-2)] text-[16px] font-bold"
+                        onClick={() => bumpQty(line.key, -1)}
+                      >
+                        −
+                      </button>
+                      <span className="w-6 text-center font-mono text-[13px] font-black">
+                        {line.qty}
+                      </span>
+                      <button
+                        type="button"
+                        className="size-10 rounded-full bg-[#111] text-[16px] font-bold text-white"
+                        onClick={() => bumpQty(line.key, 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+
+              <div className="pt-2">
+                <strong className="text-[12px] font-black uppercase tracking-wide text-[var(--hos-ink-2)]">
+                  Room charge
+                </strong>
+                <input
+                  value={roomQuery}
+                  onChange={(e) => setRoomQuery(e.target.value)}
+                  placeholder="Rm # or guest"
+                  className="mt-1.5 min-h-11 w-full rounded-xl border border-[var(--hos-line)] bg-[var(--hos-canvas-2)] px-3 text-[15px] font-semibold text-[var(--hos-ink)] outline-none"
+                />
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {roomHits.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setSelectedStayId(s.id)}
+                      className={[
+                        "min-h-10 rounded-full px-3 text-[12px] font-bold",
+                        selectedStayId === s.id
+                          ? "bg-[var(--hos-primary)] text-white"
+                          : "bg-[var(--hos-canvas-2)] text-[var(--hos-ink)]",
+                      ].join(" ")}
+                    >
+                      Rm {s.roomNumber}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 border-t border-[var(--hos-line)] p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Button
+                className="hos-btn-ink !min-h-12 !rounded-xl font-bold"
+                disabled={cart.length === 0 || !shiftOpen}
+                onClick={() => {
+                  void fireKot().then((res) => {
+                    if (!res.ok) toast.error(res.error);
+                    else toast.success("KOT fired");
+                  });
+                }}
+              >
+                Fire KOT
+              </Button>
+              <Button
+                variant="secondary"
+                className="!min-h-12 !rounded-xl font-bold"
+                disabled={cart.length === 0 || !selectedStayId || !shiftOpen}
+                onClick={() => {
+                  void settle("room_charge").then((res) => {
+                    if (!res.ok) toast.error(res.error);
+                    else {
+                      toast.success("Room charged", { description: res.billNo });
+                      setCartOpen(false);
+                    }
+                  });
+                }}
+              >
+                Room charge
+              </Button>
+            </div>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
+
+      {/* More sheet */}
+      <Drawer.Root open={moreOpen} onOpenChange={setMoreOpen}>
+        <Drawer.Portal>
+          <Drawer.Overlay className="fixed inset-0 z-[60] bg-black/40" />
+          <Drawer.Content className="fixed inset-x-0 bottom-0 z-[70] flex max-h-[60dvh] flex-col rounded-t-2xl border border-[var(--hos-line)] bg-[var(--hos-cell)] outline-none">
+            <div className="mx-auto mt-2 h-1 w-10 rounded-full bg-black/15" />
+            <Drawer.Title className="px-4 py-3 text-[16px] font-black text-[var(--hos-ink)]">
+              POS tools
+            </Drawer.Title>
+            <div className="space-y-3 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+              <TipPoolWidget />
+              <Link
+                to="/kds"
+                className="flex min-h-12 items-center justify-center rounded-xl border border-[var(--hos-line)] bg-[var(--hos-canvas-2)] text-[14px] font-bold text-[var(--hos-ink)]"
+                onClick={() => setMoreOpen(false)}
+              >
+                Kitchen Pass (KDS)
+              </Link>
+            </div>
+          </Drawer.Content>
+        </Drawer.Portal>
+      </Drawer.Root>
     </div>
   );
 }

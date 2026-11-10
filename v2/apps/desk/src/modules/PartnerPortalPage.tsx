@@ -25,6 +25,7 @@ import {
   GlassPanel,
   MorphTabs,
   ModuleFrame,
+  StatusLegend,
   Odometer,
 } from "@hos-v2/ui";
 import { InvoiceModal } from "./InvoiceModal";
@@ -578,9 +579,20 @@ function PartnerPortalBody() {
       title="Partner Portal · Agency Central"
       description="Connected hotels · MoU rates · offers · FO pulse · invoices"
       actions={
-        <Badge tone="teal" className="border border-[var(--hos-line)]">
-          {agent.code} · {rateCard?.code ?? "No card"}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "avail", label: "Open", swatch: "var(--hos-emerald)" },
+              { id: "hold", label: "Held", swatch: "var(--hos-brass)" },
+              { id: "full", label: "Sold out", swatch: "var(--hos-ruby)" },
+            ]}
+          />
+          <Badge tone="teal" className="border border-[var(--hos-line)]">
+            {agent.code} · {rateCard?.code ?? "No card"}
+          </Badge>
+        </div>
       }
     >
       <div className="flex flex-col gap-4">

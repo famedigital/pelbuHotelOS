@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { InnoraLogo, InnorahotelLogo } from "@hos-v2/ui";
+import { InnorahotelLogo } from "@hos-v2/ui";
 
 const DESK = (
   import.meta.env.VITE_DESK_ORIGIN as string | undefined
@@ -8,19 +8,19 @@ const DESK = (
 const PORTALS = [
   {
     label: "Hotelier",
-    body: "Email unlocks the property. Each staff member enters with their own desk PIN.",
+    body: "Hotel email unlocks the property. Each staff member enters with their own desk PIN.",
     href: `${DESK}/login/hotel`,
     cta: "Hotel sign in",
   },
   {
     label: "Tour operator",
-    body: "One email across every contracted hotel — allotments, vouchers, never the staff PIN pad.",
+    body: "One email across every contracted hotel — allotments and vouchers, never the staff PIN pad.",
     href: `${DESK}/login/agent`,
     cta: "Agent portal",
   },
   {
     label: "Guide",
-    body: "Licensed guides open groups and field ops through a dedicated companion login.",
+    body: "Licensed guides open groups and field ops through a companion login.",
     href: `${DESK}/login/guide`,
     cta: "Guide portal",
   },
@@ -68,18 +68,17 @@ export function HomePage() {
           <div className="wrap">
             <motion.div
               className="hero-copy"
-              initial={reduceMotion ? false : { opacity: 0, y: 24 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.85, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div style={{ marginBottom: "1.5rem" }}>
-                <InnorahotelLogo size="xl" variant="sovereign" layout="stacked" />
-              </div>
-              <p className="hero-kicker">Bhutan · Himalaya · Sovereign hospitality</p>
+              <p className="hero-kicker">Bhutan · Himalaya</p>
               <h1 className="hero-brand" id="brand">
                 Innora
               </h1>
-              <p className="hero-line">The quiet operating system behind Himalayan hotels.</p>
+              <p className="hero-line">
+                The operating system behind Himalayan hotels — desk, partners, and field in one stack.
+              </p>
               <div className="hero-actions">
                 <a className="btn-solid" href={`${DESK}/login/hotel`}>
                   Hotel sign in
@@ -100,7 +99,7 @@ export function HomePage() {
               <p className="band-body">
                 Front desk, kitchen, agents, guides, and drivers rarely share one ledger.
                 Innora keeps each door exclusive — and every folio, SDF, and allotment in one
-                sovereign stack.
+                stack.
               </p>
             </div>
             <div className="frame">
@@ -111,7 +110,7 @@ export function HomePage() {
                 width={900}
                 height={675}
               />
-              <span className="frame-caption">Lobby · live desk</span>
+              <span className="frame-caption">Lobby</span>
             </div>
           </div>
         </section>
@@ -120,10 +119,10 @@ export function HomePage() {
           <div className="wrap split reverse">
             <div className="copy">
               <p className="band-kicker">Operations</p>
-              <h2 className="band-title">Luxury for the guest. Precision for the house.</h2>
+              <h2 className="band-title">Calm for the guest. Exact for the house.</h2>
               <p className="band-body">
-                Cold-glass stay racks, gapless fiscal invoices, Bhutan compliance, agent credit —
-                engineered for busy Himalayan shifts, not a marketing demo.
+                Stay racks, gapless fiscal invoices, Bhutan compliance, agent credit —
+                built for busy Himalayan shifts.
               </p>
             </div>
             <div className="frame">
@@ -134,25 +133,25 @@ export function HomePage() {
                 width={900}
                 height={675}
               />
-              <span className="frame-caption">Service · zero lag</span>
+              <span className="frame-caption">Service</span>
             </div>
           </div>
         </section>
 
         <section id="portals" className="band">
           <div className="wrap">
-            <p className="band-kicker">Exclusive access</p>
+            <p className="band-kicker">Access</p>
             <h2 className="band-title">Four doors. One stack.</h2>
-            <p className="band-body" style={{ marginBottom: "2.5rem" }}>
-              Hotel email unlocks the property. Partners sign in with their own email — across
-              every hotel they’re linked to.
+            <p className="band-body" style={{ marginBottom: "32px" }}>
+              Hotel email unlocks the property. Partners sign in with their own email across
+              every hotel they are linked to.
             </p>
             <div className="portals">
               {PORTALS.map((p) => (
                 <a key={p.label} className="portal-row" href={p.href}>
                   <strong>{p.label}</strong>
                   <p>{p.body}</p>
-                  <span>{p.cta} →</span>
+                  <span>{p.cta}</span>
                 </a>
               ))}
             </div>
@@ -161,18 +160,18 @@ export function HomePage() {
 
         <section id="desk" className="band">
           <div className="wrap">
-            <p className="band-kicker">Sovereign desk</p>
+            <p className="band-kicker">Desk</p>
             <h2 className="band-title">The front office, composed.</h2>
-            <p className="band-body" style={{ marginBottom: "2rem" }}>
+            <p className="band-body" style={{ marginBottom: "28px" }}>
               Sign in with your hotel email, choose the property, then each staff member unlocks
               with their desk PIN.
             </p>
             <motion.div
               className="desk-shot"
-              initial={reduceMotion ? false : { opacity: 0, y: 16 }}
+              initial={reduceMotion ? false : { opacity: 0, y: 10 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              transition={{ duration: 0.55 }}
+              transition={{ duration: 0.4 }}
             >
               <img
                 src="/marketing/screens/desk.png"
@@ -189,7 +188,7 @@ export function HomePage() {
           <p className="band-kicker">Begin</p>
           <h2 className="band-title">Ready when the lobby is.</h2>
           <p className="band-body">
-            Pelbu and every Innora tenant — email first, then the staff who run the house.
+            Email first, then the staff who run the house.
           </p>
           <a className="btn-solid" href={`${DESK}/login/hotel`}>
             Hotel sign in
@@ -197,11 +196,13 @@ export function HomePage() {
         </section>
       </main>
 
-      <footer className="footer wrap" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1rem" }}>
-        <InnorahotelLogo size="sm" variant="gold" />
-        <p style={{ margin: 0, fontSize: "0.85rem", opacity: 0.75 }}>
-          © {new Date().getFullYear()} innorahotel.com · Sovereign Hospitality OS · Bhutan & the Himalaya
-        </p>
+      <footer className="footer wrap">
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+          <InnorahotelLogo size="sm" variant="gold" />
+          <p style={{ margin: 0 }}>
+            © {new Date().getFullYear()} innorahotel.com · Bhutan & the Himalaya
+          </p>
+        </div>
       </footer>
 
       <div className="mobile-bar" aria-label="Quick actions">

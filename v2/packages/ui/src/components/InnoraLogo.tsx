@@ -9,27 +9,32 @@ export interface InnoraLogoProps extends HTMLAttributes<HTMLDivElement> {
   animated?: boolean;
   showText?: boolean;
   tagline?: string;
-  variant?: "sovereign" | "aurora" | "monochrome" | "gold" | "titanium";
+  variant?: "sovereign" | "champagne" | "gold" | "platinum" | "obsidian" | "monochrome";
   interactive?: boolean;
   domain?: string;
   showDomain?: boolean;
   layout?: "horizontal" | "stacked";
 }
 
-const SIZE_MAP: Record<LogoSize, { box: number; icon: number; text: string; sub: string }> = {
-  xs: { box: 26, icon: 16, text: "text-xs", sub: "text-[7px]" },
-  sm: { box: 34, icon: 20, text: "text-sm", sub: "text-[8px]" },
-  md: { box: 44, icon: 26, text: "text-base", sub: "text-[9px]" },
-  lg: { box: 64, icon: 38, text: "text-xl", sub: "text-[11px]" },
-  xl: { box: 88, icon: 54, text: "text-3xl", sub: "text-[12px]" },
-  "2xl": { box: 120, icon: 76, text: "text-5xl", sub: "text-[14px]" },
+const SIZE_MAP: Record<LogoSize, { box: number; icon: number; text: string; sub: string; domainSize: string }> = {
+  xs: { box: 26, icon: 16, text: "text-[11px]", sub: "text-[7px]", domainSize: "text-[8px]" },
+  sm: { box: 34, icon: 20, text: "text-[13px]", sub: "text-[8px]", domainSize: "text-[9px]" },
+  md: { box: 44, icon: 26, text: "text-[15px]", sub: "text-[9px]", domainSize: "text-[10px]" },
+  lg: { box: 64, icon: 38, text: "text-[20px]", sub: "text-[11px]", domainSize: "text-[12px]" },
+  xl: { box: 92, icon: 54, text: "text-[28px]", sub: "text-[12px]", domainSize: "text-[14px]" },
+  "2xl": { box: 128, icon: 78, text: "text-[38px]", sub: "text-[14px]", domainSize: "text-[16px]" },
 };
 
+/**
+ * Innora Sovereign Monogram: The Living "IN" Talisman
+ * Uniting the Sovereign Pillar ("I") and the Endless Relay ("N") with the Golden Horizon ("O").
+ * Built to look unmistakable on everything: T-shirts, fleet cars, cotton letterheads, stickers, and 16px favicons.
+ */
 export function InnoraLogo({
   size = "md",
   animated = true,
   showText = true,
-  tagline = "HOTEL OS v2",
+  tagline,
   variant = "sovereign",
   interactive = true,
   domain = "innorahotel.com",
@@ -45,9 +50,10 @@ export function InnoraLogo({
     typeof size === "number"
       ? {
           box: size,
-          icon: Math.round(size * 0.62),
-          text: size > 60 ? "text-2xl" : "text-base",
-          sub: size > 60 ? "text-[11px]" : "text-[9px]",
+          icon: Math.round(size * 0.6),
+          text: size > 60 ? "text-[22px]" : "text-[14px]",
+          sub: size > 60 ? "text-[10px]" : "text-[8px]",
+          domainSize: size > 60 ? "text-[12px]" : "text-[9px]",
         }
       : SIZE_MAP[size];
 
@@ -58,7 +64,7 @@ export function InnoraLogo({
       className={cn(
         "group select-none",
         isStacked
-          ? "flex flex-col items-center text-center gap-2"
+          ? "flex flex-col items-center text-center gap-3"
           : "inline-flex items-center gap-3.5",
         interactive && "cursor-pointer",
         className
@@ -66,302 +72,278 @@ export function InnoraLogo({
       {...props}
     >
       {/* ========================================================
-          SOVEREIGN CREST EMBLEM (Faceted Glass Shield + Living Aurora)
+          THE SOVEREIGN "IN" MONOGRAM (Architectural Chassis)
           ======================================================== */}
       <div
         style={{ width: dims.box, height: dims.box }}
         className="relative flex shrink-0 items-center justify-center"
       >
-        {/* Layer 1: Celestial Conic Aurora Halo (Rotating 360° Living Background) */}
-        {shouldAnimate && (
+        {/* Layer 1: Ambient Horizon Breathing Glow */}
+        {shouldAnimate && variant !== "monochrome" && (
           <motion.div
             animate={{
-              rotate: [0, 360],
-              scale: [0.95, 1.12, 0.95],
-              opacity: [0.35, 0.65, 0.35],
+              opacity: [0.2, 0.45, 0.2],
+              scale: [0.96, 1.05, 0.96],
             }}
             transition={{
-              rotate: { duration: 16, repeat: Infinity, ease: "linear" },
-              scale: { duration: 4.5, repeat: Infinity, ease: "easeInOut" },
-              opacity: { duration: 4.5, repeat: Infinity, ease: "easeInOut" },
+              duration: 6.5,
+              repeat: Infinity,
+              ease: "easeInOut",
             }}
-            className="pointer-events-none absolute -inset-1.5 -z-10 rounded-[34%] opacity-50 blur-lg transition-transform duration-500 group-hover:scale-125 group-hover:opacity-80"
+            className="pointer-events-none absolute -inset-2 -z-10 rounded-2xl blur-xl transition-all duration-700 group-hover:opacity-75 group-hover:scale-115"
             style={{
               background:
-                variant === "gold"
-                  ? "conic-gradient(from 0deg, #f59e0b, #d97706, #fbbf24, #b45309, #f59e0b)"
-                  : "conic-gradient(from 0deg, #2563eb, #6366f1, #8b5cf6, #f59e0b, #10b981, #2563eb)",
+                variant === "champagne" || variant === "gold"
+                  ? "radial-gradient(circle at 50% 40%, rgba(245, 158, 11, 0.35) 0%, rgba(180, 83, 9, 0.12) 50%, transparent 75%)"
+                  : variant === "platinum"
+                  ? "radial-gradient(circle at 50% 40%, rgba(226, 232, 240, 0.3) 0%, rgba(148, 163, 184, 0.1) 50%, transparent 75%)"
+                  : "radial-gradient(circle at 50% 35%, rgba(245, 158, 11, 0.35) 0%, rgba(37, 99, 235, 0.18) 45%, transparent 72%)",
             }}
           />
         )}
 
-        {/* Layer 2: 3D Beveled Glass Chassis with Metallic Rim */}
+        {/* Layer 2: Obsidian Architectural Monolith Chassis */}
         <div
           className={cn(
-            "relative flex size-full items-center justify-center overflow-hidden rounded-[26%] border shadow-xl transition-all duration-300",
-            interactive && "group-hover:-translate-y-0.5 group-hover:shadow-2xl group-active:scale-95",
+            "relative flex size-full items-center justify-center overflow-hidden rounded-[24%] border transition-all duration-500",
+            interactive && "group-hover:-translate-y-0.5 group-hover:shadow-[0_16px_36px_-8px_rgba(0,0,0,0.65)] group-active:scale-[0.98]",
+            // Sovereign: Obsidian Black + Hairline Platinum/Champagne Edge
             variant === "sovereign" &&
-              "border-white/35 bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 shadow-[0_8px_24px_-4px_rgba(37,99,235,0.35)]",
-            variant === "aurora" &&
-              "border-white/45 bg-gradient-to-br from-blue-600 via-indigo-700 to-violet-900 shadow-[0_8px_28px_-4px_rgba(99,102,241,0.45)]",
-            variant === "gold" &&
-              "border-amber-400/50 bg-gradient-to-br from-amber-950 via-slate-950 to-amber-900 shadow-[0_8px_28px_-4px_rgba(245,158,11,0.35)]",
-            variant === "titanium" &&
-              "border-white/30 bg-gradient-to-br from-zinc-800 via-zinc-900 to-slate-950 shadow-lg",
+              "border-white/[0.14] bg-gradient-to-b from-[#161a26] via-[#0d1017] to-[#06080d] shadow-[0_10px_28px_-6px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.18)]",
+            (variant === "champagne" || variant === "gold") &&
+              "border-amber-400/25 bg-gradient-to-b from-[#1c1813] via-[#14110d] to-[#0a0806] shadow-[0_10px_28px_-6px_rgba(245,158,11,0.22),inset_0_1px_1px_rgba(245,208,136,0.2)]",
+            variant === "platinum" &&
+              "border-slate-300/20 bg-gradient-to-b from-[#1e232d] via-[#12151b] to-[#090b0e] shadow-[0_10px_28px_-6px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.18)]",
+            variant === "obsidian" &&
+              "border-white/[0.08] bg-[#090a0f] shadow-[0_8px_24px_rgba(0,0,0,0.6)]",
             variant === "monochrome" &&
-              "border-white/20 bg-slate-900 shadow-none"
+              "border-black/10 dark:border-white/10 bg-white dark:bg-black shadow-sm"
           )}
         >
-          {/* Top Specular Rim Lighting Glint */}
-          <div className="pointer-events-none absolute inset-x-0 top-0 h-[45%] bg-gradient-to-b from-white/30 via-white/10 to-transparent" />
+          {/* Top Specular Rim Reflection */}
+          {variant !== "monochrome" && (
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-[40%] bg-gradient-to-b from-white/[0.12] to-transparent" />
+          )}
 
-          {/* Precision Sacred Himalayan Coronet Vector */}
+          {/* Micro Hairline Rim */}
+          <div className="pointer-events-none absolute inset-[1px] rounded-[22%] border border-white/[0.04]" />
+
+          {/* PRECISION "IN" VECTOR MONOGRAM */}
           <svg
             width={dims.icon}
             height={dims.icon}
             viewBox="0 0 100 100"
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
-            className="relative z-10 transition-transform duration-300 group-hover:scale-105"
+            className="relative z-10 transition-transform duration-500 group-hover:scale-[1.03]"
           >
             <defs>
-              {/* Royal Himalayan Gold Gradient */}
-              <linearGradient id="innoraGoldFacet" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#fef08a" />
+              <linearGradient id="inPlatBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="35%" stopColor="#e2e8f0" />
+                <stop offset="75%" stopColor="#94a3b8" />
+                <stop offset="100%" stopColor="#64748b" />
+              </linearGradient>
+
+              <linearGradient id="inGoldBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fff2d1" />
                 <stop offset="35%" stopColor="#f59e0b" />
                 <stop offset="70%" stopColor="#d97706" />
-                <stop offset="100%" stopColor="#78350f" />
+                <stop offset="100%" stopColor="#92400e" />
               </linearGradient>
 
-              {/* Imperial Sapphire Facet */}
-              <linearGradient id="innoraSapphireFacet" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#bfdbfe" />
-                <stop offset="30%" stopColor="#60a5fa" />
-                <stop offset="65%" stopColor="#2563eb" />
-                <stop offset="100%" stopColor="#1e3a8a" />
-              </linearGradient>
-
-              {/* Crystalline Titanium Spine */}
-              <linearGradient id="innoraTitaniumSpine" x1="50%" y1="0%" x2="50%" y2="100%">
-                <stop offset="0%" stopColor="#ffffff" stopOpacity="1" />
-                <stop offset="40%" stopColor="#e2e8f0" stopOpacity="0.9" />
-                <stop offset="85%" stopColor="#94a3b8" stopOpacity="0.75" />
-                <stop offset="100%" stopColor="#ffffff" stopOpacity="0.95" />
-              </linearGradient>
-
-              {/* Laser Edge Beam Gradient */}
-              <linearGradient id="laserBeamGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-                <stop offset="0%" stopColor="#60a5fa" stopOpacity="0" />
-                <stop offset="50%" stopColor="#ffffff" stopOpacity="1" />
-                <stop offset="100%" stopColor="#f59e0b" stopOpacity="0" />
-              </linearGradient>
-
-              {/* Zenith Flare Filters */}
-              <filter id="zenithPhotonicFlare" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur in="SourceGraphic" stdDeviation="2.5" result="glow1" />
-                <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="glow2" />
-                <feMerge>
-                  <feMergeNode in="glow2" />
-                  <feMergeNode in="glow1" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
+              <filter id="keystoneGlow" x="-30%" y="-30%" width="160%" height="160%">
+                <feDropShadow dx="0" dy="0" stdDeviation="2" floodColor="#f59e0b" floodOpacity="0.8" />
               </filter>
             </defs>
 
-            {/* Facet 1: Left Mountain Ridge / Sapphire Wing */}
-            <motion.path
-              d="M 50 16 L 20 68 C 17 73 21 79 27 77 L 50 66 Z"
-              fill="url(#innoraSapphireFacet)"
-              initial={shouldAnimate ? { opacity: 0, scale: 0.85 } : false}
-              animate={shouldAnimate ? { opacity: 1, scale: 1 } : false}
-              transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
-            />
-
-            {/* Facet 2: Right Mountain Ridge / Golden Wing */}
-            <motion.path
-              d="M 50 16 L 80 68 C 83 73 79 79 73 77 L 50 66 Z"
-              fill="url(#innoraGoldFacet)"
-              initial={shouldAnimate ? { opacity: 0, scale: 0.85 } : false}
-              animate={shouldAnimate ? { opacity: 1, scale: 1 } : false}
-              transition={{ duration: 0.9, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-            />
-
-            {/* Facet 3: Central Monolithic 'I' Keystone (Front Spine) */}
-            <motion.path
-              d="M 46 32 L 54 32 L 52.5 73 L 47.5 73 Z"
-              fill="url(#innoraTitaniumSpine)"
-              initial={shouldAnimate ? { scaleY: 0 } : false}
+            {/* 1. SOVEREIGN 'I' PILLAR (Left Vertical Spine) */}
+            <motion.rect
+              x="24"
+              y="18"
+              width="12"
+              height="64"
+              rx="3"
+              fill={variant === "monochrome" ? "currentColor" : "url(#inPlatBeam)"}
+              initial={shouldAnimate ? { scaleY: 0, originY: 1 } : false}
               animate={shouldAnimate ? { scaleY: 1 } : false}
-              transition={{ duration: 0.7, delay: 0.3, ease: "backOut" }}
+              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             />
 
-            {/* Facet 4: Sacred Lotus Base Plinth */}
-            <path
-              d="M 28 77 C 38 72 44 68 50 68 C 56 68 62 72 72 77 C 62 81 56 83 50 83 C 44 83 38 81 28 77 Z"
-              fill="url(#innoraGoldFacet)"
-              opacity="0.85"
+            {/* 2. RELAY 'N' DIAGONAL BRIDGE (Connecting Desk to Field) */}
+            <motion.path
+              d="M 33 22 L 67 76 L 56 82 L 24 28 Z"
+              fill={
+                variant === "monochrome"
+                  ? "currentColor"
+                  : variant === "platinum"
+                  ? "url(#inPlatBeam)"
+                  : "url(#inGoldBeam)"
+              }
+              opacity={variant === "monochrome" ? 1 : 0.95}
+              initial={shouldAnimate ? { opacity: 0, scale: 0.8 } : false}
+              animate={shouldAnimate ? { opacity: 1, scale: 1 } : false}
+              transition={{ delay: 0.35, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
             />
 
-            {/* Facet 5: Auspicious Keystone Jewels */}
-            <circle cx="50" cy="74.5" r="3.2" fill="#ffffff" filter="drop-shadow(0 0 3px #fef08a)" />
-            <circle cx="37" cy="76" r="2.2" fill="#93c5fd" />
-            <circle cx="63" cy="76" r="2.2" fill="#fbbf24" />
+            {/* 3. RIGHT PILLAR (Completing 'N') */}
+            <motion.rect
+              x="64"
+              y="18"
+              width="12"
+              height="64"
+              rx="3"
+              fill={variant === "monochrome" ? "currentColor" : "url(#inPlatBeam)"}
+              initial={shouldAnimate ? { scaleY: 0, originY: 1 } : false}
+              animate={shouldAnimate ? { scaleY: 1 } : false}
+              transition={{ delay: 0.6, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+            />
 
-            {/* Layer 3: Laser Contour Stroke Tracing (The Living Edge) */}
-            {shouldAnimate && (
-              <motion.path
-                d="M 20 68 L 50 16 L 80 68 L 73 77 L 50 66 L 27 77 Z"
-                fill="none"
-                stroke="url(#laserBeamGrad)"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeDasharray="24 160"
-                animate={{
-                  strokeDashoffset: [0, -184],
-                }}
-                transition={{
-                  duration: 3.2,
-                  repeat: Infinity,
-                  ease: "linear",
-                }}
+            {/* 4. CENTRAL GOLDEN HORIZON BEACON ('O' of Ora / Auspicious Keystone) */}
+            <motion.g
+              initial={shouldAnimate ? { scale: 0 } : false}
+              animate={
+                shouldAnimate
+                  ? {
+                      scale: [0.92, 1.15, 0.92],
+                      opacity: [0.85, 1, 0.85],
+                    }
+                  : false
+              }
+              transition={{
+                delay: 0.9,
+                duration: 3.2,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+            >
+              <circle
+                cx="49"
+                cy="50"
+                r="4.5"
+                fill={variant === "monochrome" ? "#ffffff" : "#f59e0b"}
+                filter={variant === "monochrome" ? undefined : "url(#keystoneGlow)"}
               />
-            )}
+              <circle cx="49" cy="50" r="1.8" fill="#ffffff" />
+            </motion.g>
 
-            {/* Layer 4: Zenith Starlight Diamond Cross-Flare (The Sovereign Eye) */}
-            <g transform="translate(50, 16)">
-              {/* Outer Pulsing Flare Spikes */}
-              {shouldAnimate && (
-                <motion.g
-                  animate={{
-                    rotate: [0, 90, 180, 270, 360],
-                    scale: [0.85, 1.35, 0.85],
-                  }}
-                  transition={{
-                    rotate: { duration: 12, repeat: Infinity, ease: "linear" },
-                    scale: { duration: 2.8, repeat: Infinity, ease: "easeInOut" },
-                  }}
-                >
-                  {/* Vertical & Horizontal Spikes */}
-                  <path d="M 0 -8 L 1 -1 L 8 0 L 1 1 L 0 8 L -1 1 L -8 0 L -1 -1 Z" fill="#ffffff" opacity="0.9" />
-                  {/* Diagonal Micro Spikes */}
-                  <path
-                    d="M 0 -5 L 0.8 -0.8 L 5 0 L 0.8 0.8 L 0 5 L -0.8 0.8 L -5 0 L -0.8 -0.8 Z"
-                    fill="#fef08a"
-                    opacity="0.75"
-                    transform="rotate(45)"
-                  />
-                </motion.g>
-              )}
-
-              {/* Core Starlight Diamond Jewel */}
-              <circle cx="0" cy="0" r="3.2" fill="#ffffff" filter="url(#zenithPhotonicFlare)" />
-              <circle cx="0" cy="0" r="1.5" fill="#fef08a" />
-            </g>
+            {/* Foundation Horizon Plinth */}
+            <rect
+              x="18"
+              y="85"
+              width="64"
+              height="4"
+              rx="2"
+              fill={variant === "monochrome" ? "currentColor" : "url(#inPlatBeam)"}
+              opacity="0.6"
+            />
           </svg>
 
-          {/* Sweeping Specular Light Glint on Hover & Periodically */}
-          {shouldAnimate && (
+          {/* Sweeping Swiss Specular Sheen (Every 6.5s) */}
+          {shouldAnimate && variant !== "monochrome" && (
             <motion.div
               animate={{
-                x: ["-100%", "200%"],
+                x: ["-160%", "280%"],
               }}
               transition={{
-                duration: 1.2,
+                duration: 1.3,
                 repeat: Infinity,
-                repeatDelay: 4.8,
+                repeatDelay: 5.2,
                 ease: [0.16, 1, 0.3, 1],
               }}
-              className="pointer-events-none absolute inset-0 -skew-x-12 bg-gradient-to-r from-transparent via-white/35 to-transparent opacity-75"
+              className="pointer-events-none absolute inset-0 -skew-x-[22deg] bg-gradient-to-r from-transparent via-white/[0.22] to-transparent"
             />
           )}
         </div>
       </div>
 
       {/* ========================================================
-          TYPOGRAPHY: INNORA + ASTRONOMICAL MICRO-TAGLINE / DOMAIN
+          INTERNATIONAL TYPOGRAPHY: I N N O R A + PROVENANCE LOCKUP
           ======================================================== */}
       {showText && (
-        <div className={cn("flex flex-col", isStacked && "items-center")}>
-          <div className="flex items-center gap-1.5 leading-none">
+        <div className={cn("flex flex-col select-none", isStacked && "items-center")}>
+          {/* Main Brand Wordmark */}
+          <div className="flex items-center gap-2 leading-none">
             <span
               className={cn(
-                "font-black tracking-tight text-[var(--hos-ink)] transition-colors duration-200 group-hover:text-blue-600 dark:group-hover:text-blue-400",
+                "font-extrabold text-[var(--hos-ink)] transition-colors duration-300 group-hover:text-amber-600 dark:group-hover:text-amber-400",
                 dims.text
               )}
               style={{
-                letterSpacing: "-0.035em",
-                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontFamily:
+                  "-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Cinzel', 'Playfair Display', 'Plus Jakarta Sans', serif",
+                letterSpacing: "0.22em",
+                textTransform: "uppercase",
               }}
             >
               INNORA
             </span>
 
-            {/* Glowing Golden Apex Dot with Pulse Ring */}
-            <div className="relative flex size-2 items-center justify-center">
-              {shouldAnimate && (
-                <motion.span
-                  animate={{
-                    scale: [1, 2.2, 1],
-                    opacity: [0.6, 0, 0.6],
-                  }}
-                  transition={{
-                    duration: 2.2,
-                    repeat: Infinity,
-                    ease: "easeOut",
-                  }}
-                  className="absolute size-2 rounded-full bg-amber-400"
-                />
-              )}
-              <span className="relative size-1.5 rounded-full bg-gradient-to-br from-amber-300 to-amber-600 shadow-[0_0_6px_#f59e0b]" />
-            </div>
+            {/* Restrained Champagne Gold Jewelry Dot */}
+            <span
+              className="inline-block size-1.5 rounded-full bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 shadow-[0_0_6px_rgba(245,158,11,0.7)]"
+              aria-hidden
+            />
           </div>
 
-          {/* Micro-Tagline & innorahotel.com domain lockup */}
-          {(tagline || showDomain) && (
-            <div
-              className={cn(
-                "flex items-center gap-1.5 mt-0.5",
-                isStacked && "justify-center"
-              )}
-            >
-              {tagline && (
+          {/* International Domain / Provenance Subtitle */}
+          <div
+            className={cn(
+              "flex items-center gap-1.5 mt-1 tracking-widest",
+              isStacked && "justify-center"
+            )}
+          >
+            {showDomain ? (
+              <div className="flex items-center gap-1.5">
                 <span
                   className={cn(
-                    "font-mono font-bold tracking-[0.22em] uppercase text-amber-600 dark:text-amber-400/90",
-                    dims.sub
+                    "font-mono font-medium tracking-[0.24em] uppercase text-slate-500 dark:text-slate-400 transition-colors group-hover:text-slate-900 dark:group-hover:text-slate-200",
+                    dims.domainSize
                   )}
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
-                >
-                  {tagline}
-                </span>
-              )}
-
-              {tagline && showDomain && (
-                <span className="size-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-              )}
-
-              {showDomain && (
-                <span
-                  className={cn(
-                    "font-mono font-bold tracking-wider text-blue-600 dark:text-blue-400 transition-colors duration-200 group-hover:text-amber-500",
-                    dims.sub
-                  )}
-                  style={{ fontFamily: "'JetBrains Mono', monospace" }}
                 >
                   {domain}
                 </span>
-              )}
-
-              {!showDomain && (
-                <>
-                  <span className="h-1 w-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                  <span className="font-mono text-[7px] font-semibold text-slate-400 dark:text-slate-500 tracking-wider uppercase">
-                    Sovereign
-                  </span>
-                </>
-              )}
-            </div>
-          )}
+                <span className="size-1 rounded-full bg-amber-500/60" />
+                <span
+                  className={cn(
+                    "font-mono font-medium tracking-[0.18em] uppercase text-amber-700/80 dark:text-amber-400/80",
+                    dims.sub
+                  )}
+                >
+                  BHUTAN
+                </span>
+              </div>
+            ) : tagline ? (
+              <span
+                className={cn(
+                  "font-mono font-semibold tracking-[0.26em] uppercase text-slate-500 dark:text-slate-400",
+                  dims.sub
+                )}
+              >
+                {tagline}
+              </span>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={cn(
+                    "font-mono font-medium tracking-[0.22em] uppercase text-slate-400 dark:text-slate-500",
+                    dims.sub
+                  )}
+                >
+                  Sovereign Hospitality
+                </span>
+                <span className="size-0.5 rounded-full bg-slate-400 dark:bg-slate-600" />
+                <span
+                  className={cn(
+                    "font-mono font-medium tracking-[0.16em] uppercase text-amber-600/75 dark:text-amber-400/75",
+                    dims.sub
+                  )}
+                >
+                  Himalaya
+                </span>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
@@ -369,14 +351,14 @@ export function InnoraLogo({
 }
 
 /**
- * InnorahotelLogo: Enterprise-grade lockup explicitly configured for innorahotel.com
+ * InnorahotelLogo: Luxury International Haute-Hôtellerie Lockup for innorahotel.com
  */
 export function InnorahotelLogo({
   size = "md",
   variant = "sovereign",
   domain = "innorahotel.com",
   showDomain = true,
-  tagline = "SOVEREIGN HOSPITALITY",
+  tagline,
   ...props
 }: Partial<InnoraLogoProps>) {
   return (
@@ -390,4 +372,3 @@ export function InnorahotelLogo({
     />
   );
 }
-

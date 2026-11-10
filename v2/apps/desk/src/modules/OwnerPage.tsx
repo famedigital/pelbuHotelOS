@@ -1,7 +1,14 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { Badge, Button, GlassPanel, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+} from "@hos-v2/ui";
 import {
   formatNu,
   folioBalance,
@@ -107,17 +114,28 @@ export function OwnerPage() {
       title="Owner · Pocket CEO"
       description="Live odometers · loss prevention · 23:30 WhatsApp bot · MTD pacing"
       actions={
-        <motion.div whileTap={reduce ? undefined : { scale: 0.97 }}>
-          <Button
-            onClick={() =>
-              toast.success("Test WhatsApp dispatched", {
-                description: "Owner + GM group · night audit summary simulated",
-              })
-            }
-          >
-            Trigger Test Dispatch
-          </Button>
-        </motion.div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "occ", label: "Occ", swatch: "var(--hos-primary)" },
+              { id: "rev", label: "Rev", swatch: "var(--hos-emerald)" },
+              { id: "risk", label: "Risk", swatch: "var(--hos-ruby)" },
+            ]}
+          />
+          <motion.div whileTap={reduce ? undefined : { scale: 0.97 }}>
+            <Button
+              onClick={() =>
+                toast.success("Test WhatsApp dispatched", {
+                  description: "Owner + GM group · night audit summary simulated",
+                })
+              }
+            >
+              Trigger Test Dispatch
+            </Button>
+          </motion.div>
+        </div>
       }
     >
     <div className="flex flex-col gap-4">

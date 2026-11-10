@@ -8,6 +8,7 @@ import {
   GlassPanel,
   KpiCard,
   ModuleFrame,
+  StatusLegend,
   MorphTabsRoot,
   TabsContent,
   TabsList,
@@ -155,6 +156,15 @@ export function GroupsPage() {
       description="Live rooming from StayHub · guide logistics · party check-in · master folios"
       actions={
         <>
+          <StatusLegend
+            dense
+            className="hidden lg:flex"
+            items={[
+              { id: "active", label: "Active", swatch: "var(--hos-emerald)" },
+              { id: "arriving", label: "Arriving", swatch: "var(--hos-primary)" },
+              { id: "due", label: "Agency due", swatch: "var(--hos-brass)" },
+            ]}
+          />
           <Button
             variant="secondary"
             size="sm"

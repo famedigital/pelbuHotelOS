@@ -1,7 +1,14 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, GlassPanel, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+} from "@hos-v2/ui";
 import { formatNu } from "../lib/front-office-store";
 import { useFnbStore } from "../lib/fnb-store";
 
@@ -38,6 +45,16 @@ export function StaffPortalPage() {
     <ModuleFrame
       title="Staff Portal"
       description={`${ME.name} · ${ME.dept} · ${ME.role}`}
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "on", label: "On duty", swatch: "var(--hos-emerald)" },
+            { id: "off", label: "Off", swatch: "var(--hos-ink-3)" },
+            { id: "tip", label: "Tips", swatch: "var(--hos-brass)" },
+          ]}
+        />
+      }
     >
     <div className="mx-auto flex max-w-lg flex-col gap-4">
       <div className="grid grid-cols-2 gap-3">

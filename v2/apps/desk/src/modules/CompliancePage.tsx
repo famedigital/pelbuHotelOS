@@ -1,7 +1,14 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, GlassPanel, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+} from "@hos-v2/ui";
 import {
   exportBst3Csv,
   exportPoliceManifestCsv,
@@ -52,6 +59,17 @@ export function CompliancePage() {
     <ModuleFrame
       title="Compliance"
       description="BST-3 returns · Tourist police manifest · DOT grading · RRCO audit binder"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "bst", label: "BST-3", swatch: "var(--hos-primary)" },
+            { id: "police", label: "Police", swatch: "var(--hos-brass)" },
+            { id: "dot", label: "DOT", swatch: "var(--hos-emerald)" },
+            { id: "rrco", label: "RRCO", swatch: "var(--hos-ink-3)" },
+          ]}
+        />
+      }
     >
       <div className="flex flex-col gap-4">
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

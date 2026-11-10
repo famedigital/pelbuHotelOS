@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Badge, Button, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import { Badge, Button, KpiCard, ModuleFrame, StatusLegend } from "@hos-v2/ui";
 import { useFrontOfficeStore } from "../../lib/front-office-store";
 import {
   hermesApplyDocDraft,
@@ -60,6 +60,16 @@ export function TelegramPage() {
     <ModuleFrame
       title="Hermes · Telegram"
       description="Pair FO chats · passport/SDF photo OCR · Guests & Docs apply"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "live", label: "Paired", swatch: "var(--hos-emerald)" },
+            { id: "docs", label: "Doc inbox", swatch: "var(--hos-brass)" },
+            { id: "ocr", label: "OCR", swatch: "var(--hos-primary)" },
+          ]}
+        />
+      }
     >
       <div className="flex flex-col gap-4" data-testid="hermes-telegram-page">
         <div className="flex flex-wrap gap-1.5">

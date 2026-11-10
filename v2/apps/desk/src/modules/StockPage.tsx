@@ -10,6 +10,7 @@ import {
   KpiCard,
   MorphTabs,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu } from "../lib/front-office-store";
 import {
@@ -45,6 +46,16 @@ export function StockPage() {
     <ModuleFrame
       title="Stock on-hand"
       description="SKU levels · waste · count adjustments"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "ok", label: "OK", swatch: "var(--hos-emerald)" },
+            { id: "low", label: "Low", swatch: "var(--hos-brass)" },
+            { id: "out", label: "Out", swatch: "var(--hos-ruby)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">

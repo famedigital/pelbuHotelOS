@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { useExtrasStore } from "../lib/extras-store";
 
@@ -14,6 +15,16 @@ export function CmsPage() {
     <ModuleFrame
       title="CMS"
       description="Hero · story · restaurant hours"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "hero", label: "Hero", swatch: "var(--hos-primary)" },
+            { id: "story", label: "Story", swatch: "var(--hos-brass)" },
+            { id: "hrs", label: "Hours", swatch: "var(--hos-emerald)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

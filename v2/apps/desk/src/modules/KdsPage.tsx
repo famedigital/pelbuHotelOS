@@ -7,6 +7,7 @@ import {
   EmptyState,
   KpiCard,
   ModuleFrame,
+  StatusLegend,
   Odometer,
   useIsPhone,
   useIsTablet,
@@ -273,6 +274,16 @@ export function KdsPage() {
       description="Bump · recall · 86 · light & midnight"
       actions={
         <div className="flex flex-wrap items-center gap-1.5">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "new", label: "New", swatch: "var(--hos-ruby)" },
+              { id: "prep", label: "Prep", swatch: "var(--hos-brass)" },
+              { id: "ready", label: "Ready", swatch: "var(--hos-emerald)" },
+              { id: "bump", label: "Bumped", swatch: "var(--hos-ink-3)" },
+            ]}
+          />
           <Button
             size="sm"
             variant={showBumped ? "secondary" : "ghost"}

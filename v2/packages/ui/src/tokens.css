@@ -33,6 +33,10 @@
   --touch-target-min: 44px;
   --touch-target-optimal: 48px;
   --mobile-dock-height: 64px;
+  /* Clearance for fixed dock (height already includes safe-area once). */
+  --mobile-dock-clearance: calc(
+    var(--mobile-dock-height) + env(safe-area-inset-bottom, 0px)
+  );
   --ios-nav-height: 48px;
   --ios-large-title: 2.125rem;
   --hos-space-1: 0.25rem;
@@ -112,9 +116,9 @@
   --hos-paper-muted: #5f6368;
   --hos-paper-rule: rgba(60, 64, 67, 0.14);
 
-  /* Floor / rack occupied chip — solid espresso, never follows --hos-ink in dark */
-  --hos-occupied-bg: #111111;
-  --hos-occupied-fg: #ffffff;
+  /* Floor / rack occupied — soft lapis (not solid black blocks) */
+  --hos-occupied-bg: color-mix(in srgb, var(--hos-primary) 18%, #eef3fb);
+  --hos-occupied-fg: #0b1f4a;
 
 }
 
@@ -189,9 +193,9 @@
   --hos-shadow-volaro: var(--hos-card-shadow);
   --hos-shadow-volaro-lg: var(--hos-elevated-shadow);
 
-  /* Ivory occupied chips on espresso rail — high contrast in midnight */
-  --hos-occupied-bg: #f4f0e8;
-  --hos-occupied-fg: #0e0d0c;
+  /* Soft lapis occupied on espresso — readable, not ivory slabs */
+  --hos-occupied-bg: color-mix(in srgb, var(--hos-primary) 28%, #1a2438);
+  --hos-occupied-fg: #d9e6ff;
 
 }
 
@@ -1690,6 +1694,81 @@
   color: var(--hos-ink-3);
 }
 
+/* —— Desk-wide premium DNA (Code-XR LivePanel + Code and Chill frost) —— */
+
+.hos-module-chrome {
+  border-radius: 1rem;
+  border: 1px solid var(--hos-line);
+  background: color-mix(in srgb, var(--hos-cell) 88%, transparent);
+  box-shadow:
+    var(--hos-specular),
+    0 8px 24px -16px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(var(--hos-blur-l1, 12px)) saturate(1.15);
+  -webkit-backdrop-filter: blur(var(--hos-blur-l1, 12px)) saturate(1.15);
+  transform: translateZ(0);
+}
+
+.hos-status-legend-item {
+  border-radius: 999px;
+  border: 1px solid var(--hos-line);
+  background: var(--hos-cell);
+  padding: 0.25rem 0.55rem;
+}
+
+.hos-status-legend-swatch {
+  display: inline-block;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.hos-attention-chip[data-active="true"] {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--hos-primary) 35%, transparent);
+}
+
+.hos-inspector-card {
+  border-radius: 1rem;
+  border: 1px solid var(--hos-line);
+  background: var(--hos-cell);
+  padding: 0.75rem 0.85rem;
+  box-shadow: var(--hos-elevated-shadow);
+  transform: translateZ(0);
+}
+
+.hos-inspector-card--floating {
+  pointer-events: auto;
+  position: fixed;
+  z-index: 100;
+  width: min(300px, 92vw);
+}
+
+.hos-board-chrome {
+  border-radius: 1rem;
+  border: 1px solid var(--hos-line);
+  background: var(--hos-cell);
+  box-shadow: var(--hos-card-shadow);
+  transform: translateZ(0);
+}
+
+.hos-data-plane {
+  background: var(--hos-cell);
+  border: 1px solid var(--hos-line);
+  border-radius: 0.85rem;
+}
+
+.hos-rack-premium .hos-rack-cell {
+  background: var(--hos-cell);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .hos-module-chrome {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--hos-cell);
+  }
+}
+
 .hos-field {
   display: flex;
   flex-direction: column;
@@ -2009,6 +2088,73 @@ select {
   margin-bottom: calc(var(--pin-gap-y) * 0.85);
 }
 
+/* Soft-UI neumorphism for phone PIN vault (scoped) */
+.hos-pin-mobile.hos-pin-neo {
+  --neo-bg: #e8edf3;
+  --neo-light: #ffffff;
+  --neo-dark: #b8c2cf;
+  background: var(--neo-bg);
+}
+
+.hos-pin-mobile.hos-pin-neo .hos-pin-vault {
+  border: none;
+  background: var(--neo-bg);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow:
+    10px 10px 22px var(--neo-dark),
+    -10px -10px 22px var(--neo-light);
+}
+
+.hos-pin-mobile.hos-pin-neo .hos-pin-key {
+  border: none !important;
+  background: var(--neo-bg) !important;
+  color: #0a0a0a !important;
+  box-shadow:
+    6px 6px 12px var(--neo-dark),
+    -6px -6px 12px var(--neo-light) !important;
+}
+
+.hos-pin-mobile.hos-pin-neo .hos-pin-key:active {
+  box-shadow:
+    inset 4px 4px 8px var(--neo-dark),
+    inset -4px -4px 8px var(--neo-light) !important;
+}
+
+.hos-pin-mobile.hos-pin-neo .hos-pin-hero-avatar {
+  box-shadow:
+    8px 8px 16px var(--neo-dark),
+    -8px -8px 16px var(--neo-light);
+}
+
+.hos-pin-mobile.hos-pin-neo .hos-pin-unlock {
+  box-shadow:
+    6px 6px 14px var(--neo-dark),
+    -6px -6px 14px var(--neo-light);
+}
+
+[data-theme="midnight"] .hos-pin-mobile.hos-pin-neo,
+[data-theme="dark"] .hos-pin-mobile.hos-pin-neo,
+.dark .hos-pin-mobile.hos-pin-neo {
+  --neo-bg: #1c1916;
+  --neo-light: #2a2622;
+  --neo-dark: #0a0908;
+}
+
+[data-theme="midnight"] .hos-pin-mobile.hos-pin-neo .hos-pin-key,
+[data-theme="dark"] .hos-pin-mobile.hos-pin-neo .hos-pin-key,
+.dark .hos-pin-mobile.hos-pin-neo .hos-pin-key {
+  color: #f4f0e8 !important;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .hos-pin-mobile.hos-pin-neo .hos-pin-vault,
+  .hos-pin-mobile.hos-pin-neo .hos-pin-key {
+    box-shadow: none !important;
+    border: 1px solid var(--hos-line) !important;
+  }
+}
+
 .hos-pin-vault {
   position: relative;
   display: flex;
@@ -2295,11 +2441,15 @@ select {
 .hos-mobile-page {
   display: flex;
   min-height: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   flex: 1 1 auto;
   flex-direction: column;
   gap: 0.35rem;
   overflow-x: hidden;
   overflow-y: auto;
+  /* Dock clearance lives on `main` — keep only a small trailing gap here */
   padding-bottom: 0.25rem;
   -webkit-overflow-scrolling: touch;
 }
@@ -2665,6 +2815,77 @@ select {
   .hos-canvas-mesh,
   .hos-glass-shell {
     background: var(--hos-canvas);
+  }
+}
+
+/**
+ * FO-hardware contrast — phone / cheap LCD + blue-ray wash.
+ * Darker ink, solid surfaces, less frosted blur so UI stays crisp.
+ */
+@media (max-width: 767px) {
+  :root,
+  .hos-fo-contrast {
+    --hos-ink: #0a0a0a;
+    --hos-ink-2: #1c1c1c;
+    --hos-ink-3: #3d3d3d;
+    --hos-canvas: #e8ecf1;
+    --hos-canvas-2: #dde3ea;
+    --hos-surface: rgba(255, 255, 255, 0.94);
+    --hos-surface-2: #ffffff;
+    --hos-surface-3: #ffffff;
+    --hos-cell: #ffffff;
+    --hos-line: rgba(0, 0, 0, 0.14);
+    --hos-blur-l1: 6px;
+    --hos-blur-l2: 8px;
+    --hos-blur-l3: 10px;
+    --hos-blur: 8px;
+    --hos-paper-ink: #0a0a0a;
+    --hos-paper-muted: #3d3d3d;
+    --color-hos-ink: #0a0a0a;
+    --color-hos-ink-2: #1c1c1c;
+    --color-hos-ink-3: #3d3d3d;
+  }
+
+  .hos-fo-contrast .hos-glass,
+  .hos-fo-contrast .hos-glass-l2,
+  .hos-fo-contrast .hos-glass-l3,
+  .hos-fo-contrast .hos-glass-card,
+  .hos-fo-contrast .hos-surface-glass,
+  .hos-fo-contrast .glass-dock-mobile,
+  .hos-fo-contrast .ios-tab-bar {
+    backdrop-filter: blur(var(--hos-blur-l1)) saturate(1.1);
+    -webkit-backdrop-filter: blur(var(--hos-blur-l1)) saturate(1.1);
+    background: color-mix(in srgb, var(--hos-cell) 92%, transparent);
+  }
+
+  .hos-fo-contrast .hos-pin-vault {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: var(--hos-cell);
+    border-color: rgba(0, 0, 0, 0.16);
+    box-shadow:
+      inset 0 1px 0 0 rgba(255, 255, 255, 0.9),
+      0 18px 40px -20px rgba(0, 0, 0, 0.35);
+  }
+
+  .hos-fo-contrast .hos-pin-key {
+    background: #f3f4f6;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    color: #0a0a0a;
+    font-weight: 800;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, 0.06);
+  }
+
+  .hos-fo-contrast .hos-pin-mobile-mesh {
+    display: none;
+  }
+
+  .hos-fo-contrast,
+  .hos-fo-contrast button,
+  .hos-fo-contrast input,
+  .hos-fo-contrast select {
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
   }
 }
 

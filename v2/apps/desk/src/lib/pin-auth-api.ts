@@ -1,5 +1,66 @@
-import { API_BASE } from "./api";
+import { API_BASE, DEV_PROPERTY_ID } from "./api";
 import { activeBearer, readHotelToken } from "./auth-session";
+
+/** Local Vite UAT when API has no DATABASE_URL — not for production. */
+export const LOCAL_DEMO_PROPERTY: AuthProperty = {
+  id: DEV_PROPERTY_ID,
+  slug: "demo-hotel",
+  name: "Demo Hotel",
+};
+
+const LOCAL_DEMO_PINS: ReadonlyArray<{
+  staffId: string;
+  pin: string;
+  fullName: string;
+  deskRole: string;
+  homeRoute: string;
+  employeeCode: string;
+}> = [
+  {
+    staffId: "karma",
+    pin: "1234",
+    fullName: "Karma Dorji",
+    deskRole: "fo_manager",
+    homeRoute: "/desk",
+    employeeCode: "101",
+  },
+  {
+    staffId: "deki",
+    pin: "2345",
+    fullName: "Deki Yangzom",
+    deskRole: "cashier",
+    homeRoute: "/pos",
+    employeeCode: "201",
+  },
+  {
+    staffId: "tshering",
+    pin: "3456",
+    fullName: "Tshering Tobgay",
+    deskRole: "hk",
+    homeRoute: "/housekeeping",
+    employeeCode: "301",
+  },
+  {
+    staffId: "ugyen",
+    pin: "4567",
+    fullName: "Ugyen Penjor",
+    deskRole: "night_auditor",
+    homeRoute: "/night-audit",
+    employeeCode: "401",
+  },
+  {
+    staffId: "tenzin",
+    pin: "9999",
+    fullName: "Tenzin Norbu",
+    deskRole: "gm",
+    homeRoute: "/owner",
+    employeeCode: "001",
+  },
+];
+
+function isLocalDemoAuthEnabled(): boolean {
+  return Boolean(import.meta.env.DEV);
+}
 
 export type AuthProperty = {
   id: string;
@@ -101,7 +162,21 @@ export async function loginHotelEmail(input: {
     });
     const data = await readJson(res);
     if (!res.ok || data.ok === false) {
-      return { ok: false, error: String(data.error ?? data.message ?? "Sign-in failed") };
+      const err = String(data.error ?? data.message ?? "Sign-in failed");
+      if (
+        isLocalDemoAuthEnabled() &&
+        input.password.length >= 6 &&
+        (err === "DATABASE_REQUIRED" || res.status >= 500)
+      ) {
+        return {
+          ok: true,
+          token: "local-demo-hotel",
+          homeRoute: "/pin",
+          property: LOCAL_DEMO_PROPERTY,
+          properties: [LOCAL_DEMO_PROPERTY],
+        };
+      }
+      return { ok: false, error: err };
     }
     return {
       ok: true,
@@ -113,6 +188,15 @@ export async function loginHotelEmail(input: {
       ],
     };
   } catch (err) {
+    if (isLocalDemoAuthEnabled() && input.password.length >= 6) {
+      return {
+        ok: true,
+        token: "local-demo-hotel",
+        homeRoute: "/pin",
+        property: LOCAL_DEMO_PROPERTY,
+        properties: [LOCAL_DEMO_PROPERTY],
+      };
+    }
     return { ok: false, error: err instanceof Error ? err.message : "Sign-in failed" };
   }
 }
@@ -270,25 +354,53 @@ export async function switchHotelProperty(input: {
   }
 }
 
+function localDemoStaffList(): AuthStaff[] {
+  return LOCAL_DEMO_PINS.map((s) => ({
+    id: s.staffId,
+    fullName: s.fullName,
+    employeeCode: s.employeeCode,
+    deskRole: s.deskRole,
+    homeRoute: s.homeRoute,
+    pinSet: true,
+    pinResetRequired: false,
+  }));
+}
+
 export async function fetchAuthStaff(
   propertySlug: string,
   signal?: AbortSignal,
 ): Promise<{ property: AuthProperty; staff: AuthStaff[] }> {
-  const q = new URLSearchParams({ propertySlug });
-  const res = await fetch(`${API_BASE}/v1/auth/staff?${q}`, {
-    signal,
-    headers: authHeaders({ Authorization: `Bearer ${readHotelToken() ?? activeBearer() ?? ""}` }),
-  });
-  const data = (await res.json()) as {
-    ok?: boolean;
-    property?: AuthProperty;
-    staff?: AuthStaff[];
-    error?: string;
-  };
-  if (!res.ok || !data.ok || !data.property) {
-    throw new Error(data.error || "Could not load staff");
+  try {
+    const q = new URLSearchParams({ propertySlug });
+    const res = await fetch(`${API_BASE}/v1/auth/staff?${q}`, {
+      signal,
+      headers: authHeaders({ Authorization: `Bearer ${readHotelToken() ?? activeBearer() ?? ""}` }),
+    });
+    const data = (await res.json()) as {
+      ok?: boolean;
+      property?: AuthProperty;
+      staff?: AuthStaff[];
+      error?: string;
+    };
+    if (!res.ok || !data.ok || !data.property) {
+      if (isLocalDemoAuthEnabled()) {
+        return {
+          property: { ...LOCAL_DEMO_PROPERTY, slug: propertySlug || LOCAL_DEMO_PROPERTY.slug },
+          staff: localDemoStaffList(),
+        };
+      }
+      throw new Error(data.error || "Could not load staff");
+    }
+    return { property: data.property, staff: data.staff ?? [] };
+  } catch (err) {
+    if (isLocalDemoAuthEnabled() && !(err instanceof DOMException && err.name === "AbortError")) {
+      return {
+        property: { ...LOCAL_DEMO_PROPERTY, slug: propertySlug || LOCAL_DEMO_PROPERTY.slug },
+        staff: localDemoStaffList(),
+      };
+    }
+    throw err;
   }
-  return { property: data.property, staff: data.staff ?? [] };
 }
 
 export type PinAuthResult =
@@ -307,43 +419,80 @@ export type PinAuthResult =
     }
   | { ok: false; status: number; error: string; resetRequired?: boolean };
 
+function verifyLocalDemoPin(input: {
+  propertySlug: string;
+  staffId: string;
+  pin: string;
+}): PinAuthResult {
+  const hit = LOCAL_DEMO_PINS.find((s) => s.staffId === input.staffId && s.pin === input.pin);
+  if (!hit) {
+    return { ok: false, status: 401, error: "Incorrect PIN" };
+  }
+  return {
+    ok: true,
+    token: `local-demo-staff:${hit.staffId}`,
+    homeRoute: hit.homeRoute,
+    staff: {
+      id: hit.staffId,
+      fullName: hit.fullName,
+      deskRole: hit.deskRole,
+      employeeCode: hit.employeeCode,
+    },
+    property: {
+      ...LOCAL_DEMO_PROPERTY,
+      slug: input.propertySlug || LOCAL_DEMO_PROPERTY.slug,
+    },
+  };
+}
+
 export async function verifyStaffPin(input: {
   propertySlug: string;
   staffId: string;
   pin: string;
   confirmPin?: string;
 }): Promise<PinAuthResult> {
-  const hotel = readHotelToken();
-  const res = await fetch(`${API_BASE}/v1/auth/pin`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(hotel ? { Authorization: `Bearer ${hotel}` } : {}),
-    },
-    body: JSON.stringify(input),
-  });
-  const data = (await res.json()) as Record<string, unknown>;
-  if (res.status === 409 && data.error === "PIN_RESET_REQUIRED") {
+  try {
+    const hotel = readHotelToken();
+    const res = await fetch(`${API_BASE}/v1/auth/pin`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(hotel ? { Authorization: `Bearer ${hotel}` } : {}),
+      },
+      body: JSON.stringify(input),
+    });
+    const data = (await res.json()) as Record<string, unknown>;
+    if (res.status === 409 && data.error === "PIN_RESET_REQUIRED") {
+      return {
+        ok: false,
+        status: 409,
+        error: String(data.message ?? "Set a new PIN"),
+        resetRequired: true,
+      };
+    }
+    if (!res.ok || data.ok === false) {
+      if (
+        isLocalDemoAuthEnabled() &&
+        (String(data.error) === "DATABASE_REQUIRED" || res.status >= 500)
+      ) {
+        return verifyLocalDemoPin(input);
+      }
+      return {
+        ok: false,
+        status: res.status,
+        error: String(data.error ?? "Incorrect PIN"),
+      };
+    }
     return {
-      ok: false,
-      status: 409,
-      error: String(data.message ?? "Set a new PIN"),
-      resetRequired: true,
+      ok: true,
+      token: String(data.token),
+      homeRoute: String(data.homeRoute ?? "/desk"),
+      pinWasReset: Boolean(data.pinWasReset),
+      staff: data.staff as PinAuthResult extends { ok: true; staff: infer S } ? S : never,
+      property: data.property as AuthProperty,
     };
+  } catch {
+    if (isLocalDemoAuthEnabled()) return verifyLocalDemoPin(input);
+    return { ok: false, status: 0, error: "PIN verification failed" };
   }
-  if (!res.ok || data.ok === false) {
-    return {
-      ok: false,
-      status: res.status,
-      error: String(data.error ?? "Incorrect PIN"),
-    };
-  }
-  return {
-    ok: true,
-    token: String(data.token),
-    homeRoute: String(data.homeRoute ?? "/desk"),
-    pinWasReset: Boolean(data.pinWasReset),
-    staff: data.staff as PinAuthResult extends { ok: true; staff: infer S } ? S : never,
-    property: data.property as AuthProperty,
-  };
 }

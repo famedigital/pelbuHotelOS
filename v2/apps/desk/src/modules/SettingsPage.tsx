@@ -10,6 +10,7 @@ import {
   InsetList,
   KpiCard,
   ModuleFrame,
+  StatusLegend,
   MorphTabs,
 } from "@hos-v2/ui";
 import {
@@ -59,9 +60,20 @@ export function SettingsPage() {
       title="Settings"
       description="Licensing · building architecture · DRC tax laws · RMA / till limits"
       actions={
-        <Badge tone="default" className="border border-[var(--hos-primary)]">
-          Property Blueprint
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "prop", label: "Property", swatch: "var(--hos-primary)" },
+              { id: "fiscal", label: "Fiscal", swatch: "var(--hos-brass)" },
+              { id: "pay", label: "Payments", swatch: "var(--hos-emerald)" },
+            ]}
+          />
+          <Badge tone="default" className="border border-[var(--hos-primary)]">
+            Property Blueprint
+          </Badge>
+        </div>
       }
     >
     <div className="flex flex-col gap-4">

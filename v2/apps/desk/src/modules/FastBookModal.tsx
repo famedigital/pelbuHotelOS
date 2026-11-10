@@ -1,7 +1,7 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { Drawer } from "vaul";
 import { motion, useReducedMotion } from "motion/react";
-import { useEffect, useMemo, useState, useTransition, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Badge, Button, useIsPhone } from "@hos-v2/ui";
 import { Sparkles, Zap } from "lucide-react";
@@ -178,13 +178,14 @@ export function FastBookModal() {
   const closeFastBook = useFrontOfficeStore((s) => s.closeFastBook);
   const createBooking = useFrontOfficeStore((s) => s.createBooking);
   const updateStayRate = useFrontOfficeStore((s) => s.updateStayRate);
+  const openStay = useFrontOfficeStore((s) => s.openStay);
   const businessDate = useFrontOfficeStore((s) => s.businessDate);
   const rooms = useFrontOfficeStore((s) => s.rooms);
   const agents = useCommercialStore((s) => s.agents);
   const rateCards = useCommercialStore((s) => s.rateCards);
   const cells = useCommercialStore((s) => s.cells);
   const season = useCommercialStore((s) => s.season);
-  const [, start] = useTransition();
+  const [submitting, setSubmitting] = useState(false);
 
   const [profile, setProfile] = useState<ProfileId>("walk_in");
   const [guestName, setGuestName] = useState("");
@@ -471,6 +472,7 @@ export function FastBookModal() {
   }, [roomLines]);
 
   const submit = () => {
+    if (submitting) return;
     if (!guestName.trim()) {
       toast.error("Lead guest name is required");
       return;
@@ -492,8 +494,9 @@ export function FastBookModal() {
       return;
     }
 
-    start(() => {
-      void (async () => {
+    setSubmitting(true);
+    void (async () => {
+      try {
         const agent = agents.find((a) => a.id === selectedAgentId);
         const created = await createBooking({
           guestName,
@@ -529,6 +532,11 @@ export function FastBookModal() {
           toast.error(created.error);
           return;
         }
+        if (created.assignWarning) {
+          toast.error(created.assignWarning, {
+            description: "Booking saved — assign the room in StayHub",
+          });
+        }
         const stay = created.stay;
         const party = created.stays;
 
@@ -562,7 +570,7 @@ export function FastBookModal() {
               toast.error(rateRes.error, {
                 description: "Booking created but card rate was not applied",
               });
-              return;
+              /* Still open StayHub — do not abort Open Stay on rate patch failure. */
             }
           }
         }
@@ -580,8 +588,22 @@ export function FastBookModal() {
                   } · ${nights}N · ${mealPlan} · ${formatNu(quote.totalDue)} · Stay open`,
           },
         );
-      })();
-    });
+
+        /* createBooking already closed Fast Book. Delay StayHub open past Radix/Vaul
+         * exit (~200ms). openStay also stamps stayHubDismissGuardUntil so focus-restore
+         * cannot clear the sheet. Do NOT clear this timer via a React effect — that
+         * cancelled openStay when pending state flipped null. */
+        const stayId = stay.id;
+        window.setTimeout(() => {
+          openStay(stayId);
+        }, 320);
+      } catch (err) {
+        console.error("[fast-book] submit failed", err);
+        toast.error(err instanceof Error ? err.message : "Could not create booking");
+      } finally {
+        setSubmitting(false);
+      }
+    })();
   };
 
   useEffect(() => {
@@ -611,7 +633,7 @@ export function FastBookModal() {
       }}
     >
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        <div className="relative shrink-0 overflow-hidden border-b border-[var(--hos-line)] px-3.5 py-2.5 md:px-5 md:py-3">
+        <div className="hos-module-chrome relative shrink-0 overflow-hidden rounded-none border-x-0 border-t-0 px-3.5 py-2.5 md:px-5 md:py-3">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[rgba(17,17,17,0.04)] via-transparent to-[rgba(37,99,235,0.06)]" />
           <div className="relative flex items-center justify-between gap-2">
             <div className="flex min-w-0 items-center gap-2.5">
@@ -1054,22 +1076,31 @@ export function FastBookModal() {
                     <span className="text-[11px] font-semibold text-[var(--hos-ink)]">
                       Tour operator
                     </span>
-                    <select
-                      value={selectedAgentId}
-                      onChange={(e) => {
-                        const id = e.target.value;
-                        setSelectedAgentId(id);
-                        const ag = agents.find((a) => a.id === id);
-                        if (ag) setRateCardId(ag.rateCardId);
-                      }}
-                      className={fieldClass}
-                    >
-                      {agents.map((ag) => (
-                        <option key={ag.id} value={ag.id}>
-                          {ag.name} ({ag.code})
-                        </option>
-                      ))}
-                    </select>
+                    {agents.length === 0 ? (
+                      <p className="m-0 rounded-xl border border-dashed border-[var(--hos-line)] px-3 py-2 text-[12px] text-[var(--hos-ink-3)]">
+                        No agents hydrated — PIN into the live hotel so the partners
+                        vault can load from Postgres.
+                      </p>
+                    ) : (
+                      <select
+                        value={selectedAgentId}
+                        onChange={(e) => {
+                          const id = e.target.value;
+                          setSelectedAgentId(id);
+                          const ag = agents.find((a) => a.id === id);
+                          if (ag) setRateCardId(ag.rateCardId);
+                        }}
+                        className={fieldClass}
+                      >
+                        {[...agents]
+                          .sort((a, b) => a.name.localeCompare(b.name))
+                          .map((ag) => (
+                            <option key={ag.id} value={ag.id}>
+                              {ag.name} ({ag.code})
+                            </option>
+                          ))}
+                      </select>
+                    )}
                   </label>
                   <input
                     placeholder="Voucher / MoU ref"
@@ -1239,16 +1270,18 @@ export function FastBookModal() {
               size="sm"
               magnetic
               data-testid="fast-book-submit"
-              disabled={!guestName.trim() || nights < 1}
+              disabled={submitting || !guestName.trim() || nights < 1}
               onClick={submit}
               className="hos-btn-ink hos-btn-spring !min-h-9 flex-1 gap-1.5 !rounded-xl px-4 text-[13px] font-bold md:flex-none"
             >
               <Zap className="size-3.5" strokeWidth={2.25} />
-              {asHold
-                ? "Create hold → Stay"
-                : isPhone
-                  ? "Confirm Booking"
-                  : "Create → Open Stay"}
+              {submitting
+                ? "Creating…"
+                : asHold
+                  ? "Create hold → Stay"
+                  : isPhone
+                    ? "Confirm Booking"
+                    : "Create → Open Stay"}
             </Button>
           </div>
         </div>

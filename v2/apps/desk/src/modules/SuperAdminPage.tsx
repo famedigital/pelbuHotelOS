@@ -1,4 +1,11 @@
-import { Badge, Button, GlassPanel, KpiCard, ModuleFrame } from "@hos-v2/ui";
+import {
+  Badge,
+  Button,
+  GlassPanel,
+  KpiCard,
+  ModuleFrame,
+  StatusLegend,
+} from "@hos-v2/ui";
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { formatNu } from "../lib/front-office-store";
@@ -96,7 +103,20 @@ export function SuperAdminPage() {
   ).length;
 
   return (
-    <ModuleFrame title="Super Admin" description="Tenants · platform controls">
+    <ModuleFrame
+      title="Super Admin"
+      description="Tenants · platform controls"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "live", label: "Live", swatch: "var(--hos-emerald)" },
+            { id: "trial", label: "Trial", swatch: "var(--hos-brass)" },
+            { id: "off", label: "Suspended", swatch: "var(--hos-ruby)" },
+          ]}
+        />
+      }
+    >
       <div className="flex flex-col gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2">

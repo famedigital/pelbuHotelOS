@@ -11,7 +11,9 @@ import {
   GlassElevated,
   MorphTabs,
   ModuleFrame,
+  StatusLegend,
   useIsPhone,
+  useIsTablet,
 } from "@hos-v2/ui";
 import { verifyDeskManagerPin } from "../lib/desk-pin";
 import {
@@ -24,6 +26,7 @@ import {
 } from "../lib/fnb-store";
 import { useFrontOfficeStore } from "../lib/front-office-store";
 import { PosMobileView } from "./mobile/PosMobileView";
+import { PosTabletView } from "./mobile/PosTabletView";
 
 const DIET_LABEL: Record<DietaryFlag, string> = {
   veg: "Veg",
@@ -38,6 +41,7 @@ const QUICK_CASH = [500, 1000, 2000, 5000, 10000];
 
 export function PosPage() {
   const isPhone = useIsPhone();
+  const isTablet = useIsTablet();
   const reduce = useReducedMotion();
   const [, start] = useTransition();
   const [pin, setPin] = useState("");
@@ -189,6 +193,7 @@ export function PosPage() {
   };
 
   if (isPhone) return <PosMobileView />;
+  if (isTablet) return <PosTabletView />;
 
   return (
     <ModuleFrame
@@ -197,6 +202,15 @@ export function PosPage() {
       description={`${tableLabel} · ${lineCount} pcs · ${formatNu(totals.total)}`}
       actions={
         <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "open", label: "Open check", swatch: "var(--hos-primary)" },
+              { id: "fire", label: "Fired", swatch: "var(--hos-brass)" },
+              { id: "paid", label: "Settled", swatch: "var(--hos-emerald)" },
+            ]}
+          />
           <Badge tone={shiftOpen ? "success" : "muted"}>
             {shiftOpen ? "Shift open" : "Shift closed"}
           </Badge>

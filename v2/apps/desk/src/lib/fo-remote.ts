@@ -43,10 +43,29 @@ const SOURCE_MAP: Record<BookingSource, "desk" | "agent_portal" | "web" | "ota" 
   ota: "ota",
 };
 
-/** Map desk `rm-101` → stable API UUID. */
+/** Map desk `rm-101` → stable API UUID (legacy seed path only). */
 export function deskRoomToApiId(deskRoomId: string): string {
   const digits = deskRoomId.replace(/\D/g, "").padStart(12, "0").slice(-12);
   return `30000000-0000-4000-8000-${digits}`;
+}
+
+/** Resolve live Postgres room UUID by desk `rm-404` → room number lookup. */
+async function resolveApiRoomId(deskRoomId: string): Promise<string | null> {
+  const number = deskRoomId.replace(/^rm-/i, "").trim();
+  if (!number) return null;
+  try {
+    const propertyId = sessionPropertyId();
+    const snap = await apiGet<{
+      ok: boolean;
+      rooms: { id: string; number: string }[];
+    }>(`/v1/settings/snapshot?propertyId=${propertyId}`);
+    const hit = (snap.rooms ?? []).find((r) => r.number === number);
+    if (hit?.id) return hit.id;
+  } catch (err) {
+    console.error("[fo-remote] resolveApiRoomId snapshot failed", err);
+  }
+  /* Fall back to deterministic seed UUID only when PG room is missing. */
+  return deskRoomToApiId(deskRoomId);
 }
 
 export function apiIdToDeskRoomId(
@@ -359,16 +378,20 @@ export async function syncAssignRoomRemote(input: {
   dirtyOverridePin?: string;
 }): Promise<{ ok: true; roomNumber: string; mode: string } | { ok: false; error: string }> {
   const mode = input.mode ?? "assign";
+  const roomId = await resolveApiRoomId(input.deskRoomId);
+  if (!roomId) {
+    return { ok: false, error: `Room not found for ${input.deskRoomId}` };
+  }
   const res = await runCommand<{ roomNumber: string; mode: string }>("stayview.assignRooms", {
     bookingLineId: input.bookingLineId,
-    roomId: deskRoomToApiId(input.deskRoomId),
+    roomId,
     mode,
     reason: input.reason,
     dirtyOverridePin: input.dirtyOverridePin,
     idempotencyKey: commandIdempotencyKey(
       "assign",
       input.bookingLineId,
-      input.deskRoomId,
+      roomId,
       mode,
       input.reason ?? "",
       input.dirtyOverridePin ? "dirty" : "clean",
@@ -753,6 +776,7 @@ type ApiBooking = {
   checkIn: string;
   checkOut: string;
   source: string;
+  agentId?: string | null;
   agencyName?: string | null;
   groupId?: string | null;
   lines: {
@@ -846,10 +870,20 @@ function mapApiStatus(status: string): BookingStatus {
   return "confirmed";
 }
 
-function mapApiSource(source: string): BookingSource {
-  if (source === "agent_portal") return "agent";
+function mapApiSource(
+  source: string,
+  opts?: { agentId?: string | null; agencyName?: string | null },
+): BookingSource {
+  if (source === "agent_portal" || source === "agent") return "agent";
   if (source === "ota" || source === "channel") return "ota";
   if (source === "web") return "direct";
+  // Rack import (`xlsx_grid`) + real agency → agent; WIG stays walk-in.
+  const agency = opts?.agencyName?.trim() ?? "";
+  const walkInAgency =
+    !agency ||
+    /^walk[\s-]?in/i.test(agency) ||
+    agency.toUpperCase() === "WIG";
+  if ((opts?.agentId || agency) && !walkInAgency) return "agent";
   return "walk_in";
 }
 
@@ -904,7 +938,10 @@ export function mapApiBookingToStay(
     checkIn: b.checkIn,
     checkOut: b.checkOut,
     mealPlan: ((line?.mealPlan as MealPlan) ?? "EP"),
-    source: mapApiSource(b.source),
+    source: mapApiSource(b.source, {
+      agentId: b.agentId,
+      agencyName,
+    }),
     nightlyNet: line?.netAmount ?? 3500,
     groupId: b.groupId ?? null,
     groupName,
@@ -1005,6 +1042,7 @@ export async function hydrateFrontOfficeRemote(): Promise<FoHydrateResult> {
     }>(`/v1/reservations?propertyId=${propertyId}`);
     const snap = await apiGet<{
       ok: boolean;
+      property?: { id: string; name: string; slug?: string };
       rooms: {
         id: string;
         number: string;
@@ -1014,6 +1052,16 @@ export async function hydrateFrontOfficeRemote(): Promise<FoHydrateResult> {
       }[];
       roomTypes: { id: string; code: string; name: string }[];
     }>(`/v1/settings/snapshot?propertyId=${propertyId}`);
+    if (snap.property?.name?.trim()) {
+      try {
+        const { useSettingsStore } = await import("./settings-store");
+        useSettingsStore.getState().updateProfile({
+          hotelName: snap.property.name.trim(),
+        });
+      } catch (err) {
+        console.warn("[fo-remote] settings hotelName sync skipped", err);
+      }
+    }
     let roomBlocks: ApiRoomBlock[] = [];
     try {
       const blocksRes = await apiGet<{

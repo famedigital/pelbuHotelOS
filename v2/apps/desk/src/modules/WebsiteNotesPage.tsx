@@ -2,6 +2,7 @@ import { motion, useReducedMotion } from "motion/react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { useExtrasStore } from "../lib/extras-store";
 
@@ -14,6 +15,16 @@ export function WebsiteNotesPage() {
     <ModuleFrame
       title="Website"
       description="Public booking notes"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "ssl", label: "SSL", swatch: "var(--hos-emerald)" },
+            { id: "eng", label: "Engine", swatch: "var(--hos-primary)" },
+            { id: "seo", label: "SEO", swatch: "var(--hos-brass)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

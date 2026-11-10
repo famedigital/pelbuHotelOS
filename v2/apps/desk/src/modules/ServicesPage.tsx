@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Badge, Button, GlassPanel, KpiCard,
   ModuleFrame,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu, useFrontOfficeStore } from "../lib/front-office-store";
 import { useExtrasStore, type ServiceJob } from "../lib/extras-store";
@@ -31,6 +32,16 @@ export function ServicesPage() {
     <ModuleFrame
       title="Guest Services"
       description="Spa · transfers · activities"
+      actions={
+        <StatusLegend
+          dense
+          items={[
+            { id: "booked", label: "Booked", swatch: "var(--hos-primary)" },
+            { id: "run", label: "In progress", swatch: "var(--hos-brass)" },
+            { id: "done", label: "Done", swatch: "var(--hos-emerald)" },
+          ]}
+        />
+      }
     >
     <div className="flex flex-col gap-4">
       <div>

@@ -842,6 +842,11 @@ export function StayHubDrawer() {
               setRmaOpen(false);
               return;
             }
+            /* Fast Book already sets fastBookOpen=false before openStay — so guard
+             * on the time window openStay stamps, not on fastBookOpen. */
+            const fo = useFrontOfficeStore.getState();
+            if (fo.fastBookOpen) return;
+            if (Date.now() < fo.stayHubDismissGuardUntil) return;
             openStay(null);
           }
         }}
@@ -1189,16 +1194,33 @@ export function StayHubDrawer() {
                 variant="ghost"
                 className="!h-9 !min-w-9 !rounded-xl !px-2 text-[12px]"
                 onClick={() => {
-                  // Guest bill = personal folio; Agency bill button opens master.
+                  // Guest / personal folio paper.
                   setStreamFocus("personal");
                   if (isGroupHub) setTab("streams");
                   setInvoiceOpen(true);
                 }}
-                aria-label="Bill"
+                aria-label="Guest bill"
                 data-testid="stayhub-guest-bill"
               >
-                Bill
+                Guest bill
               </Button>
+              {!isGroupHub ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="!h-9 !rounded-xl !px-2.5 text-[12px]"
+                  onClick={() => {
+                    // Agency / city-ledger paper — room+meal from rack land here.
+                    setStreamFocus("master");
+                    setTab("streams");
+                    setInvoiceOpen(true);
+                  }}
+                  aria-label="Agency bill"
+                  data-testid="stayhub-agency-bill"
+                >
+                  Agency bill
+                </Button>
+              ) : null}
               {!isGroupHub ? (
                 <Button
                   size="sm"

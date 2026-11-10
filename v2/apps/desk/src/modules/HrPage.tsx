@@ -19,6 +19,7 @@ import {
   GlassTiltCard,
   ModuleFrame,
   MorphTabs,
+  StatusLegend,
 } from "@hos-v2/ui";
 import { formatNu, useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
 import {
@@ -221,9 +222,20 @@ export function HrPage() {
       title="HR · Payroll & People"
       description="Salary sheet · attendance · rota · advances · SC tip pool · remarks · ADMS"
       actions={
-        <Badge tone="default" className="border border-[var(--hos-primary)]">
-          {periodYm}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "on", label: "On duty", swatch: "var(--hos-emerald)" },
+              { id: "leave", label: "Leave", swatch: "var(--hos-brass)" },
+              { id: "abs", label: "Absent", swatch: "var(--hos-ruby)" },
+            ]}
+          />
+          <Badge tone="default" className="border border-[var(--hos-primary)]">
+            Rota · {periodYm}
+          </Badge>
+        </div>
       }
     >
       <div className="flex flex-col gap-4">
@@ -316,7 +328,43 @@ export function HrPage() {
             {salaryRows.length === 0 ? (
               <EmptyState title="No salary rows" description="Add active staff or clear dept filter." />
             ) : (
-              <div className="overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+              <>
+              <ul className="m-0 mb-2 grid list-none gap-2 p-0 md:hidden">
+                {salaryRows.map((r) => (
+                  <li key={r.staffId}>
+                    <button
+                      type="button"
+                      className="hos-cell flex w-full flex-col gap-1 rounded-xl border border-[var(--hos-line)] p-3 text-left"
+                      onClick={() => {
+                        setSelectedId(r.staffId);
+                        setTab("roster");
+                      }}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <strong className="truncate text-[13px] text-[var(--hos-ink)]">
+                          {r.name}
+                        </strong>
+                        <span className="font-mono text-[11px] text-[var(--hos-ink-3)]">
+                          {r.employeeCode}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-[var(--hos-ink-3)]">
+                        {r.dept} · {r.daysWorked}d
+                      </div>
+                      <div className="flex justify-between font-mono text-[12px] tabular-nums">
+                        <span className="text-[var(--hos-ink-3)]">Net</span>
+                        <span className="font-bold text-[var(--hos-ink)]">
+                          {formatNu(r.netPayBtn)}
+                        </span>
+                      </div>
+                    </button>
+                  </li>
+                ))}
+                <li className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-surface)] px-3 py-2.5 text-right font-mono text-[12px] font-bold">
+                  Total net {formatNu(payrollNet)}
+                </li>
+              </ul>
+              <div className="hidden overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] md:block">
                 <table className="w-full min-w-[980px] text-left text-xs">
                   <thead>
                     <tr className="border-b border-[var(--hos-line)] text-[10px] uppercase text-[var(--hos-ink-3)]">
@@ -373,6 +421,7 @@ export function HrPage() {
                   </tfoot>
                 </table>
               </div>
+              </>
             )}
           </GlassPanel>
         ) : null}

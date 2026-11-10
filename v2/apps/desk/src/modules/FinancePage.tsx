@@ -15,6 +15,7 @@ import {
   GlassTiltCard,
   ModuleFrame,
   MorphTabs,
+  StatusLegend,
 } from "@hos-v2/ui";
 import {
   folioTotals,
@@ -218,9 +219,20 @@ export function FinancePage() {
       title="Finance Hub"
       description="Income · expense · bank recon · P&L · balance sheet · trial balance · fiscal"
       actions={
-        <Badge tone="default" className="border border-[var(--hos-primary)]">
-          {from} → {to}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLegend
+            dense
+            className="hidden md:flex"
+            items={[
+              { id: "cash", label: "Cash", swatch: "var(--hos-emerald)" },
+              { id: "ar", label: "AR", swatch: "var(--hos-brass)" },
+              { id: "tax", label: "Tax", swatch: "var(--hos-primary)" },
+            ]}
+          />
+          <Badge tone="default" className="border border-[var(--hos-primary)]">
+            {from} → {to}
+          </Badge>
+        </div>
       }
     >
       <div className="flex flex-col gap-4">

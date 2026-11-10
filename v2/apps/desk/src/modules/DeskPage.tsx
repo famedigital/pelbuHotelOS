@@ -18,6 +18,7 @@ import {
   LedBeacon,
   MorphTabs,
   Odometer,
+  StatusLegend,
   fadeSlide,
   staggerChildren,
   useIsPhone,
@@ -26,9 +27,11 @@ import {
 import {
   Banknote,
   Crown,
+  LayoutGrid,
   ListChecks,
   MoonStar,
   Search,
+  Table2,
   Users,
   Zap,
 } from "lucide-react";
@@ -143,6 +146,7 @@ export function DeskPage() {
   const navigate = useNavigate();
   const reduce = useReducedMotion();
   const [tab, setTab] = useState<Tab>("arrivals");
+  const [listMode, setListMode] = useState<"table" | "cards">("table");
   const [query, setQuery] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
@@ -446,7 +450,7 @@ export function DeskPage() {
   const tabs: { id: Tab; label: string; count: number }[] = [
     { id: "arrivals", label: "Arrivals", count: arrivals.length },
     { id: "inHouse", label: "In-House", count: inHouse.length },
-    { id: "departures", label: "Departures", count: departures.length },
+    { id: "departures", label: "Checkout", count: departures.length },
     { id: "tomorrow", label: "Tomorrow", count: tomorrowArrivals.length },
   ];
 
@@ -626,7 +630,7 @@ export function DeskPage() {
         const holds = stays.filter((s) => s.status === "held");
         if (holds.length === 0) return null;
         return (
-          <div className="hos-scrollbar-slim flex shrink-0 gap-2 overflow-x-auto rounded-xl border border-[var(--hos-brass)]/30 bg-[rgba(245,158,11,0.08)] px-2 py-1.5">
+          <div className="hos-board-chrome hos-scrollbar-slim flex shrink-0 gap-2 overflow-x-auto border-[color-mix(in_srgb,var(--hos-brass)_35%,var(--hos-line))] bg-[color-mix(in_srgb,var(--hos-brass)_10%,var(--hos-cell))] px-2 py-1.5">
             <span className="hos-section-label shrink-0 !m-0 self-center text-[var(--hos-brass-ink)]">
               Holds
             </span>
@@ -649,11 +653,22 @@ export function DeskPage() {
 
       <div
         data-tour="floormap"
-        className="hos-floor-rail shrink-0 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]"
+        className="hos-floor-rail hos-board-chrome shrink-0"
       >
         <span className="hos-section-label shrink-0 !m-0">
           Floors
         </span>
+        <StatusLegend
+          dense
+          className="mr-1 hidden sm:flex"
+          items={[
+            { id: "vac", label: "Vacant", swatch: "var(--hos-canvas-2)" },
+            { id: "occ", label: "In-house", swatch: "var(--hos-primary)" },
+            { id: "arr", label: "Arrival", swatch: "var(--hos-emerald)" },
+            { id: "dep", label: "Due out", swatch: "var(--hos-brass)" },
+            { id: "dirty", label: "Dirty", swatch: "var(--hos-ruby)" },
+          ]}
+        />
         <div className="hos-floor-rail-scroll">
           {floors.map((f) => (
             <div key={f.floor} className="hos-floor-group">
@@ -732,6 +747,40 @@ export function DeskPage() {
             >
               VIP
             </button>
+            <div
+              className="flex overflow-hidden rounded-md border border-[var(--hos-line)]"
+              role="group"
+              aria-label="List layout"
+            >
+              <button
+                type="button"
+                onClick={() => setListMode("table")}
+                className={`hos-btn-tactile inline-flex h-8 min-w-8 items-center justify-center px-2 ${
+                  listMode === "table"
+                    ? "bg-[var(--hos-primary)] text-white"
+                    : "text-[var(--hos-ink-2)]"
+                }`}
+                aria-pressed={listMode === "table"}
+                aria-label="Table view"
+                title="Table view"
+              >
+                <Table2 className="size-3.5" strokeWidth={2} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setListMode("cards")}
+                className={`hos-btn-tactile inline-flex h-8 min-w-8 items-center justify-center px-2 ${
+                  listMode === "cards"
+                    ? "bg-[var(--hos-primary)] text-white"
+                    : "text-[var(--hos-ink-2)]"
+                }`}
+                aria-pressed={listMode === "cards"}
+                aria-label="Card view"
+                title="Card view"
+              >
+                <LayoutGrid className="size-3.5" strokeWidth={2} />
+              </button>
+            </div>
             {tab === "arrivals" ? (
               <Button
                 size="sm"
@@ -775,6 +824,131 @@ export function DeskPage() {
                 </Button>
               }
             />
+          ) : listMode === "table" ? (
+            <div className="hos-scrollbar-slim min-h-0 flex-1 overflow-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+              <table className="w-full min-w-[40rem] border-collapse text-left text-[12px]">
+                <thead className="sticky top-0 z-[1] bg-[var(--hos-cell)]">
+                  <tr className="border-b border-[var(--hos-line)] text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
+                    <th className="px-3 py-2.5">Guest</th>
+                    <th className="px-3 py-2.5">Rm</th>
+                    <th className="px-3 py-2.5">Stay</th>
+                    <th className="px-3 py-2.5">Meal</th>
+                    <th className="px-3 py-2.5 text-right">Balance</th>
+                    <th className="px-3 py-2.5 text-right">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--hos-line)]">
+                  {rows.map((s, idx) => {
+                    const personalBal = folioBalance(s, "personal");
+                    const masterBal = folioBalance(s, "master");
+                    const bal = masterBal + personalBal;
+                    const nights = nightsBetween(s.checkIn, s.checkOut);
+                    const personalDue = personalBal > 0.5;
+                    const focused = idx === focusIdx;
+                    return (
+                      <tr
+                        key={s.id}
+                        data-tour={idx === 0 ? "worklist" : undefined}
+                        className={`cursor-pointer hover:bg-[color-mix(in_srgb,var(--hos-primary)_6%,transparent)] ${
+                          focused
+                            ? "bg-[color-mix(in_srgb,var(--hos-primary)_10%,transparent)]"
+                            : ""
+                        }`}
+                        onClick={() => {
+                          setFocusIdx(idx);
+                          openStay(s.id);
+                        }}
+                      >
+                        <td className="max-w-[14rem] px-3 py-2.5">
+                          <div className="truncate font-semibold text-[var(--hos-ink)]">
+                            {s.guestName}
+                            {s.vip ? " · VIP" : ""}
+                          </div>
+                          <div className="truncate font-mono text-[10px] text-[var(--hos-ink-3)]">
+                            {s.confirmationNo}
+                            {s.groupName ? ` · ${s.groupName}` : ""}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5 font-mono font-bold text-[var(--hos-primary)]">
+                          {s.roomNumber ?? (
+                            <span className="text-[var(--hos-ruby)]">—</span>
+                          )}
+                        </td>
+                        <td className="whitespace-nowrap px-3 py-2.5 tabular-nums text-[var(--hos-ink-2)]">
+                          {nights}N · {s.checkIn.slice(5)}→{s.checkOut.slice(5)}
+                        </td>
+                        <td className="px-3 py-2.5 font-mono text-[var(--hos-ink-2)]">
+                          {s.mealPlan}
+                        </td>
+                        <td className="px-3 py-2.5 text-right">
+                          <CurrencyCell
+                            amount={personalDue ? personalBal : bal}
+                            showCents
+                            className={`justify-end text-[12px] ${
+                              personalDue
+                                ? "text-[var(--hos-ruby)]"
+                                : "text-[var(--hos-ink)]"
+                            }`}
+                          />
+                        </td>
+                        <td
+                          className="px-3 py-2 text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {["confirmed", "held"].includes(s.status) ? (
+                            <Button
+                              size="sm"
+                              className="hos-btn-ink !h-8 !min-h-8 !rounded-full !px-3 text-[12px]"
+                              disabled={!s.roomId}
+                              onClick={() => runCheckIn(s)}
+                            >
+                              Check in
+                            </Button>
+                          ) : s.status === "checked_in" ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              className="!h-8 !min-h-8 !rounded-full !px-3 text-[12px]"
+                              disabled={personalDue}
+                              onClick={() => {
+                                if (personalBal > 0.5) {
+                                  toast.error("Checkout blocked", {
+                                    description: `Settle guest extras ${formatNu(personalBal)} first.`,
+                                  });
+                                  openStay(s.id);
+                                  return;
+                                }
+                                void (async () => {
+                                  const res = await checkOut(s.id);
+                                  if (!res.ok) {
+                                    toast.error("Checkout blocked", {
+                                      description: res.error,
+                                    });
+                                    return;
+                                  }
+                                  toast.success("Checked out");
+                                })();
+                              }}
+                            >
+                              Check out
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="!h-8 !min-h-8 !rounded-full !px-3 text-[12px]"
+                              onClick={() => openStay(s.id)}
+                            >
+                              Folio
+                            </Button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           ) : (
             <div className="hos-scrollbar-slim flex min-h-0 flex-1 flex-col overflow-y-auto">
               {rows.map((s, idx) => {

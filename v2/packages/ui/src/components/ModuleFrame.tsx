@@ -13,7 +13,7 @@ type ModuleFrameProps = {
   eyebrow?: string;
 };
 
-/** Compact Linear-grade module chrome — butter title settle on mount. */
+/** Compact Linear-grade module chrome — frost header, opaque body (premium DNA). */
 export function ModuleFrame({
   title,
   description,
@@ -28,13 +28,13 @@ export function ModuleFrame({
   return (
     <div
       className={cn(
-        "flex min-h-0 flex-col gap-2.5 md:gap-3",
+        "hos-module-frame flex min-h-0 flex-col gap-2.5 md:gap-3",
         fill && "h-full overflow-hidden",
         className,
       )}
     >
       <motion.header
-        className="flex shrink-0 flex-col gap-2 px-0.5 sm:flex-row sm:items-center sm:justify-between"
+        className="hos-module-chrome flex shrink-0 flex-col gap-2 px-2.5 py-2 sm:flex-row sm:items-center sm:justify-between"
         initial={reduce ? false : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={reduce ? undefined : springSoft}

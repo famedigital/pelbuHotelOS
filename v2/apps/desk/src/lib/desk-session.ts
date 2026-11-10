@@ -1,5 +1,7 @@
 /** Desk PIN session — issued by `/v1/auth/pin`. */
 
+import { notifyPropertyChanged } from "./api";
+
 const TOKEN_KEY = "hos.v2.desk.token";
 const STAFF_KEY = "hos.v2.desk.staff";
 const PROPERTY_KEY = "hos.v2.desk.property";
@@ -27,6 +29,7 @@ export function writeDeskSession(
   sessionStorage.setItem(PROPERTY_KEY, JSON.stringify(property));
   localStorage.setItem("hos.v2.propertyId", property.id);
   localStorage.setItem("hos.v2.propertySlug", property.slug);
+  notifyPropertyChanged();
 }
 
 export function readDeskToken(): string | null {
