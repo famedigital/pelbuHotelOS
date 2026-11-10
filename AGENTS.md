@@ -8,6 +8,14 @@ White-label multi-tenant hotel ERP with a public booking site plus `/erp`, `/sta
 - Pelbu Suites is **not** hard-coded; create it later as a tenant and copy data separately
 - Default seed slug: `demo-hotel` (`DEFAULT_PROPERTY_SLUG`)
 
+### Hotel OS v2 (live FO) + Innora archive
+
+- Live desk/API: [`v2/`](v2/) (Vite desk + Fastify). FO URL: `desk-v2.*.sslip.io`
+- Frozen Innora source: [`v1/web/`](v1/web/) — see [`v1/README.md`](v1/README.md)
+- Spec: [`docs/v2/ENTERPRISE-SPEC.md`](docs/v2/ENTERPRISE-SPEC.md) · status: [`docs/v2/IMPLEMENTATION.md`](docs/v2/IMPLEMENTATION.md)
+- Root `apps/*` / Wave packages are legacy experiment paths; do not treat as production desk
+- Additive migrations under `supabase/migrations/` still apply to droplet Postgres
+
 ## Roles (token strategy)
 
 | Role | Who | Job |
@@ -29,7 +37,7 @@ White-label multi-tenant hotel ERP with a public booking site plus `/erp`, `/sta
 ## Cursor owns
 
 - `supabase/` migrations, RLS (apply to droplet Postgres, not cloud Supabase)
-- Rates in `web/src/lib/rates.ts` (`packages/db` and `packages/rates` are not in this repo)
+- Rates / desk money paths in `v2/` (archive reference: `v1/web/src/lib/rates.ts`)
 - `scripts/bank-recon/`
 - Auth middleware, Realtime / desk live refresh
 - Check-in/out, folio, GST, agent credit, POS/KOT logic
@@ -41,9 +49,9 @@ Feature history (do not treat as the live desk): [`docs/FEATURES.md`](docs/FEATU
 
 ## z.ai owns (when briefed)
 
-- Presentational components and page UI under `web/src/` listed in the brief
-- Form layout/copy polish that already has server actions/contracts
-- Boilerplate that copies existing patterns (`BookingForm`, `OrderForm`, `ConversionShell`)
+- Presentational components under `v2/apps/desk/` listed in the brief
+- Form layout/copy polish that already has server/API contracts
+- Boilerplate that copies existing v2 desk patterns
 
 ## Claude owns
 
@@ -54,7 +62,8 @@ Feature history (do not treat as the live desk): [`docs/FEATURES.md`](docs/FEATU
 
 ## Shared
 
-- `web/` — z.ai/Claude do presentational work; Cursor does data/hooks/actions that touch DB money/auth
+- Live UI: `v2/` — z.ai/Claude presentational; Cursor money/auth/schema
+- Archive only: `v1/web/` — do not extend as production
 - Never commit secrets (`.env*`) or `backups/` (PII dumps)
 
 ## template_id

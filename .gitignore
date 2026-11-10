@@ -1,6 +1,7 @@
 # dependencies
 node_modules/
 web/node_modules/
+v1/web/node_modules/
 .pnp
 .pnp.js
 
@@ -8,14 +9,25 @@ web/node_modules/
 .env
 .env.*
 !.env.example
+!.env.v2.example
 web/.env
 web/.env.local
 web/.env.*.local
+v1/web/.env
+v1/web/.env.local
+v1/web/.env.*.local
 
 # next
 web/.next/
 web/out/
 web/build/
+v1/web/.next/
+v1/web/out/
+v1/web/build/
+apps/*/.next/
+apps/*/dist/
+packages/*/dist/
+
 
 # debug / os
 npm-debug.log*
@@ -55,6 +67,9 @@ backups/
 web/eslint-pass.json
 web/eslint-pos.json
 web/home.html
+v1/web/eslint-pass.json
+v1/web/eslint-pos.json
+v1/web/home.html
 # One-shot eZee parse dumps — do not commit
 marketing/old bookings/reservation-list-parsed.json
 marketing/old bookings/*.json
@@ -72,3 +87,14 @@ supabase/scripts/_which_db.sql
 # Supabase CLI local cache
 supabase/.temp/
 
+
+# cutover scratch / PII dumps (generated)
+scripts/cutover/_tmp*
+scripts/cutover/_pelbu-*.sql
+scripts/cutover/_pelbu-*-payload.json
+scripts/cutover/_xlsx-*
+scripts/cutover/_reservation-*
+scripts/cutover/node_modules/
+v2/node_modules/
+v2/**/node_modules/
+v2/**/dist/

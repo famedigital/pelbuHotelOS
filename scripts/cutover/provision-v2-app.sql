@@ -1,0 +1,23 @@
+-- ADR 001: least-privilege API role — no public.bookings access
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'v2_app') THEN
+    CREATE ROLE v2_app LOGIN PASSWORD 'REPLACE_ME';
+  END IF;
+END $$;
+
+REVOKE ALL ON SCHEMA public FROM v2_app;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM v2_app;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM v2_app;
+-- Strip any default public grants that supabase may add via PUBLIC
+REVOKE ALL ON TABLE public.bookings FROM PUBLIC;
+-- Keep PUBLIC grants for Innora roles; only ensure v2_app has none:
+REVOKE ALL ON TABLE public.bookings FROM v2_app;
+
+GRANT USAGE ON SCHEMA v2 TO v2_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA v2 TO v2_app;
+GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA v2 TO v2_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA v2
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO v2_app;
+ALTER DEFAULT PRIVILEGES IN SCHEMA v2
+  GRANT USAGE, SELECT ON SEQUENCES TO v2_app;

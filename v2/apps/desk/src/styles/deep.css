@@ -1,0 +1,81 @@
+/* Legacy deep-page helpers kept for Settings/HR/Rates until their UI wave.
+   Flagship FO pages use Tailwind + Glacier kit classes. */
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 0.75rem;
+}
+
+.kpi .label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hos-ink-3);
+}
+
+.kpi .value {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+.tabs button {
+  border: 1px solid var(--hos-line);
+  background: var(--hos-cell);
+  border-radius: 8px;
+  padding: 0.4rem 0.7rem;
+  cursor: pointer;
+  color: var(--hos-ink-2);
+}
+
+.tabs button.active {
+  background: rgba(37, 99, 235, 0.12);
+  color: var(--hos-primary);
+  border-color: transparent;
+}
+
+.board-list,
+.table-wrap {
+  overflow: auto;
+}
+
+table.data {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+table.data th,
+table.data td {
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-bottom: 1px solid var(--hos-line);
+}
+
+table.data th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hos-ink-3);
+}
+
+.empty {
+  padding: 2rem;
+  text-align: center;
+}
+
+.alerts {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.alert {
+  padding: 0.65rem 0.85rem;
+}

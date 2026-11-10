@@ -1,0 +1,29 @@
+{
+  "generatedAt": "2026-11-09T19:22:00Z",
+  "goNoGo": "GO",
+  "V2_DESK_CUTOVER": true,
+  "ownerIntent": "Sole client — Innora retired; originals archived under v1/; FO on v2 desk",
+  "foDeskUrls": [
+    "https://innorahotel.com/",
+    "https://www.innorahotel.com/",
+    "https://desk-v2.165.22.211.20.sslip.io/"
+  ],
+  "archives": {
+    "innoraNext": "v1/web/",
+    "waveMonorepo": "v1/wave/"
+  },
+  "innoraRuntime": {
+    "status": "stopped renamed innora-rollback",
+    "traefik": "stale pelbu-desk.yml* retired; hos-v2-desk labels own FO hosts",
+    "rollback": "docker start innora-rollback; reconnect coolify network; restore pelbu-desk.yml from *.retired.*"
+  },
+  "deploy": {
+    "hosV2Api": "127.0.0.1:4200",
+    "hosV2Desk": "Traefik + 127.0.0.1:4280",
+    "health": { "ok": true, "modules": 35, "commands": 83 }
+  },
+  "remainingOwner": [
+    "Printers/keycards on-site",
+    "Optional: disable Coolify Innora app so it cannot auto-redeploy"
+  ]
+}

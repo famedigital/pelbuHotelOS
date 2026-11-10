@@ -1,0 +1,106 @@
+# v2 production stack: API + desk + public Vite web (Coolify Traefik).
+# Public: innorahotel.com → hos-v2-web
+# Desk: desk-v2.*.sslip.io → hos-v2-desk
+services:
+  hos-v2-api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "127.0.0.1:4200:4200"
+    environment:
+      PORT: "4200"
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL to supabase-db postgres}
+      DESK_JWT_SECRET: ${DESK_JWT_SECRET:-hos-v2-desk-change-me}
+      # Droplet self-hosted stack uses supabase-envoy (not kong)
+      SUPABASE_URL: ${SUPABASE_URL:-http://supabase-envoy:8000}
+      SUPABASE_AUTH_URL: ${SUPABASE_AUTH_URL:-http://supabase-envoy:8000/auth/v1}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+      NODE_OPTIONS: "--max-old-space-size=512"
+    networks:
+      - supabase_default
+      - hos_v2_internal
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.50"
+          memory: 512M
+
+  hos-v2-desk:
+    build:
+      context: .
+      dockerfile: apps/desk/Dockerfile
+      args:
+        VITE_API_URL: ""
+    ports:
+      - "127.0.0.1:4280:80"
+    depends_on:
+      - hos-v2-api
+    networks:
+      - hos_v2_internal
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.hos-v2-desk.entryPoints=http
+      - traefik.http.routers.hos-v2-desk.priority=200
+      - traefik.http.routers.hos-v2-desk.rule=Host(`desk.innorahotel.com`) || Host(`desk-v2.165.22.211.20.sslip.io`) || Host(`zkggxjoxur9j8hxcghclplhw.165.22.211.20.sslip.io`)
+      - traefik.http.routers.hos-v2-desk.service=hos-v2-desk
+      - traefik.http.routers.hos-v2-desk.middlewares=hos-v2-desk-https-redirect
+      - traefik.http.routers.hos-v2-desk-https.entryPoints=https
+      - traefik.http.routers.hos-v2-desk-https.priority=200
+      - traefik.http.routers.hos-v2-desk-https.rule=Host(`desk.innorahotel.com`) || Host(`desk-v2.165.22.211.20.sslip.io`) || Host(`zkggxjoxur9j8hxcghclplhw.165.22.211.20.sslip.io`)
+      - traefik.http.routers.hos-v2-desk-https.service=hos-v2-desk
+      - traefik.http.routers.hos-v2-desk-https.tls=true
+      - traefik.http.routers.hos-v2-desk-https.tls.certresolver=letsencrypt
+      - traefik.http.services.hos-v2-desk.loadbalancer.server.port=80
+      - traefik.http.middlewares.hos-v2-desk-https-redirect.redirectscheme.scheme=https
+      # Optional: Cloudflare DNS for desk.innorahotel.com → same A/AAAA as innorahotel.com (proxied)
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+
+  hos-v2-web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_DESK_ORIGIN: https://desk.innorahotel.com
+    ports:
+      - "127.0.0.1:4282:80"
+    networks:
+      - coolify
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=coolify
+      - traefik.http.routers.hos-v2-web.entryPoints=http
+      - traefik.http.routers.hos-v2-web.priority=210
+      - traefik.http.routers.hos-v2-web.rule=Host(`innorahotel.com`) || Host(`www.innorahotel.com`)
+      - traefik.http.routers.hos-v2-web.service=hos-v2-web
+      - traefik.http.routers.hos-v2-web.middlewares=hos-v2-web-https-redirect
+      - traefik.http.routers.hos-v2-web-https.entryPoints=https
+      - traefik.http.routers.hos-v2-web-https.priority=210
+      - traefik.http.routers.hos-v2-web-https.rule=Host(`innorahotel.com`) || Host(`www.innorahotel.com`)
+      - traefik.http.routers.hos-v2-web-https.service=hos-v2-web
+      - traefik.http.routers.hos-v2-web-https.tls=true
+      - traefik.http.routers.hos-v2-web-https.tls.certresolver=letsencrypt
+      - traefik.http.services.hos-v2-web.loadbalancer.server.port=80
+      - traefik.http.middlewares.hos-v2-web-https-redirect.redirectscheme.scheme=https
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.15"
+          memory: 64M
+
+networks:
+  supabase_default:
+    external: true
+  coolify:
+    external: true
+  hos_v2_internal:
+    driver: bridge

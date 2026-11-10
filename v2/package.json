@@ -1,0 +1,17 @@
+{
+  "name": "hotel-os-v2",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Clean Hotel OS v2 — build from docs/v2/MODULES.md + SOURCE-MAP.md",
+  "scripts": {
+    "typecheck": "pnpm -r run typecheck",
+    "test": "pnpm --filter @hos-v2/domain test",
+    "test:e2e:fo": "pnpm --filter @hos-v2/desk test:e2e:fo",
+    "cutover:go-no-go": "node ./scripts/cutover-go-no-go.mjs",
+    "build": "pnpm -r run build"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

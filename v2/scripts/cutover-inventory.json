@@ -1,0 +1,52 @@
+{
+  "capturedAt": "2026-11-09T11:01:24Z",
+  "host": "famedigital",
+  "postgres": "supabase-db",
+  "schemas": {
+    "public": true,
+    "v2": false
+  },
+  "v2TableCount": 0,
+  "v2AppRole": false,
+  "schemaMigrationsLedger": false,
+  "properties": [
+    {
+      "id": "d06e89f8-86e6-4201-bbd2-5e115d422357",
+      "slug": "pelbu-olakha",
+      "name": "Pelbu Suites Olakha"
+    },
+    {
+      "id": "c22c44c1-547c-4351-b1ec-608f6590e340",
+      "slug": "pelbu-suites-olakha",
+      "name": "DEMO"
+    }
+  ],
+  "publicCounts": {
+    "bookings_total": 963,
+    "bookings_by_status": {
+      "confirmed": 505,
+      "checked_out": 297,
+      "cancelled": 74,
+      "checked_in": 38,
+      "no_show": 36,
+      "held": 13
+    },
+    "room_types": 10,
+    "room_units": 61,
+    "room_assignments": 1159,
+    "booking_rooms": 993,
+    "booking_guests": 916,
+    "agents": 934,
+    "folios": 336,
+    "folios_by_status": { "open": 223, "closed": 80, "settled": 33 },
+    "folio_lines": 957
+  },
+  "v1TableMapNotes": {
+    "rooms": "public.room_units (not public.rooms)",
+    "guests": "public.booking_guests (+ maybe CRM elsewhere)",
+    "folios": "public.folios + public.folio_lines"
+  },
+  "disk": "154G total, 39G used, 26%",
+  "cutoverFlag": "V2_DESK_CUTOVER must stay false",
+  "conclusion": "v2 schema NOT applied on droplet — Phase 1 required before ETL"
+}
