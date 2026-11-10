@@ -53,7 +53,8 @@ fi
 
 cd "$ROOT"
 # Drop stale Next leftovers so Vite web builds cleanly after tarball overlay.
-rm -rf apps/web/src/app apps/web/src/middleware.ts apps/web/src/components \
+# Keep apps/web/src/components — Vite marketing components live there now.
+rm -rf apps/web/src/app apps/web/src/middleware.ts \
   apps/web/next.config.mjs apps/web/next-env.d.ts apps/web/.next 2>/dev/null || true
 docker compose -f docker-compose.cutover.yml --env-file /tmp/hos-v2-dburl.env up -d --build
 
