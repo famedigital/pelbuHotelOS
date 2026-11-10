@@ -14,8 +14,9 @@ export type CheckoutGateResult =
 export function assertPersonalFolioCleared(
   folios: FolioBalanceSlice[],
 ): CheckoutGateResult {
+  // guest = personal stream; "personal" accepted for desk stream ↔ API payerType align.
   const personal = folios
-    .filter((f) => f.payerType === "guest")
+    .filter((f) => f.payerType === "guest" || f.payerType === "personal")
     .reduce((s, f) => s + f.balanceBtn, 0);
   const bal = Math.round(personal * 100) / 100;
   if (bal > PERSONAL_CHECKOUT_GATE_BTN) {

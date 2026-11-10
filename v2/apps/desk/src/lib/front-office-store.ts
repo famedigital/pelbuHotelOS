@@ -3185,7 +3185,8 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
     const state = get();
     const stay = state.stays.find((s) => s.id === stayId);
     if (!stay) return { ok: false, error: "Stay not found" };
-    if (!["checked_in", "confirmed", "held"].includes(stay.status)) {
+    /* checked_out allowed — desk may rebuild package after departure for bill fixes. */
+    if (!["checked_in", "confirmed", "held", "checked_out"].includes(stay.status)) {
       return { ok: false, error: `Cannot post package from status ${stay.status}` };
     }
     const room = stay.roomId
@@ -3592,8 +3593,11 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
     }
     const stay = get().stays.find((s) => s.id === stayId);
     if (!stay) return { ok: false, error: "Stay not found" };
-    if (stay.status !== "checked_in") {
-      return { ok: false, error: "Charges only post to in-house stays" };
+    if (["cancelled", "no_show"].includes(stay.status)) {
+      return { ok: false, error: "Cannot post charges on cancelled / no-show stays" };
+    }
+    if (!["checked_in", "checked_out", "confirmed", "held"].includes(stay.status)) {
+      return { ok: false, error: `Cannot post charges from status ${stay.status}` };
     }
     const resolved = stream ?? defaultStreamForKind(kind);
     const folioId =
@@ -3722,14 +3726,15 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
     const state = get();
     const stay = state.stays.find((s) => s.id === stayId);
     if (!stay) return { ok: false, error: "Stay not found" };
-    if (["checked_out", "cancelled"].includes(stay.status)) {
-      return { ok: false, error: "Cannot edit rate on closed stay" };
+    if (["cancelled", "no_show"].includes(stay.status)) {
+      return { ok: false, error: "Cannot edit rate on cancelled / no-show stay" };
     }
     if (patch.nightlyNet != null && patch.nightlyNet < 0) {
       return { ok: false, error: "Nightly net must be ≥ 0" };
     }
 
-    if (stay.status === "checked_in") {
+    /* In-house + departed: void package lines remotely, then rebuild. */
+    if (stay.status === "checked_in" || stay.status === "checked_out") {
       const reverseLines: FolioLine[] = [];
       const voidedIds = new Set<string>();
       for (const line of stay.folioLines) {
@@ -3817,7 +3822,7 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
 
   applyGroupMealPlan: async (groupId, mealPlan, actor = ACTOR_DEFAULT) => {
     const members = groupMembers(get().stays, groupId).filter(
-      (s) => !["checked_out", "cancelled"].includes(s.status),
+      (s) => !["cancelled", "no_show"].includes(s.status),
     );
     if (members.length === 0) {
       return { ok: false, error: "No active stays in this group" };
@@ -3847,7 +3852,7 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
   applyGroupNightlyNet: async (groupId, nightlyNet, actor = ACTOR_DEFAULT) => {
     if (nightlyNet < 0) return { ok: false, error: "Nightly net must be ≥ 0" };
     const members = groupMembers(get().stays, groupId).filter(
-      (s) => !["checked_out", "cancelled"].includes(s.status),
+      (s) => !["cancelled", "no_show"].includes(s.status),
     );
     if (members.length === 0) {
       return { ok: false, error: "No active stays in this group" };
@@ -3887,7 +3892,7 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
       return { ok: false, error: "Daily plan is empty" };
     }
     const members = groupMembers(get().stays, groupId).filter(
-      (s) => !["checked_out", "cancelled"].includes(s.status),
+      (s) => !["cancelled", "no_show"].includes(s.status),
     );
     if (members.length === 0) {
       return { ok: false, error: "No active stays in this group" };

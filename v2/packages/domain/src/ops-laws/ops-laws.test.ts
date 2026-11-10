@@ -16,6 +16,7 @@ import {
 } from "./sc-tip-pool.js";
 import { assertPersonalFolioCleared } from "./dual-folio.js";
 import { maskPartnerCalendar } from "./partner-mask.js";
+import { buildTouristManifestCsv } from "./tourist-manifest.js";
 
 describe("cash advance law", () => {
   it("blocks cash bill without advance", () => {
@@ -105,6 +106,28 @@ describe("dual folio gate", () => {
       { payerType: "agent", balanceBtn: 200000 },
     ]);
     assert.equal(r.ok, true);
+  });
+});
+
+describe("tourist immigration manifest", () => {
+  it("emits RBP columns including guide and vehicle", () => {
+    const csv = buildTouristManifestCsv([
+      {
+        guestName: "Tashi Dorji",
+        passportOrCid: "G1234567",
+        nationality: "BT",
+        visaEntryStamp: "PHN-2026-01",
+        roomNumber: "201",
+        checkIn: "2026-11-08",
+        checkOut: "2026-11-10",
+        guideLicenseNo: "TCB-88",
+        vehiclePlate: "BP-1-A2345",
+      },
+    ]);
+    assert.match(csv, /Guide_TCR/);
+    assert.match(csv, /TCB-88/);
+    assert.match(csv, /BP-1-A2345/);
+    assert.match(csv, /Visa_Entry/);
   });
 });
 

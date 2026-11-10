@@ -557,13 +557,22 @@ app.get<{ Params: { id: string }; Querystring: { propertyId?: string } }>(
     );
     if (!booking) return reply.code(404).send({ ok: false, error: "Not found" });
     const guest = store.guests.find((g) => g.id === booking.guestId);
-    const folio = store.folios.find((f) => f.bookingId === booking.id && f.payerType === "guest");
+    const guestFolio = store.folios.find(
+      (f) => f.bookingId === booking.id && f.payerType === "guest",
+    );
+    const agencyFolio = store.folios.find(
+      (f) => f.bookingId === booking.id && f.payerType === "agent",
+    );
     const rooms = store.rooms.filter((r) => r.propertyId === propertyId);
+    const enriched = enrichBooking(booking);
     return {
       ok: true,
-      booking: enrichBooking(booking),
+      booking: enriched,
       guest: guest ?? null,
-      folio: folio ?? null,
+      folio: guestFolio ?? null,
+      guestFolio: guestFolio ?? null,
+      agencyFolio: agencyFolio ?? null,
+      folioLines: enriched.folioLines,
       roomTypes: store.roomTypes.filter((t) => t.propertyId === propertyId),
       rooms,
     };

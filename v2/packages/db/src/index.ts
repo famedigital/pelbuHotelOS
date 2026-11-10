@@ -23,7 +23,9 @@ export {
   reconcileAdvancePersist,
   resolveDefaultPropertyId,
   runScTipPoolPersist,
+  upsertPartnerCalendarCells,
   type ImmigrationManifestRow,
+  type PartnerCalendarPersistCell,
   type PersistedAdvance,
 } from "./ops-persist.js";
 export {

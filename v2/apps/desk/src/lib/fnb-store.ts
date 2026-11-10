@@ -695,8 +695,13 @@ export function formatNu(n: number): string {
   return `Nu. ${Math.round(n).toLocaleString("en-BT")}`;
 }
 
+/** Live POS never paints hardcoded MENU; opt-in via VITE_POS_SEED=1 in DEV. */
+const LIVE_POS_BOOT = !import.meta.env.DEV;
+const ALLOW_POS_SEED =
+  import.meta.env.DEV && String(import.meta.env.VITE_POS_SEED ?? "") === "1";
+
 export const useFnbStore = create<FnbState>((set, get) => ({
-  menu: MENU,
+  menu: LIVE_POS_BOOT || !ALLOW_POS_SEED ? [] : MENU,
   outlets: DEFAULT_OUTLETS,
   outletId: DEFAULT_OUTLETS[0].id,
   tables: DEFAULT_TABLES,

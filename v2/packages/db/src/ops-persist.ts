@@ -2,7 +2,7 @@
  * Persist Bhutanese ops-law writes (CFM advance, ADMS punches, tip pool, drawer).
  * SOURCE-MAP: REINVENT — schema v2; domain formulas stay in @hos-v2/domain.
  */
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Db } from "./client.js";
 import {
   attendancePunches,
@@ -16,6 +16,7 @@ import {
   guests,
   procurementAdvances,
   procurementBillItems,
+  partnerCalendar,
   procurementBills,
   properties,
   reconciliationMatches,
@@ -563,6 +564,76 @@ export async function postCashBillPersist(
     }
     console.error("[ops-persist] postCashBillPersist failed", { err: msg });
     return { ok: false, error: "BILL_PERSIST_FAILED" };
+  }
+}
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function asOptionalUuid(value: string | null | undefined): string | null {
+  if (!value?.trim()) return null;
+  return UUID_RE.test(value.trim()) ? value.trim() : null;
+}
+
+export type PartnerCalendarPersistCell = {
+  stayDate: string;
+  roomId: string;
+  state: "free" | "held" | "occupied";
+  ownerAgentId: string | null;
+  guestName: string | null;
+  bookingRef: string | null;
+};
+
+/** Replace partner calendar audit rows for the date span covered by `cells`. */
+export async function upsertPartnerCalendarCells(
+  db: Db,
+  input: {
+    propertyId: string;
+    cells: PartnerCalendarPersistCell[];
+  },
+): Promise<{ ok: true; rowCount: number } | { ok: false; error: string }> {
+  const prop = await db
+    .select({ id: properties.id })
+    .from(properties)
+    .where(eq(properties.id, input.propertyId))
+    .limit(1);
+  if (!prop[0]) return { ok: false, error: "PROPERTY_NOT_FOUND" };
+  if (input.cells.length === 0) {
+    return { ok: true, rowCount: 0 };
+  }
+
+  const dates = input.cells.map((c) => c.stayDate).sort();
+  const minDate = dates[0]!;
+  const maxDate = dates[dates.length - 1]!;
+
+  try {
+    await db.transaction(async (tx) => {
+      await tx
+        .delete(partnerCalendar)
+        .where(
+          and(
+            eq(partnerCalendar.propertyId, input.propertyId),
+            gte(partnerCalendar.stayDate, minDate),
+            lte(partnerCalendar.stayDate, maxDate),
+          ),
+        );
+      await tx.insert(partnerCalendar).values(
+        input.cells.map((c) => ({
+          propertyId: input.propertyId,
+          stayDate: c.stayDate,
+          roomId: asOptionalUuid(c.roomId),
+          state: c.state,
+          ownerAgentId: asOptionalUuid(c.ownerAgentId),
+          guestName: c.guestName,
+          bookingRef: c.bookingRef,
+        })),
+      );
+    });
+    return { ok: true, rowCount: input.cells.length };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error("[ops-persist] upsertPartnerCalendarCells failed", { err: msg });
+    return { ok: false, error: "PARTNER_CALENDAR_PERSIST_FAILED" };
   }
 }
 

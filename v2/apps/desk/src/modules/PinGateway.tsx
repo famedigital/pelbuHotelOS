@@ -58,6 +58,8 @@ import {
 } from "../lib/pin-weather";
 import {
   fetchAuthProperties,
+  filterDeskProperties,
+  preferLiveProperty,
   fetchAuthStaff,
   switchHotelProperty,
   verifyStaffPin,
@@ -811,7 +813,11 @@ export function PinGateway() {
       return;
     }
     const gated = readHotelProperty();
-    if (gated?.slug) {
+    const gatedIsDemo =
+      gated?.slug === "demo-hotel" ||
+      gated?.id === "00000000-0000-4000-8000-000000000001" ||
+      /^demo(\s+hotel)?$/i.test(gated?.name ?? "");
+    if (gated?.slug && !gatedIsDemo) {
       setPropertySlug(gated.slug);
       setProperties([
         {
@@ -825,13 +831,19 @@ export function PinGateway() {
     void fetchAuthProperties(ctrl.signal)
       .then((rows) => {
         if (ctrl.signal.aborted) return;
-        setProperties(rows);
-        setPropertySlug((prev) => prev || rows[0]?.slug || gated?.slug || "");
+        const live = filterDeskProperties(rows);
+        setProperties(live);
+        const preferred = preferLiveProperty(live, gatedIsDemo ? null : gated);
+        setPropertySlug((prev) =>
+          prev && prev !== "demo-hotel" ? prev : preferred.slug || gated?.slug || "",
+        );
       })
       .catch((err) => {
         if (ctrl.signal.aborted) return;
         console.error("[pin-gateway] properties", err);
-        if (!gated) setStaffError(err instanceof Error ? err.message : "Hotel unlock required");
+        if (!gated || gatedIsDemo) {
+          setStaffError(err instanceof Error ? err.message : "Hotel unlock required");
+        }
       });
     return () => ctrl.abort();
   }, [navigate]);

@@ -95,7 +95,17 @@ export async function registerAuthPinRoutes(app: FastifyInstance) {
         claims.role === "owner"
           ? `SELECT id, slug, name, organization_id FROM v2.properties
              WHERE organization_id = ${sqlLiteral(String(claims.organizationId ?? ""))}
-             ORDER BY name`
+               AND slug <> 'demo-hotel'
+               AND lower(name) NOT IN ('demo', 'demo hotel')
+               AND slug NOT LIKE '%seed%'
+               AND name NOT ILIKE '%seed archive%'
+             ORDER BY
+               CASE
+                 WHEN slug = 'pelbu-olakha' THEN 0
+                 WHEN slug ILIKE '%pelbu%' OR name ILIKE '%pelbu%' THEN 1
+                 ELSE 2
+               END,
+               name`
           : `SELECT id, slug, name, organization_id FROM v2.properties
              WHERE id = ${sqlLiteral(claims.propertyId)} LIMIT 1`,
       )) as PropertyRow[];
@@ -133,7 +143,17 @@ export async function registerAuthPinRoutes(app: FastifyInstance) {
         `SELECT id, slug, name, organization_id
          FROM v2.properties
          WHERE organization_id = ${sqlLiteral(member.organization_id)}
-         ORDER BY name`,
+           AND slug <> 'demo-hotel'
+           AND lower(name) NOT IN ('demo', 'demo hotel')
+           AND slug NOT LIKE '%seed%'
+           AND name NOT ILIKE '%seed archive%'
+         ORDER BY
+           CASE
+             WHEN slug = 'pelbu-olakha' THEN 0
+             WHEN slug ILIKE '%pelbu%' OR name ILIKE '%pelbu%' THEN 1
+             ELSE 2
+           END,
+           name`,
       )) as PropertyRow[];
       return {
         ok: true,

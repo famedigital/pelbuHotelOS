@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hos-v2/ui": "workspace:*",
+    "lucide-react": "^1.70.0",
     "motion": "^14.10.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
+import { PERSONAL_CHECKOUT_GATE_BTN } from "@hos-v2/domain";
 import {
   Badge,
   Button,
@@ -416,7 +417,7 @@ export function GroupsPage() {
                                 </td>
                                 <td
                                   className={`px-3 py-2 text-right font-mono tabular-nums ${
-                                    personal > 0.5
+                                    personal > PERSONAL_CHECKOUT_GATE_BTN
                                       ? "text-[var(--hos-ruby)]"
                                       : "text-[var(--hos-emerald)]"
                                   }`}
@@ -540,7 +541,7 @@ export function GroupsPage() {
                         <span>Open guest due</span>
                         <span
                           className={`font-mono ${
-                            selectedGroup.personalBalance > 0.5
+                            selectedGroup.personalBalance > PERSONAL_CHECKOUT_GATE_BTN
                               ? "text-[var(--hos-ruby)]"
                               : "text-[var(--hos-emerald)]"
                           }`}

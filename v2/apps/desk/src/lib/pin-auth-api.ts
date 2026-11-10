@@ -58,8 +58,41 @@ const LOCAL_DEMO_PINS: ReadonlyArray<{
   },
 ];
 
+/** Explicit opt-in only — never silently substitute Demo Hotel for Pelbu. */
 function isLocalDemoAuthEnabled(): boolean {
-  return Boolean(import.meta.env.DEV);
+  return (
+    Boolean(import.meta.env.DEV) &&
+    String(import.meta.env.VITE_ALLOW_LOCAL_DEMO_AUTH ?? "") === "1"
+  );
+}
+
+/** Live desk hotels — drop seed/demo shells from the picker. */
+export function filterDeskProperties(list: AuthProperty[]): AuthProperty[] {
+  const live = list.filter((p) => {
+    const slug = p.slug.toLowerCase();
+    const name = p.name.toLowerCase();
+    if (slug === "demo-hotel" || name === "demo" || name === "demo hotel") return false;
+    if (slug.includes("seed") || name.includes("seed archive")) return false;
+    if (p.id === DEV_PROPERTY_ID) return false;
+    return true;
+  });
+  if (live.length > 0) return live;
+  return list;
+}
+
+export function preferLiveProperty(list: AuthProperty[], hinted?: AuthProperty | null): AuthProperty {
+  const ranked = filterDeskProperties(list);
+  const pool = ranked.length > 0 ? ranked : list;
+  const hintId = hinted?.id;
+  if (hintId && pool.some((p) => p.id === hintId)) {
+    const hit = pool.find((p) => p.id === hintId);
+    if (hit && hit.slug !== "demo-hotel" && hit.id !== DEV_PROPERTY_ID) return hit;
+  }
+  return (
+    pool.find((p) => p.slug === "pelbu-olakha") ||
+    pool.find((p) => /pelbu/i.test(p.slug) || /pelbu/i.test(p.name)) ||
+    pool[0]!
+  );
 }
 
 export type AuthProperty = {
@@ -200,14 +233,17 @@ export async function loginHotelEmail(input: {
       }
       return { ok: false, error: humanizeAuthError(err) };
     }
+    const rawList =
+      (data.properties as AuthProperty[] | undefined) ??
+      ([data.property].filter(Boolean) as AuthProperty[]);
+    const properties = filterDeskProperties(rawList);
+    const property = preferLiveProperty(properties, data.property as AuthProperty);
     return {
       ok: true,
       token: String(data.token),
       homeRoute: String(data.homeRoute ?? "/pin"),
-      property: data.property as AuthProperty,
-      properties: (data.properties as AuthProperty[] | undefined) ?? [
-        data.property as AuthProperty,
-      ],
+      property,
+      properties,
     };
   } catch (err) {
     if (isLocalDemoAuthEnabled() && input.password.length >= 6) {

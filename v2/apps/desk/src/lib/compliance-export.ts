@@ -116,25 +116,27 @@ export function exportPoliceManifestCsv(opts?: {
       "Guest",
       "Passport/CID",
       "Nationality",
+      "VisaStamp",
       "Room",
       "CheckIn",
       "CheckOut",
       "Confirmation",
-      "VIP",
-      "Agent",
-      "MealPlan",
+      "GuideLicense",
+      "VehiclePlate",
+      "Status",
     ],
     ...foreign.map((s) => [
       s.guestName,
-      s.passportOrCid,
+      s.passportOrCid ?? "",
       s.nationality,
+      "",
       s.roomNumber ?? "unassigned",
       s.checkIn,
       s.checkOut,
       s.confirmationNo,
-      s.vip ? "Y" : "N",
-      s.agencyName ?? "",
-      s.mealPlan,
+      "",
+      "",
+      s.status,
     ]),
   ];
 
@@ -145,15 +147,16 @@ export function exportPoliceManifestCsv(opts?: {
 
 type ApiManifestRow = {
   guestName?: string;
-  passportOrCid?: string;
-  nationality?: string;
+  passportOrCid?: string | null;
+  nationality?: string | null;
+  visaStamp?: string | null;
   roomNumber?: string | null;
   checkIn?: string;
   checkOut?: string;
   confirmationNo?: string;
-  vip?: boolean;
-  agencyName?: string | null;
-  mealPlan?: string;
+  guideLicense?: string | null;
+  vehiclePlate?: string | null;
+  status?: string;
 };
 
 /**
@@ -169,37 +172,42 @@ export async function exportPoliceManifestPreferApi(opts?: {
       rows?: ApiManifestRow[];
       data?: ApiManifestRow[];
     }>(
-      `/v1/compliance/immigration-manifest?propertyId=${encodeURIComponent(sessionPropertyId())}&asOf=${encodeURIComponent(asOf)}`,
+      `/v1/compliance/immigration-manifest?propertyId=${encodeURIComponent(sessionPropertyId())}&asOfDate=${encodeURIComponent(asOf)}`,
       { retries: 0 },
     );
-    const list = res.rows ?? res.data ?? [];
-    if (Array.isArray(list) && list.length >= 0 && res) {
+    const body = res as {
+      ok?: boolean;
+      data?: { rows?: ApiManifestRow[] };
+      rows?: ApiManifestRow[];
+    };
+    const list = body.data?.rows ?? body.rows ?? [];
+    if (Array.isArray(list) && res) {
       const rows: string[][] = [
         [
           "Guest",
           "Passport/CID",
           "Nationality",
+          "VisaStamp",
           "Room",
           "CheckIn",
           "CheckOut",
           "Confirmation",
-          "VIP",
-          "Agent",
-          "MealPlan",
-          "Source",
+          "GuideLicense",
+          "VehiclePlate",
+          "Status",
         ],
         ...list.map((s) => [
           s.guestName ?? "",
           s.passportOrCid ?? "",
           s.nationality ?? "",
+          s.visaStamp ?? "",
           s.roomNumber ?? "unassigned",
           s.checkIn ?? "",
           s.checkOut ?? "",
           s.confirmationNo ?? "",
-          s.vip ? "Y" : "N",
-          s.agencyName ?? "",
-          s.mealPlan ?? "",
-          "api",
+          s.guideLicense ?? "",
+          s.vehiclePlate ?? "",
+          s.status ?? "",
         ]),
       ];
       const filename = `police-manifest-${asOf}-api.csv`;

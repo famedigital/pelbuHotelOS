@@ -1,4 +1,9 @@
-import { maskPartnerCalendar, type PartnerCalendarCell } from "@hos-v2/domain";
+import {
+  PERSONAL_CHECKOUT_GATE_BTN,
+  maskPartnerCalendar,
+  type MaskedPartnerCell,
+  type PartnerCalendarCell,
+} from "@hos-v2/domain";
 import {
   BedDouble,
   BookOpen,
@@ -78,6 +83,7 @@ import {
   buildFoPulse,
 } from "../lib/b2b-portfolio";
 import { PartnerAgencyDashboard } from "./partner/PartnerAgencyDashboard";
+import { isOpsDbUnavailable, runCommand } from "../lib/api";
 
 type Tab =
   | "dashboard"
@@ -220,10 +226,10 @@ function PartnerPortalBody() {
     });
   }, [stays, agent, agencyToken, agencyLabel]);
 
-  const maskedCells = useMemo(() => {
-    if (!agent) return [];
+  const calendarRawCells = useMemo(() => {
+    if (!agent) return [] as PartnerCalendarCell[];
     const raw: PartnerCalendarCell[] = [];
-    for (const room of rooms.slice(0, 16)) {
+    for (const room of rooms) {
       for (const d of dates) {
         const hit = stays.find(
           (s) =>
@@ -263,8 +269,53 @@ function PartnerPortalBody() {
         });
       }
     }
-    return maskPartnerCalendar(raw, agent.id);
+    return raw;
   }, [rooms, dates, stays, agents, agent]);
+
+  const localMaskedCells = useMemo(() => {
+    if (!agent) return [] as MaskedPartnerCell[];
+    return maskPartnerCalendar(calendarRawCells, agent.id);
+  }, [calendarRawCells, agent]);
+
+  const [apiMaskedCells, setApiMaskedCells] = useState<MaskedPartnerCell[] | null>(
+    null,
+  );
+
+  useEffect(() => {
+    if (!agent || calendarRawCells.length === 0) {
+      setApiMaskedCells(null);
+      return;
+    }
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        const res = await runCommand<{ cells: MaskedPartnerCell[] }>(
+          "partner.maskCalendar",
+          { viewerAgentId: agent.id, cells: calendarRawCells },
+        );
+        if (res.ok) {
+          setApiMaskedCells(res.data.cells);
+          return;
+        }
+        const err = res.error.toLowerCase();
+        const authBlocked =
+          err.includes("forbidden") ||
+          err.includes("unauthorized") ||
+          err.includes("permission");
+        if (authBlocked) {
+          setApiMaskedCells(null);
+          toast.error("Partner calendar unavailable", { description: res.error });
+          return;
+        }
+        if (!isOpsDbUnavailable(res.error)) {
+          console.error("[partner] maskCalendar failed", { err: res.error });
+        }
+        setApiMaskedCells(null);
+      })();
+    }, 400);
+    return () => window.clearTimeout(handle);
+  }, [agent, calendarRawCells]);
+
+  const maskedCells = apiMaskedCells ?? localMaskedCells;
 
   const inventory = useMemo(() => {
     return TYPES.map((t) => {
@@ -2065,7 +2116,7 @@ function PartnerPortalBody() {
                           <td
                             className={[
                               "px-2.5 py-2.5 text-right font-mono font-bold tabular-nums",
-                              d.balance > 0.5
+                              d.balance > PERSONAL_CHECKOUT_GATE_BTN
                                 ? "text-[var(--hos-ruby)]"
                                 : "text-[var(--hos-emerald)]",
                             ].join(" ")}

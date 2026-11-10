@@ -183,13 +183,13 @@ type EnterpriseState = {
     issuedToName: string;
     purpose?: string;
   }) => { ok: true; advance: AdvanceRow } | { ok: false; error: string };
-  /** Prefer Postgres via API; falls back to local demo with explicit persistence flag. */
+  /** Postgres via API only — hard-law; no local_demo success. */
   issueAdvanceRemote: (input: {
     amountBtn: number;
     issuedToName: string;
     purpose?: string;
   }) => Promise<
-    | { ok: true; advance: AdvanceRow; persistence: "postgres" | "local_demo" }
+    | { ok: true; advance: AdvanceRow; persistence: "postgres" }
     | { ok: false; error: string }
   >;
   reconcileAdvance: (input: {
@@ -202,7 +202,7 @@ type EnterpriseState = {
     spentBtn: number;
     changeReturnedBtn: number;
   }) => Promise<
-    | { ok: true; tillCreditBtn: number; persistence: "postgres" | "local_demo" }
+    | { ok: true; tillCreditBtn: number; persistence: "postgres" }
     | { ok: false; error: string }
   >;
   refreshPunchesFromApi: () => Promise<
@@ -211,7 +211,7 @@ type EnterpriseState = {
   runTipPoolRemote: (periodYm: string) => Promise<
     | {
         ok: true;
-        persistence: "postgres" | "local_demo";
+        persistence: "postgres";
         poolBtn: number;
         totalPointDays: number;
         lines: Array<{
@@ -288,6 +288,20 @@ type EnterpriseState = {
     bankCode: "bob" | "bnb" | "drukpnb";
     text: string;
   }) => { ok: true; lineCount: number; warnings: string[] } | { ok: false; error: string };
+  ingestBankStatementRemote: (input: {
+    bankCode: "bob" | "bnb" | "drukpnb";
+    text: string;
+    accountLabel?: string;
+  }) => Promise<
+    | {
+        ok: true;
+        lineCount: number;
+        warnings: string[];
+        statementId: string;
+        persistence: "postgres";
+      }
+    | { ok: false; error: string }
+  >;
   recordUtilityBill: (meterId: string, amountBtn: number, units: number) => void;
 };
 
@@ -336,7 +350,10 @@ export const useEnterpriseOpsStore = create<EnterpriseState>((set, get) => ({
   },
   movements: [],
   advances: [],
-  punches: seedPunches(),
+  // Punches / bank lines: empty until API hydrate — no demo SoT (T0/T6).
+  punches: import.meta.env.DEV && String(import.meta.env.VITE_OPS_SEED ?? "") === "1"
+    ? seedPunches()
+    : [],
   hrStaff: HR_SEED,
   meters: [
     { id: "m-bpc", kind: "electricity", consumerNo: "BPC-184220", label: "Main BPC meter", lastUnits: 12480, lastBillBtn: 42850, dueDate: "2026-11-20" },
@@ -348,11 +365,7 @@ export const useEnterpriseOpsStore = create<EnterpriseState>((set, get) => ({
     { id: "amc-2", assetKind: "Generator", vendorName: "Kirloskar Service", endsOn: "2027-03-01", alertDays: 45 },
     { id: "amc-3", assetKind: "Boiler", vendorName: "Himalayan Mech", endsOn: "2026-11-25", alertDays: 45 },
   ],
-  bankLines: [
-    { id: "bl-1", bankCode: "bob", txnDate: "2026-11-07", description: "mBoB QR DHPSBN00041", amountBtn: 18600, direction: "in", status: "open" },
-    { id: "bl-2", bankCode: "bnb", txnDate: "2026-11-07", description: "BNB transfer Soul Trips", amountBtn: 42000, direction: "in", status: "open" },
-    { id: "bl-3", bankCode: "drukpnb", txnDate: "2026-11-06", description: "DrukPNB POS settle", amountBtn: 9200, direction: "in", status: "matched" },
-  ],
+  bankLines: [],
   employeeCodeMap: {},
   lockedTipPools: [],
   salaryAdvances: seedSalaryAdvances(HR_SEED),
@@ -559,12 +572,8 @@ export const useEnterpriseOpsStore = create<EnterpriseState>((set, get) => ({
     });
 
     if (!api.ok) {
-      if (!isOpsDbUnavailable(api.error)) {
-        return { ok: false, error: api.error };
-      }
-      const local = get().issueAdvance({ amountBtn, issuedToName, purpose });
-      if (!local.ok) return local;
-      return { ok: true, advance: local.advance, persistence: "local_demo" };
+      // Hard-law: never silent memory fallback for CFM advances.
+      return { ok: false, error: api.error };
     }
 
     const advance: AdvanceRow = {
@@ -650,20 +659,8 @@ export const useEnterpriseOpsStore = create<EnterpriseState>((set, get) => ({
       },
     );
     if (!api.ok) {
-      if (!isOpsDbUnavailable(api.error)) {
-        return { ok: false, error: api.error };
-      }
-      const local = get().reconcileAdvance({
-        advanceId,
-        spentBtn,
-        changeReturnedBtn,
-      });
-      if (!local.ok) return local;
-      return {
-        ok: true,
-        tillCreditBtn: local.tillCreditBtn,
-        persistence: "local_demo",
-      };
+      // Hard-law: never silent memory fallback for CFM reconcile.
+      return { ok: false, error: api.error };
     }
 
     const till = useFiscalStore.getState().tillBalance;
@@ -765,10 +762,8 @@ export const useEnterpriseOpsStore = create<EnterpriseState>((set, get) => ({
       idempotencyKey: newIdempotencyKey(),
     });
     if (!api.ok) {
-      if (!isOpsDbUnavailable(api.error) && api.error !== "STAFF_NOT_FOUND") {
-        return { ok: false, error: api.error };
-      }
-      return { ok: true, persistence: "local_demo", ...local };
+      // Hard-law: tip pool requires Postgres; never claim success via local_demo.
+      return { ok: false, error: api.error };
     }
     const staff = get().hrStaff;
     return {
@@ -1077,6 +1072,77 @@ export const useEnterpriseOpsStore = create<EnterpriseState>((set, get) => ({
       ok: true,
       lineCount: stamped.length,
       warnings: parsed.warnings,
+    };
+  },
+
+  ingestBankStatementRemote: async ({ bankCode, text, accountLabel }) => {
+    const trimmed = text.trim();
+    if (!trimmed) return { ok: false, error: "EMPTY_STATEMENT_TEXT" };
+
+    const labels: Record<"bob" | "bnb" | "drukpnb", string> = {
+      bob: "BoB operating",
+      bnb: "BNB operating",
+      drukpnb: "DrukPNB operating",
+    };
+
+    const parsed = await runCommand<{
+      lines: Array<{
+        txnDate: string;
+        description: string;
+        amountBtn: number;
+        direction: "in" | "out";
+        externalRef?: string;
+      }>;
+      warnings: string[];
+    }>("finance.parseBankStatementText", { bankCode, text: trimmed });
+
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    if (parsed.data.lines.length === 0) {
+      return { ok: false, error: "NO_LINES_PARSED" };
+    }
+
+    const statementDate =
+      parsed.data.lines[0]?.txnDate ?? new Date().toISOString().slice(0, 10);
+
+    const imported = await runCommand<{ statementId: string }>(
+      "finance.importBankStatement",
+      {
+        bankCode,
+        accountLabel: accountLabel ?? labels[bankCode],
+        statementDate,
+        sourceFilename: `desk-paste-${bankCode}.txt`,
+        lines: parsed.data.lines,
+        idempotencyKey: newIdempotencyKey(),
+      },
+    );
+
+    if (!imported.ok) {
+      return { ok: false, error: imported.error };
+    }
+
+    const stamped = parsed.data.lines.map((l) => ({
+      id: crypto.randomUUID(),
+      bankCode,
+      txnDate: l.txnDate,
+      description: l.description,
+      amountBtn: l.amountBtn,
+      direction: l.direction,
+      status: "open" as const,
+    }));
+
+    set((s) => ({
+      bankLines: [
+        ...stamped,
+        ...s.bankLines.filter((line) => line.bankCode !== bankCode),
+      ],
+    }));
+
+    return {
+      ok: true,
+      lineCount: stamped.length,
+      warnings: parsed.data.warnings,
+      statementId: imported.data.statementId,
+      persistence: "postgres",
     };
   },
 

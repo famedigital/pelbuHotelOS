@@ -71,29 +71,36 @@ export async function registerAuthHotelEmailRoutes(app: FastifyInstance) {
         });
       }
 
+      // Live hotels only in the picker — hide demo / seed-archive shells.
       const properties = (await queryRaw(
         `SELECT id, slug, name, organization_id
          FROM v2.properties
          WHERE organization_id = ${sqlLiteral(member.organization_id)}
+           AND slug <> 'demo-hotel'
+           AND lower(name) NOT IN ('demo', 'demo hotel')
+           AND slug NOT LIKE '%seed%'
+           AND name NOT ILIKE '%seed archive%'
          ORDER BY
            CASE
-             WHEN lower(name) IN ('demo', 'demo hotel') THEN 2
-             WHEN slug LIKE '%seed%' OR name ILIKE '%seed archive%' THEN 1
-             ELSE 0
+             WHEN slug = 'pelbu-olakha' THEN 0
+             WHEN slug ILIKE '%pelbu%' OR name ILIKE '%pelbu%' THEN 1
+             ELSE 2
            END,
            name`,
       )) as PropertyRow[];
       if (!properties?.length) {
-        return reply.code(404).send({ ok: false, error: "No properties for this organization" });
+        return reply.code(404).send({ ok: false, error: "No live properties for this organization" });
       }
 
+      const last =
+        member.last_property_id
+          ? properties.find((p) => p.id === member.last_property_id)
+          : undefined;
       const property =
         (body.propertyId
           ? properties.find((p) => p.id === body.propertyId)
           : undefined) ||
-        (member.last_property_id
-          ? properties.find((p) => p.id === member.last_property_id)
-          : undefined) ||
+        last ||
         properties[0]!;
 
       const token = issueDeskToken({

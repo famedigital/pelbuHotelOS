@@ -25,6 +25,7 @@ import {
   reconcileAdvancePersist,
   requireDb,
   runScTipPoolPersist,
+  upsertPartnerCalendarCells,
   type PersistedAdvance,
 } from "@hos-v2/db";
 import { z } from "zod";
@@ -374,7 +375,7 @@ registerCommand("partner.maskCalendar", async (raw, ctx) => {
   const input = z
     .object({
       propertyId: z.string().uuid(),
-      viewerAgentId: z.string().uuid(),
+      viewerAgentId: z.string().min(1),
       cells: z.array(cellSchema),
     })
     .parse(raw);
@@ -386,11 +387,35 @@ registerCommand("partner.maskCalendar", async (raw, ctx) => {
     input.cells as PartnerCalendarCell[],
     input.viewerAgentId,
   );
+
+  let persisted = false;
+  const dbGate = requireDb();
+  if (dbGate.ok) {
+    const persist = await upsertPartnerCalendarCells(dbGate.db, {
+      propertyId: input.propertyId,
+      cells: input.cells.map((c) => ({
+        stayDate: c.stayDate,
+        roomId: c.roomId,
+        state: c.state,
+        ownerAgentId: c.ownerAgentId,
+        guestName: c.guestName,
+        bookingRef: c.bookingRef,
+      })),
+    });
+    persisted = persist.ok;
+    if (!persist.ok) {
+      console.error("[wave-i] partner.maskCalendar audit persist failed", {
+        error: persist.error,
+        propertyId: input.propertyId,
+      });
+    }
+  }
+
   ctx.audit({
     action: "partner.maskCalendar",
     entityType: "partner_calendar",
     entityId: input.viewerAgentId,
-    after: { cellCount: masked.length },
+    after: { cellCount: masked.length, persisted },
   });
   return { ok: true, data: { cells: masked } };
 });

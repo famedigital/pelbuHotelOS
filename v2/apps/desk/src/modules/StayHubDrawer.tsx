@@ -514,27 +514,52 @@ export function StayHubDrawer() {
     return stay.folioLines.some((l) => l.stream === other && !l.voided);
   }, [stay, streamFocus]);
 
+  const folioEditable =
+    stay != null && !["cancelled", "no_show"].includes(stay.status);
+
   const commitDailyPlans = (plans: DailyStayPlan[], label?: string) => {
     if (!stay) return;
+    if (!folioEditable) {
+      toast.error("Cannot edit rates on cancelled / no-show stays");
+      return;
+    }
     setDailyDraft(plans);
+    const toastId = toast.loading(
+      stay.status === "checked_out"
+        ? "Rebuilding departed folio…"
+        : "Updating agency folio…",
+    );
     void (async () => {
-      const res = await updateStayRate(stay.id, {
-        dailyPlans: plans,
-        nightlyNet: plans[0]?.nightlyNet ?? stay.nightlyNet,
-        mealPlan: plans[0]?.mealPlan ?? stay.mealPlan,
-      });
-      if (!res.ok) {
-        toast.error(res.error);
-        return;
+      try {
+        const res = await updateStayRate(stay.id, {
+          dailyPlans: plans,
+          nightlyNet: plans[0]?.nightlyNet ?? stay.nightlyNet,
+          mealPlan: plans[0]?.mealPlan ?? stay.mealPlan,
+        });
+        if (!res.ok) {
+          toast.error(res.error, { id: toastId });
+          return;
+        }
+        setTab("streams");
+        setStreamFocus("master");
+        setShowVoided(false);
+        toast.success(
+          stay.status === "checked_out"
+            ? "Departed folio corrected"
+            : "Agency folio updated",
+          {
+            id: toastId,
+            description:
+              label ??
+              `${plans[0]?.mealPlan ?? stay.mealPlan} · ${formatNu(plans[0]?.nightlyNet ?? stay.nightlyNet)}/night`,
+          },
+        );
+      } catch (err) {
+        console.error("[stayhub] commitDailyPlans", err);
+        toast.error(err instanceof Error ? err.message : "Rate update failed", {
+          id: toastId,
+        });
       }
-      setTab("streams");
-      setStreamFocus("master");
-      setShowVoided(false);
-      toast.success("Agency folio updated", {
-        description:
-          label ??
-          `${plans[0]?.mealPlan ?? stay.mealPlan} · ${formatNu(plans[0]?.nightlyNet ?? stay.nightlyNet)}/night`,
-      });
     })();
   };
 
@@ -1138,7 +1163,7 @@ export function StayHubDrawer() {
                       Check in
                     </Button>
                   ) : null}
-                  {stay.status === "checked_in" && due > 0.5 ? (
+                  {stay.status === "checked_in" && due > PERSONAL_CHECKOUT_GATE_BTN ? (
                     <Button
                       size="sm"
                       className="hos-btn-ink !h-9 flex-1 !rounded-xl text-[13px] font-semibold"
@@ -1151,7 +1176,7 @@ export function StayHubDrawer() {
                       Collect {formatNu(due)}
                     </Button>
                   ) : null}
-                  {stay.status === "checked_in" && due <= 0.5 ? (
+                  {stay.status === "checked_in" && due <= PERSONAL_CHECKOUT_GATE_BTN ? (
                     <Button
                       size="sm"
                       data-testid="stayhub-check-out"
@@ -1345,12 +1370,12 @@ export function StayHubDrawer() {
                 </div>
                 <div
                   className={`font-mono text-[13px] font-semibold tabular-nums tracking-tight ${
-                    due > 0.5 ? "text-[var(--hos-ruby)]" : "text-[var(--hos-ink)]"
+                    due > PERSONAL_CHECKOUT_GATE_BTN ? "text-[var(--hos-ruby)]" : "text-[var(--hos-ink)]"
                   }`}
                 >
                   {formatNu(due)}
                 </div>
-                {stay.groupId && groupRollup && groupRollup.personal > 0.5 ? (
+                {stay.groupId && groupRollup && groupRollup.personal > PERSONAL_CHECKOUT_GATE_BTN ? (
                   <div className="mt-0.5 font-mono text-[9px] tabular-nums text-[var(--hos-ink-3)]">
                     All rooms {formatNu(groupRollup.personal)}
                   </div>
@@ -1469,7 +1494,7 @@ export function StayHubDrawer() {
                           </div>
                           <div
                             className={`font-mono text-[16px] font-semibold tabular-nums ${
-                              groupRollup.personal > 0.5
+                              groupRollup.personal > PERSONAL_CHECKOUT_GATE_BTN
                                 ? "text-[var(--hos-ruby)]"
                                 : "text-[var(--hos-emerald)]"
                             }`}
@@ -1655,7 +1680,7 @@ export function StayHubDrawer() {
                       {peers.length > 0 &&
                       peers.every((p) => p.status === "checked_in") &&
                       peers.every(
-                        (p) => folioBalance(p, "personal") <= 0.5,
+                        (p) => folioBalance(p, "personal") <= PERSONAL_CHECKOUT_GATE_BTN,
                       ) ? (
                         <Button
                           size="sm"
@@ -1819,7 +1844,7 @@ export function StayHubDrawer() {
                                 ) : null}
                                 <span
                                   className={`shrink-0 font-mono text-[11px] ${
-                                    folioBalance(p, "personal") > 0.5
+                                    folioBalance(p, "personal") > PERSONAL_CHECKOUT_GATE_BTN
                                       ? "text-[var(--hos-ruby)]"
                                       : "text-[var(--hos-ink-3)]"
                                   }`}
@@ -2294,7 +2319,7 @@ export function StayHubDrawer() {
                                     </td>
                                     <td
                                       className={`px-2 py-2 text-right font-mono text-[13px] font-semibold tabular-nums ${
-                                        t.balance > 0.5
+                                        t.balance > PERSONAL_CHECKOUT_GATE_BTN
                                           ? "text-[var(--hos-ruby)]"
                                           : "text-[var(--hos-ink)]"
                                       }`}
@@ -2639,6 +2664,12 @@ export function StayHubDrawer() {
 
                     {/* Night-by-Night Daily Meal Plan & Rate Schedule Matrix */}
                     <div className="hos-cell grid gap-3 rounded-xl p-3 border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+                      {stay.status === "checked_out" ? (
+                        <p className="m-0 rounded-lg border border-[color-mix(in_srgb,var(--hos-brass)_35%,var(--hos-line))] bg-[color-mix(in_srgb,var(--hos-brass)_10%,var(--hos-cell))] px-2.5 py-2 text-[11px] font-medium text-[var(--hos-ink)]">
+                          Checked out — rates, meals & folio stay editable. Saves
+                          void old package lines and post corrections (audit kept).
+                        </p>
+                      ) : null}
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <strong className="text-xs uppercase tracking-wider text-[var(--hos-primary)] font-bold block">
@@ -2650,6 +2681,7 @@ export function StayHubDrawer() {
                               ? ` · card ${resolvedCard.code}`
                               : ""}{" "}
                             · night-by-night overrides
+                            {stay.status === "checked_out" ? " · billing edit" : ""}
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-1.5">
@@ -2856,7 +2888,7 @@ export function StayHubDrawer() {
                           <button
                             key={k.id}
                             type="button"
-                            disabled={stay.status !== "checked_in"}
+                            disabled={!folioEditable}
                             title={k.hint}
                             onClick={() => {
                               setGuestBillKind(k.id);
@@ -2886,7 +2918,7 @@ export function StayHubDrawer() {
                         <input
                           type="text"
                           value={guestBillDesc}
-                          disabled={stay.status !== "checked_in" || guestBillBusy}
+                          disabled={!folioEditable || guestBillBusy}
                           onChange={(e) => setGuestBillDesc(e.target.value)}
                           placeholder="Description"
                           data-testid="stayhub-guest-bill-desc"
@@ -2898,7 +2930,7 @@ export function StayHubDrawer() {
                           min={0}
                           step={1}
                           value={guestBillNet}
-                          disabled={stay.status !== "checked_in" || guestBillBusy}
+                          disabled={!folioEditable || guestBillBusy}
                           onChange={(e) => setGuestBillNet(e.target.value)}
                           placeholder="Net Nu"
                           data-testid="stayhub-guest-bill-net"
@@ -2908,7 +2940,7 @@ export function StayHubDrawer() {
                           size="sm"
                           className="hos-btn-ink !rounded-full !px-4"
                           data-testid="stayhub-guest-bill-post"
-                          disabled={stay.status !== "checked_in" || guestBillBusy}
+                          disabled={!folioEditable || guestBillBusy}
                           onClick={() => {
                             const net = Number(guestBillNet);
                             const desc = guestBillDesc.trim();
@@ -2945,9 +2977,13 @@ export function StayHubDrawer() {
                           {guestBillBusy ? "Posting…" : "Post"}
                         </Button>
                       </div>
-                      {stay.status !== "checked_in" ? (
+                      {!folioEditable ? (
                         <p className="m-0 text-[11px] text-[var(--hos-ruby)]">
-                          Check in first to post guest charges.
+                          Cancelled / no-show — folio locked.
+                        </p>
+                      ) : stay.status === "checked_out" ? (
+                        <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
+                          Departed stay — late guest charges still post to personal folio.
                         </p>
                       ) : null}
                     </div>
@@ -2964,7 +3000,7 @@ export function StayHubDrawer() {
                               variant="secondary"
                               size="sm"
                               data-testid={`stayhub-addon-${a.id}`}
-                              disabled={stay.status !== "checked_in"}
+                              disabled={!folioEditable}
                               onClick={() => {
                                 void (async () => {
                                   const res = await postCharge(

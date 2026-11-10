@@ -35,6 +35,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { PERSONAL_CHECKOUT_GATE_BTN } from "@hos-v2/domain";
 import { useNavigate } from "react-router-dom";
 import {
   formatNu,
@@ -255,7 +256,7 @@ export function DeskPage() {
   );
   const unassigned = arrivals.filter((s) => !s.roomId).length;
   const pendingSettle = departures.filter(
-    (s) => s.status === "checked_in" && folioBalance(s, "personal") > 0.5,
+    (s) => s.status === "checked_in" && folioBalance(s, "personal") > PERSONAL_CHECKOUT_GATE_BTN,
   ).length;
   const vips = inHouse.filter((s) => s.vip);
   const openShift = tillShifts.find((t) => !t.closedAt);
@@ -415,7 +416,7 @@ export function DeskPage() {
           return;
         }
         const personalBal = folioBalance(focused, "personal");
-        if (personalBal > 0.5) {
+        if (personalBal > PERSONAL_CHECKOUT_GATE_BTN) {
           toast.error("Checkout blocked", {
             description: `Guest has unpaid personal balance of ${formatNu(personalBal)}. Settle guest extras first.`,
           });
@@ -426,7 +427,7 @@ export function DeskPage() {
           const res = await checkOut(focused.id);
           if (!res.ok) {
             toast.error("Checkout blocked", { description: res.error });
-            if (folioBalance(focused, "personal") > 0.5) openStay(focused.id);
+            if (folioBalance(focused, "personal") > PERSONAL_CHECKOUT_GATE_BTN) openStay(focused.id);
             return;
           }
           toast.success("Checked out");
@@ -843,7 +844,7 @@ export function DeskPage() {
                     const masterBal = folioBalance(s, "master");
                     const bal = masterBal + personalBal;
                     const nights = nightsBetween(s.checkIn, s.checkOut);
-                    const personalDue = personalBal > 0.5;
+                    const personalDue = personalBal > PERSONAL_CHECKOUT_GATE_BTN;
                     const focused = idx === focusIdx;
                     return (
                       <tr
@@ -911,7 +912,7 @@ export function DeskPage() {
                               className="!h-8 !min-h-8 !rounded-full !px-3 text-[12px]"
                               disabled={personalDue}
                               onClick={() => {
-                                if (personalBal > 0.5) {
+                                if (personalBal > PERSONAL_CHECKOUT_GATE_BTN) {
                                   toast.error("Checkout blocked", {
                                     description: `Settle guest extras ${formatNu(personalBal)} first.`,
                                   });
@@ -959,8 +960,8 @@ export function DeskPage() {
                 const roomObj = rooms.find((r) => r.id === s.roomId);
                 const roomTypeLabel = roomObj?.typeName ?? "—";
                 const country = guestCountry(s.guestName);
-                const personalDue = personalBal > 0.5;
-                const agencyDue = masterBal > 0.5;
+                const personalDue = personalBal > PERSONAL_CHECKOUT_GATE_BTN;
+                const agencyDue = masterBal > PERSONAL_CHECKOUT_GATE_BTN;
                 const due = personalDue || agencyDue;
                 const focused = idx === focusIdx;
                 const batch = selectedIds.has(s.id);
@@ -1068,7 +1069,7 @@ export function DeskPage() {
                                 : undefined
                           }
                           onClick={() => {
-                            if (personalBal > 0.5) {
+                            if (personalBal > PERSONAL_CHECKOUT_GATE_BTN) {
                               toast.error("Checkout blocked", {
                                 description: `Guest has unpaid personal balance of ${formatNu(personalBal)}. Settle guest extras first.`,
                               });
@@ -1081,7 +1082,7 @@ export function DeskPage() {
                                 toast.error("Checkout blocked", {
                                   description: res.error,
                                 });
-                                if (folioBalance(s, "personal") > 0.5) openStay(s.id);
+                                if (folioBalance(s, "personal") > PERSONAL_CHECKOUT_GATE_BTN) openStay(s.id);
                                 return;
                               }
                               toast.success("Checked out");

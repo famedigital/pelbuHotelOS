@@ -182,7 +182,12 @@ export function PortalLoginPage() {
 
             void portalEmailLogin({ role, email, password }).then((r) => {
               if (!r.ok) {
-                setError(humanizeAuthError(r.error));
+                const msg = humanizeAuthError(r.error);
+                setError(msg);
+                // Hotel owner emails (e.g. Pelbu Suites) are not tour-operator portals.
+                if (/hotel desk/i.test(r.error) || /hotel desk/i.test(msg)) {
+                  navigate("/login/hotel", { replace: true, state: { email } });
+                }
                 return;
               }
               const account = {

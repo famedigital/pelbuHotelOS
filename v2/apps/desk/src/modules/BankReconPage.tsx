@@ -23,6 +23,7 @@ import {
 import { formatNu, useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
 import { useExtrasStore } from "../lib/extras-store";
 import { useFiscalStore } from "../lib/fiscal-store";
+import { isOpsDbUnavailable } from "../lib/api";
 import {
   buildBankReconSummary,
   exportCsv,
@@ -97,6 +98,9 @@ export function BankReconPage() {
   );
   const ingestBankStatementText = useEnterpriseOpsStore(
     (s) => s.ingestBankStatementText,
+  );
+  const ingestBankStatementRemote = useEnterpriseOpsStore(
+    (s) => s.ingestBankStatementRemote,
   );
   const purchases = useFiscalStore((s) => s.purchases);
   const tillBalance = useFiscalStore((s) => s.tillBalance);
@@ -304,10 +308,35 @@ export function BankReconPage() {
 
   const applySuggestion = (s: MatchSuggestion) => {
     start(() => {
-      matchBankLine(s.bankLineId);
-      toast.success("Statement line matched", {
-        description: `${s.targetLabel} · ${s.reason}`,
-      });
+      void (async () => {
+        const kindMap: Record<
+          MatchSuggestion["targetType"],
+          "folio_payment" | "procurement_advance" | "journal" | "manual" | "mbob_qr"
+        > = {
+          fiscal: "folio_payment",
+          purchase: "procurement_advance",
+          deposit: "manual",
+          shift: "journal",
+        };
+        const res = await matchBankLineRemote({
+          statementLineId: s.bankLineId,
+          matchKind: kindMap[s.targetType],
+          matchEntityId: s.targetId,
+          amountBtn: s.bankAmount,
+        });
+        if (!res.ok) {
+          if (isOpsDbUnavailable(res.error)) {
+            matchBankLine(s.bankLineId);
+            toast.message("Matched locally (demo)", { description: res.error });
+            return;
+          }
+          toast.error("Match not saved", { description: res.error });
+          return;
+        }
+        toast.success("Statement line matched", {
+          description: `${s.targetLabel} · ${s.reason}`,
+        });
+      })();
     });
   };
 
@@ -478,21 +507,50 @@ export function BankReconPage() {
             className="hos-btn-tactile w-fit"
             onClick={() => {
               start(() => {
-                const res = ingestBankStatementText({
-                  bankCode: pasteBank,
-                  text: pasteText,
-                });
-                if (!res.ok) {
-                  toast.error(res.error);
-                  return;
-                }
-                setPasteText("");
-                toast.success(`Parsed ${res.lineCount} lines`, {
-                  description:
-                    res.warnings.length > 0
-                      ? `${res.warnings.length} warnings`
-                      : BANK_LABEL[pasteBank],
-                });
+                void (async () => {
+                  const remote = await ingestBankStatementRemote({
+                    bankCode: pasteBank,
+                    text: pasteText,
+                  });
+                  if (remote.ok) {
+                    setPasteText("");
+                    toast.success(`Imported ${remote.lineCount} lines`, {
+                      description:
+                        remote.warnings.length > 0
+                          ? `${remote.warnings.length} warnings · stmt ${remote.statementId.slice(0, 8)}…`
+                          : `Persisted · ${BANK_LABEL[pasteBank]}`,
+                    });
+                    return;
+                  }
+                  if (remote.error === "DATABASE_REQUIRED") {
+                    toast.error("Postgres required", {
+                      description: remote.error,
+                    });
+                    return;
+                  }
+                  if (!isOpsDbUnavailable(remote.error)) {
+                    toast.error("Import failed", { description: remote.error });
+                    return;
+                  }
+                  toast.error("API unavailable — local demo only", {
+                    description: remote.error,
+                  });
+                  const res = ingestBankStatementText({
+                    bankCode: pasteBank,
+                    text: pasteText,
+                  });
+                  if (!res.ok) {
+                    toast.error(res.error);
+                    return;
+                  }
+                  setPasteText("");
+                  toast.message(`Parsed ${res.lineCount} lines (local demo)`, {
+                    description:
+                      res.warnings.length > 0
+                        ? `${res.warnings.length} warnings`
+                        : BANK_LABEL[pasteBank],
+                  });
+                })();
               });
             }}
           >
@@ -736,8 +794,14 @@ export function BankReconPage() {
                                         amountBtn: l.amountBtn,
                                       });
                                       if (!res.ok) {
-                                        matchBankLine(l.id);
-                                        toast.message("Matched locally", {
+                                        if (isOpsDbUnavailable(res.error)) {
+                                          matchBankLine(l.id);
+                                          toast.message("Matched locally (demo)", {
+                                            description: res.error,
+                                          });
+                                          return;
+                                        }
+                                        toast.error("Match not saved", {
                                           description: res.error,
                                         });
                                         return;

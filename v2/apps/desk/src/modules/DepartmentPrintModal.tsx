@@ -13,6 +13,7 @@ import {
   ZoomOut,
 } from "lucide-react";
 import { toast } from "sonner";
+import { PERSONAL_CHECKOUT_GATE_BTN } from "@hos-v2/domain";
 import { Badge, Button, Odometer, StatusLegend } from "@hos-v2/ui";
 import {
   folioBalance,
@@ -392,7 +393,7 @@ export function DepartmentPrintModal({
   const cashPurchases = purchases
     .filter((p) => p.paymentMode === "cash")
     .reduce((s, p) => s + p.grandTotalBtn, 0);
-  const unresolved = inHouse.filter((s) => folioBalance(s) > 0.5);
+  const unresolved = inHouse.filter((s) => folioBalance(s) > PERSONAL_CHECKOUT_GATE_BTN);
 
   const fbOrder =
     orders.find((o) => o.id === fbOrderId) ?? orders[0] ?? null;
