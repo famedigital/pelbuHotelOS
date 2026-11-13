@@ -29,6 +29,56 @@ export type HermesChat = {
   status: string;
   displayName: string | null;
   pairedAt: string;
+  chatType?: string;
+  agentId?: string | null;
+  tgUsername?: string | null;
+};
+
+export type HermesEvent = {
+  id: string;
+  propertyId: string;
+  chatId: number | null;
+  direction: "in" | "out" | "system";
+  intent: string;
+  kind?: string;
+  status?: string;
+  text?: string | null;
+  latencyMs?: number | null;
+  payload: Record<string, unknown>;
+  createdAt: string;
+};
+
+export type HermesAlertKind =
+  | "guest_check_in"
+  | "guest_check_out"
+  | "meal_board"
+  | "invoice_issued"
+  | "hk_dirty"
+  | "night_audit";
+
+export type HermesAlertPref = {
+  kind: HermesAlertKind;
+  enabled: boolean;
+  sendAt: string | null;
+  roles: Array<"fo" | "hk" | "kitchen" | "manager" | "gm" | "agent">;
+};
+
+export type HermesTopic = {
+  id: string;
+  propertyId: string;
+  chatId: number;
+  threadId: number;
+  kind: string;
+};
+
+export type HermesStaffLink = {
+  id: string;
+  propertyId: string;
+  tgUserId: number;
+  staffName: string;
+  role: string;
+  linkedAt: string;
+  active: boolean;
 };
 
 export type HermesOverview = {
@@ -37,15 +87,12 @@ export type HermesOverview = {
   appliedToday: number;
   botConfigured: boolean;
   botUsername: string;
+  webhookSecretConfigured?: boolean;
   geminiConfigured: boolean;
   simulateMode: boolean;
-  recentEvents: {
-    id: string;
-    intent: string;
-    direction: string;
-    createdAt: string;
-  }[];
+  recentEvents: HermesEvent[];
   chats: HermesChat[];
+  topics?: HermesTopic[];
 };
 
 export async function hermesOverview() {
@@ -74,6 +121,23 @@ export async function hermesCreatePairToken(
   });
 }
 
+export async function hermesPairState(token: string) {
+  return runCommand<{
+    used: boolean;
+    expiresAt: string;
+    expired: boolean;
+    chat: {
+      id: string;
+      displayName: string | null;
+      chatType: string;
+      role: string;
+    } | null;
+  }>("hermes.pairState", {
+    token,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
 export async function hermesLinkStaff(input: {
   tgUserId: number;
   staffName: string;
@@ -88,6 +152,34 @@ export async function hermesLinkStaff(input: {
     };
   }>("hermes.linkStaff", {
     ...input,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesListStaffLinks() {
+  return runCommand<{ links: HermesStaffLink[] }>("hermes.listStaffLinks", {
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesBindTopic(input: {
+  chatId: number;
+  threadId: number;
+  kind:
+    | "front_office"
+    | "housekeeping"
+    | "kitchen_pos"
+    | "management_audit"
+    | "guides_drivers";
+}) {
+  return runCommand<{ topic: HermesTopic }>("hermes.bindTopic", {
+    ...input,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesListTopics() {
+  return runCommand<{ topics: HermesTopic[] }>("hermes.listTopics", {
     idempotencyKey: newIdempotencyKey(),
   });
 }
@@ -116,6 +208,17 @@ export async function hermesListChats() {
 
 export async function hermesRevokeChat(chatRowId: string) {
   return runCommand<{ id: string; status: string }>("hermes.revokeChat", {
+    chatRowId,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesTestChat(chatRowId: string) {
+  return runCommand<{
+    delivered: boolean;
+    delivery: string;
+    error?: string;
+  }>("hermes.testChat", {
     chatRowId,
     idempotencyKey: newIdempotencyKey(),
   });
@@ -184,7 +287,89 @@ export async function hermesOcrDocument(input: {
   });
 }
 
-export function fileToBase64(file: File): Promise<{ mime: string; dataBase64: string }> {
+export async function hermesListEvents(input?: {
+  intent?: string;
+  kind?: string;
+  q?: string;
+  cursor?: string;
+  limit?: number;
+}) {
+  return runCommand<{
+    events: HermesEvent[];
+    nextCursor: string | null;
+    total: number;
+  }>("hermes.listEvents", {
+    ...input,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesGetAlerts() {
+  return runCommand<{ prefs: HermesAlertPref[] }>("hermes.getAlerts", {
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesPutAlerts(prefs: HermesAlertPref[]) {
+  return runCommand<{ prefs: HermesAlertPref[] }>("hermes.putAlerts", {
+    prefs,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesRegisterWebhook(publicBaseUrl?: string) {
+  return runCommand<{
+    webhookUrl: string;
+    secretConfigured: boolean;
+  }>("hermes.registerWebhook", {
+    publicBaseUrl,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesNotifyFolio(input: {
+  bookingId: string;
+  chatRowId?: string;
+  summaryText?: string;
+}) {
+  return runCommand<{
+    eventId: string;
+    delivered: boolean;
+    delivery: string;
+    error?: string;
+  }>("hermes.notifyFolio", {
+    ...input,
+    idempotencyKey: newIdempotencyKey(),
+  });
+}
+
+export async function hermesAckDepositProof(eventId: string) {
+  return runCommand<{ eventId: string; status: string }>(
+    "hermes.ackDepositProof",
+    {
+      eventId,
+      idempotencyKey: newIdempotencyKey(),
+    },
+  );
+}
+
+export async function hermesRecordDepositProof(input: {
+  text: string;
+  chatRowId?: string;
+  amountBtn?: number;
+}) {
+  return runCommand<{ eventId: string; status: string }>(
+    "hermes.recordDepositProof",
+    {
+      ...input,
+      idempotencyKey: newIdempotencyKey(),
+    },
+  );
+}
+
+export function fileToBase64(
+  file: File,
+): Promise<{ mime: string; dataBase64: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Failed to read file"));
@@ -196,4 +381,18 @@ export function fileToBase64(file: File): Promise<{ mime: string; dataBase64: st
     };
     reader.readAsDataURL(file);
   });
+}
+
+export function thimphuTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString("en-GB", {
+      timeZone: "Asia/Thimphu",
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
 }

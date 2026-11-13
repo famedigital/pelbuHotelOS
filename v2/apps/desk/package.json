@@ -7,7 +7,7 @@
     "dev": "vite",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "build": "tsc -p tsconfig.json && vite build",
-    "test:unit": "node --import tsx --test src/lib/agent-print-pack.test.ts src/lib/intelligence/intelligence.test.ts src/lib/stay-pax.test.ts src/lib/agency-initials.test.ts",
+    "test:unit": "node --import tsx --test src/lib/agent-print-pack.test.ts src/lib/intelligence/intelligence.test.ts src/lib/stay-pax.test.ts src/lib/agency-initials.test.ts src/lib/desk-room-inventory.test.ts src/lib/pin-pad-priority.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:fo": "playwright test e2e/fo-01-fit-journey.spec.ts e2e/fo-02-group-stayview.spec.ts e2e/fo-03-day-close.spec.ts"
   },

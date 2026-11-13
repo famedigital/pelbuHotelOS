@@ -46,7 +46,7 @@ function partnerCreds(): Cred[] {
   return useCommercialStore.getState().agents.map((a) => ({
     role: "partner" as const,
     code: a.code.toUpperCase(),
-    pin: a.code === "YAP" ? "1111" : a.code === "DA" ? "2222" : "3333",
+    pin: a.code === "YAP" ? "7788" : a.code === "DA" ? "2222" : "3333",
     displayName: a.name,
     subjectId: a.id,
   }));
@@ -129,7 +129,8 @@ export const FIELD_DEMO_HINTS: Record<
   FieldPortalRole,
   { code: string; pin: string; label: string }
 > = {
-  partner: { code: "YAP", pin: "1111", label: "Yangphel owner" },
+  /* Must not collide with DEFAULT_DEPT_PINS FO (1111) — hotel PIN pad is anonymous. */
+  partner: { code: "YAP", pin: "7788", label: "Yangphel owner" },
   guide: { code: "GUIDE", pin: "4455", label: "Tour guide" },
   driver: { code: "DRIVER", pin: "5566", label: "Fleet driver" },
 };

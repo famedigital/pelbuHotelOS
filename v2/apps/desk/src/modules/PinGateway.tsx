@@ -46,11 +46,6 @@ import {
 } from "lucide-react";
 import { useSettingsStore } from "../lib/settings-store";
 import {
-  FIELD_DEMO_HINTS,
-  useFieldPortalAuth,
-  type FieldPortalRole,
-} from "../lib/field-portal-auth";
-import {
   DZONGKHAG_COORDS,
   fetchPinWeather,
   weatherTone,
@@ -80,39 +75,6 @@ type StaffPreset = {
   live?: boolean;
   pinResetRequired?: boolean;
 };
-
-const FIELD_STAFF: StaffPreset[] = [
-  {
-    id: "guide",
-    name: "Tour Guide",
-    role: "Field · Guide",
-    badge: "GD",
-    pin: "4455",
-    route: "/guide",
-    initials: "GD",
-    accent: "#0d9488",
-  },
-  {
-    id: "driver",
-    name: "Fleet Driver",
-    role: "Field · Driver",
-    badge: "DR",
-    pin: "5566",
-    route: "/driver",
-    initials: "DR",
-    accent: "#f59e0b",
-  },
-  {
-    id: "partner",
-    name: "Yangphel Partner",
-    role: "B2B Agency",
-    badge: "AG",
-    pin: "1111",
-    route: "/partner",
-    initials: "YP",
-    accent: "#0284c7",
-  },
-];
 
 /** Demo presets kept only when API has no login-enabled staff (local UI work). */
 const DEMO_STAFF: StaffPreset[] = [
@@ -952,28 +914,7 @@ export function PinGateway() {
       }
       setDigits(next);
 
-      /* Field portals: anonymous PIN match (no staff gallery). */
-      const fieldHit = FIELD_STAFF.find((s) => s.pin === next);
-      if (fieldHit) {
-        setUnlocking(true);
-        const fieldRole: FieldPortalRole | null =
-          fieldHit.route === "/partner"
-            ? "partner"
-            : fieldHit.route === "/guide"
-              ? "guide"
-              : fieldHit.route === "/driver"
-                ? "driver"
-                : null;
-        if (fieldRole) {
-          const hint = FIELD_DEMO_HINTS[fieldRole];
-          useFieldPortalAuth.getState().unlock(fieldRole, hint.code, hint.pin);
-        }
-        toast.success(`Welcome · ${fieldHit.role}`, {
-          description: fieldHit.route,
-        });
-        window.setTimeout(() => navigate(fieldHit.route), reduce ? 0 : 280);
-        return;
-      }
+      /* Anonymous desk PIN only — never match field-portal demo PINs here (FO 1111 collision). */
 
       if (!propertySlug) {
         failPin("Select a hotel first");

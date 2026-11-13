@@ -10,7 +10,18 @@ import {
 import { store, type HermesRole, type HermesTopicKind } from "../../platform/memory-store.js";
 import { registerCommand } from "../registry.js";
 import { applyOcrToBooking } from "./apply-roster.js";
-import { pairingDeepLink, sendMessage, telegramBotToken, telegramBotUsername } from "./bot-api.js";
+import {
+  pairingDeepLink,
+  sendMessage,
+  telegramBotToken,
+  telegramBotUsername,
+  telegramWebhookSecret,
+} from "./bot-api.js";
+import {
+  filterTelegramEvents,
+  getHermesAlertPrefs,
+  putHermesAlertPrefs,
+} from "./hermes-notifier.js";
 import { ocrIdentityOrSdf } from "./ocr.js";
 
 const hermesRoleSchema = z.enum(["fo", "manager", "hk", "kitchen", "gm", "agent"]);
@@ -489,10 +500,386 @@ registerCommand("hermes.overview", async (raw, ctx) => {
       appliedToday,
       botConfigured: Boolean(telegramBotToken()),
       botUsername: telegramBotUsername(),
+      webhookSecretConfigured: Boolean(telegramWebhookSecret()),
       geminiConfigured: Boolean(process.env.GEMINI_API_KEY?.trim()),
       simulateMode: process.env.HERMES_OCR_SIMULATE === "1",
       recentEvents: events,
       chats,
+      topics: store.telegramTopics.filter((t) => t.propertyId === input.propertyId),
     },
   };
+});
+
+registerCommand("hermes.pairState", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      token: z.string().min(8),
+      idempotencyKey: idempotencyKeySchema.optional(),
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  const row = store.telegramPairTokens.find(
+    (t) => t.token === input.token && t.propertyId === input.propertyId,
+  );
+  if (!row) return { ok: false, error: "Pair token not found", code: "NOT_FOUND" };
+  const used = Boolean(row.usedAt);
+  const chat = used
+    ? store.telegramChats.find(
+        (c) =>
+          c.propertyId === input.propertyId &&
+          c.chatId === row.usedChatId &&
+          c.status === "active",
+      )
+    : null;
+  return {
+    ok: true,
+    data: {
+      used,
+      expiresAt: row.expiresAt,
+      expired: new Date(row.expiresAt).getTime() < Date.now(),
+      chat: chat
+        ? {
+            id: chat.id,
+            displayName: chat.displayName,
+            chatType: chat.chatType,
+            role: chat.role,
+          }
+        : null,
+    },
+  };
+});
+
+registerCommand("hermes.testChat", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      chatRowId: z.string().uuid(),
+      idempotencyKey: idempotencyKeySchema,
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  const chat = store.telegramChats.find(
+    (c) => c.id === input.chatRowId && c.propertyId === input.propertyId,
+  );
+  if (!chat) return { ok: false, error: "Chat not found", code: "NOT_FOUND" };
+  if (chat.status !== "active") {
+    return { ok: false, error: "Chat is not active", code: "STATE" };
+  }
+  const text = `<b>Innora Bot</b>\nTest ping · ${new Date().toISOString()}`;
+  const started = Date.now();
+  const sent = await sendMessage(chat.chatId, text);
+  store.telegramEvents.unshift({
+    id: randomUUID(),
+    propertyId: input.propertyId,
+    chatId: chat.chatId,
+    direction: "out",
+    intent: "test_ping",
+    kind: "message",
+    status: sent.ok ? "ok" : "error",
+    text,
+    latencyMs: Date.now() - started,
+    payload: { ok: sent.ok, error: sent.ok ? undefined : sent.error },
+    createdAt: new Date().toISOString(),
+  });
+  if (!sent.ok) {
+    return {
+      ok: true,
+      data: { delivered: false, error: sent.error, delivery: "local_only" },
+    };
+  }
+  return { ok: true, data: { delivered: true, delivery: "telegram" } };
+});
+
+registerCommand("hermes.listTopics", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      idempotencyKey: idempotencyKeySchema.optional(),
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  return {
+    ok: true,
+    data: {
+      topics: store.telegramTopics.filter((t) => t.propertyId === input.propertyId),
+    },
+  };
+});
+
+registerCommand("hermes.listEvents", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      intent: z.string().min(1).optional(),
+      kind: z.string().min(1).optional(),
+      q: z.string().optional(),
+      cursor: z.string().uuid().optional(),
+      limit: z.number().int().min(1).max(100).optional(),
+      idempotencyKey: idempotencyKeySchema.optional(),
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  return { ok: true, data: filterTelegramEvents(input) };
+});
+
+registerCommand("hermes.getAlerts", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      idempotencyKey: idempotencyKeySchema.optional(),
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  return { ok: true, data: { prefs: getHermesAlertPrefs(input.propertyId) } };
+});
+
+registerCommand("hermes.putAlerts", async (raw, ctx) => {
+  const roleSchema = z.enum(["fo", "hk", "kitchen", "manager", "gm", "agent"]);
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      prefs: z
+        .array(
+          z.object({
+            kind: z.enum([
+              "guest_check_in",
+              "guest_check_out",
+              "meal_board",
+              "invoice_issued",
+              "hk_dirty",
+              "night_audit",
+            ]),
+            enabled: z.boolean(),
+            sendAt: z.string().nullable(),
+            roles: z.array(roleSchema).min(1),
+          }),
+        )
+        .min(1),
+      idempotencyKey: idempotencyKeySchema,
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  const prefs = putHermesAlertPrefs(input.propertyId, input.prefs);
+  ctx.audit({
+    action: "hermes.putAlerts",
+    entityType: "hermes_alert_prefs",
+    entityId: input.propertyId,
+  });
+  return { ok: true, data: { prefs } };
+});
+
+registerCommand("hermes.registerWebhook", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      publicBaseUrl: z.string().url().optional(),
+      idempotencyKey: idempotencyKeySchema,
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  const token = telegramBotToken();
+  if (!token) {
+    return {
+      ok: false,
+      error: "TELEGRAM_BOT_TOKEN not set on API",
+      code: "CONFIG",
+    };
+  }
+  const base =
+    input.publicBaseUrl?.replace(/\/$/, "") ||
+    process.env.PUBLIC_API_BASE_URL?.replace(/\/$/, "") ||
+    null;
+  if (!base) {
+    return {
+      ok: false,
+      error: "publicBaseUrl or PUBLIC_API_BASE_URL required",
+      code: "CONFIG",
+    };
+  }
+  const webhookUrl = `${base}/v1/telegram/webhook`;
+  const secret = telegramWebhookSecret();
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${token}/setWebhook`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        url: webhookUrl,
+        secret_token: secret || undefined,
+        allowed_updates: ["message", "callback_query"],
+      }),
+    });
+    const json = (await res.json()) as { ok?: boolean; description?: string };
+    if (!json.ok) {
+      return {
+        ok: false,
+        error: json.description || "setWebhook failed",
+        code: "TELEGRAM",
+      };
+    }
+    store.telegramEvents.unshift({
+      id: randomUUID(),
+      propertyId: input.propertyId,
+      chatId: null,
+      direction: "system",
+      intent: "webhook_register",
+      kind: "command",
+      status: "ok",
+      text: webhookUrl,
+      payload: { webhookUrl },
+      createdAt: new Date().toISOString(),
+    });
+    return {
+      ok: true,
+      data: { webhookUrl, secretConfigured: Boolean(secret) },
+    };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return { ok: false, error: msg, code: "NETWORK" };
+  }
+});
+
+registerCommand("hermes.notifyFolio", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      bookingId: z.string().uuid(),
+      chatRowId: z.string().uuid().optional(),
+      summaryText: z.string().min(1).max(3500).optional(),
+      idempotencyKey: idempotencyKeySchema,
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  const booking = store.bookings.find(
+    (b) => b.id === input.bookingId && b.propertyId === input.propertyId,
+  );
+  if (!booking) return { ok: false, error: "Booking not found", code: "NOT_FOUND" };
+  const chat = input.chatRowId
+    ? store.telegramChats.find(
+        (c) =>
+          c.id === input.chatRowId &&
+          c.propertyId === input.propertyId &&
+          c.status === "active",
+      )
+    : store.telegramChats.find(
+        (c) =>
+          c.propertyId === input.propertyId &&
+          c.status === "active" &&
+          (c.role === "fo" || c.role === "agent" || c.role === "manager"),
+      );
+  if (!chat) {
+    return { ok: false, error: "No active chat for folio notify", code: "NOT_FOUND" };
+  }
+  const folios = store.folios.filter((f) => f.bookingId === booking.id);
+  const balance = folios.reduce((s, f) => s + f.balance, 0);
+  const text =
+    input.summaryText?.trim() ||
+    [
+      `<b>Innora Bot · Folio summary</b>`,
+      booking.guestName,
+      `Conf ${booking.confirmationNo}`,
+      `Balance Nu ${balance.toFixed(2)}`,
+      `(notify only — settle on desk)`,
+    ].join("\n");
+  const started = Date.now();
+  const sent = await sendMessage(chat.chatId, text);
+  const eventId = randomUUID();
+  store.telegramEvents.unshift({
+    id: eventId,
+    propertyId: input.propertyId,
+    chatId: chat.chatId,
+    direction: "out",
+    intent: "folio_notify",
+    kind: "notify",
+    status: sent.ok ? "ok" : "error",
+    text,
+    latencyMs: Date.now() - started,
+    payload: {
+      bookingId: booking.id,
+      balanceBtn: balance,
+      delivery: sent.ok ? "telegram" : "failed",
+      error: sent.ok ? undefined : sent.error,
+    },
+    createdAt: new Date().toISOString(),
+  });
+  ctx.audit({
+    action: "hermes.notifyFolio",
+    entityType: "booking",
+    entityId: booking.id,
+  });
+  return {
+    ok: true,
+    data: {
+      eventId,
+      delivered: sent.ok,
+      delivery: sent.ok ? "telegram" : "local_only",
+      error: sent.ok ? undefined : sent.error,
+    },
+  };
+});
+
+registerCommand("hermes.ackDepositProof", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      eventId: z.string().uuid(),
+      idempotencyKey: idempotencyKeySchema,
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  const event = store.telegramEvents.find(
+    (e) => e.id === input.eventId && e.propertyId === input.propertyId,
+  );
+  if (!event) return { ok: false, error: "Event not found", code: "NOT_FOUND" };
+  if (event.intent !== "deposit_proof") {
+    return { ok: false, error: "Not a deposit proof event", code: "VALIDATION" };
+  }
+  event.status = "acked";
+  event.payload = { ...event.payload, ackedAt: new Date().toISOString() };
+  return { ok: true, data: { eventId: event.id, status: event.status } };
+});
+
+registerCommand("hermes.recordDepositProof", async (raw, ctx) => {
+  const input = z
+    .object({
+      propertyId: z.string().uuid(),
+      text: z.string().min(1).max(2000),
+      chatRowId: z.string().uuid().optional(),
+      amountBtn: z.number().optional(),
+      idempotencyKey: idempotencyKeySchema,
+    })
+    .parse(raw);
+  const denied = requireHermesWrite(ctx.actor, input.propertyId);
+  if (denied) return denied;
+  const chat = input.chatRowId
+    ? store.telegramChats.find(
+        (c) => c.id === input.chatRowId && c.propertyId === input.propertyId,
+      )
+    : null;
+  const eventId = randomUUID();
+  store.telegramEvents.unshift({
+    id: eventId,
+    propertyId: input.propertyId,
+    chatId: chat?.chatId ?? null,
+    direction: "in",
+    intent: "deposit_proof",
+    kind: "notify",
+    status: "pending",
+    text: input.text,
+    payload: {
+      amountBtn: input.amountBtn ?? null,
+      note: "Desk-recorded proof — no payment posted",
+    },
+    createdAt: new Date().toISOString(),
+  });
+  return { ok: true, data: { eventId, status: "pending" } };
 });

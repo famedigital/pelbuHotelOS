@@ -26,6 +26,7 @@ import {
   idempotencyKeySchema,
 } from "../platform/command.js";
 import { store } from "../platform/memory-store.js";
+import { notifyStayLifecycleAlert } from "./hermes/hermes-notifier.js";
 import { commandHandlers, registerCommand } from "./registry.js";
 
 registerCommand("reservations.createReservation", async (raw, ctx) => {
@@ -761,6 +762,13 @@ registerCommand("reservations.checkIn", async (raw, ctx) => {
       dirtyOverride: dirtyRooms.length > 0,
     },
   });
+  void notifyStayLifecycleAlert({
+    propertyId: input.propertyId,
+    kind: "guest_check_in",
+    booking,
+  }).catch(() => {
+    /* never fail check-in on Telegram */
+  });
   return { ok: true, data: { bookingId: booking.id, status: "checked_in" } };
 });
 
@@ -966,6 +974,13 @@ registerCommand("reservations.checkOut", async (raw, ctx) => {
     aggregateType: "booking",
     aggregateId: booking.id,
     payload: {},
+  });
+  void notifyStayLifecycleAlert({
+    propertyId: input.propertyId,
+    kind: "guest_check_out",
+    booking,
+  }).catch(() => {
+    /* never fail check-out on Telegram */
   });
   return { ok: true, data: { bookingId: booking.id, status: "checked_out" } };
 });

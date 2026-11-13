@@ -155,9 +155,49 @@ const FinancePage = lazy(() =>
 const CompliancePage = lazy(() =>
   import("../modules/CompliancePage").then((m) => ({ default: m.CompliancePage })),
 );
-const TelegramPage = lazy(() =>
-  import("../modules/telegram/TelegramPage").then((m) => ({
-    default: m.TelegramPage,
+const TelegramLayout = lazy(() =>
+  import("../modules/telegram/TelegramLayout").then((m) => ({
+    default: m.TelegramLayout,
+  })),
+);
+const TelegramOverviewPage = lazy(() =>
+  import("../modules/telegram/TelegramOverviewPage").then((m) => ({
+    default: m.TelegramOverviewPage,
+  })),
+);
+const TelegramChatsPage = lazy(() =>
+  import("../modules/telegram/TelegramChatsPage").then((m) => ({
+    default: m.TelegramChatsPage,
+  })),
+);
+const TelegramDocsPage = lazy(() =>
+  import("../modules/telegram/TelegramDocsPage").then((m) => ({
+    default: m.TelegramDocsPage,
+  })),
+);
+const TelegramBillsPage = lazy(() =>
+  import("../modules/telegram/TelegramBillsPage").then((m) => ({
+    default: m.TelegramBillsPage,
+  })),
+);
+const TelegramPaymentsPage = lazy(() =>
+  import("../modules/telegram/TelegramPaymentsPage").then((m) => ({
+    default: m.TelegramPaymentsPage,
+  })),
+);
+const TelegramAlertsPage = lazy(() =>
+  import("../modules/telegram/TelegramAlertsPage").then((m) => ({
+    default: m.TelegramAlertsPage,
+  })),
+);
+const TelegramLogPage = lazy(() =>
+  import("../modules/telegram/TelegramLogPage").then((m) => ({
+    default: m.TelegramLogPage,
+  })),
+);
+const TelegramSetupPage = lazy(() =>
+  import("../modules/telegram/TelegramSetupPage").then((m) => ({
+    default: m.TelegramSetupPage,
   })),
 );
 const ChannelPage = lazy(() =>
@@ -1454,7 +1494,16 @@ function AppRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
       <Route path="/reservations" element={<ReservationsPage />} />
       <Route path="/stayview" element={<StayViewPage />} />
       <Route path="/guests" element={<GuestsPage />} />
-      <Route path="/telegram" element={<TelegramPage />} />
+      <Route path="/telegram" element={<TelegramLayout />}>
+        <Route index element={<TelegramOverviewPage />} />
+        <Route path="chats" element={<TelegramChatsPage />} />
+        <Route path="docs" element={<TelegramDocsPage />} />
+        <Route path="bills" element={<TelegramBillsPage />} />
+        <Route path="payments" element={<TelegramPaymentsPage />} />
+        <Route path="alerts" element={<TelegramAlertsPage />} />
+        <Route path="log" element={<TelegramLogPage />} />
+        <Route path="setup" element={<TelegramSetupPage />} />
+      </Route>
       <Route path="/groups" element={<GroupsPage />} />
       <Route path="/night-audit" element={<NightAuditPage />} />
       <Route path="/pos" element={<PosPage />} />

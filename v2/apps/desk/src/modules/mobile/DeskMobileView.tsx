@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge, Button, EmptyState, Odometer } from "@hos-v2/ui";
 import { CalendarDays, Crown, KeyRound, LayoutGrid, MoonStar, Table2, Zap } from "lucide-react";
@@ -13,12 +13,18 @@ import {
   ymd,
   type Stay,
 } from "../../lib/front-office-store";
+import {
+  emptyRoomDirtyCount,
+  emptyRoomReadyCount,
+  listEmptyRooms,
+} from "../../lib/desk-room-inventory";
 import { nightAuditReadiness } from "../../lib/action-dispatcher";
 import { staysForCalendarDay } from "./MobileMonthCalendar";
 import { MobileCalendarSheet } from "./MobileCalendarSheet";
 
 type Tab = "arrivals" | "inHouse" | "departures" | "tomorrow" | "day";
 type ListMode = "table" | "cards";
+type QueueSheet = "holds" | "checkin" | "empty" | null;
 
 function initials(name: string): string {
   return name
@@ -38,12 +44,15 @@ export function DeskMobileView() {
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
+  const [queueSheet, setQueueSheet] = useState<QueueSheet>(null);
+  const [, start] = useTransition();
   const stays = useFrontOfficeStore((s) => s.stays);
   const rooms = useFrontOfficeStore((s) => s.rooms);
   const businessDate = useFrontOfficeStore((s) => s.businessDate);
   const openStay = useFrontOfficeStore((s) => s.openStay);
   const openFastBook = useFrontOfficeStore((s) => s.openFastBook);
   const checkIn = useFrontOfficeStore((s) => s.checkIn);
+  const confirmHold = useFrontOfficeStore((s) => s.confirmHold);
   const checkOut = useFrontOfficeStore((s) => s.checkOut);
   const smartAutoAssign = useFrontOfficeStore((s) => s.smartAutoAssign);
   const auditReady = useMemo(
@@ -76,6 +85,39 @@ export function DeskMobileView() {
   const dirty = rooms.filter((r) => r.hkStatus === "dirty").length;
   const unassigned = arrivals.filter((s) => !s.roomId).length;
   const roomRev = Math.round(inHouse.reduce((sum, s) => sum + s.nightlyNet, 0) * 1.21);
+  const holdsQueue = useMemo(
+    () =>
+      stays
+        .filter((s) => s.status === "held")
+        .sort(
+          (a, b) =>
+            a.checkIn.localeCompare(b.checkIn) ||
+            a.guestName.localeCompare(b.guestName),
+        ),
+    [stays],
+  );
+  const checkInQueue = useMemo(
+    () =>
+      stays
+        .filter(
+          (s) =>
+            s.checkIn === today &&
+            ["confirmed", "held"].includes(s.status) &&
+            Boolean(s.roomId),
+        )
+        .sort(
+          (a, b) =>
+            (a.roomNumber ?? "").localeCompare(b.roomNumber ?? "") ||
+            a.guestName.localeCompare(b.guestName),
+        ),
+    [stays, today],
+  );
+  const emptyRooms = useMemo(
+    () => listEmptyRooms(rooms, stays, today),
+    [rooms, stays, today],
+  );
+  const emptyReady = emptyRoomReadyCount(emptyRooms);
+  const emptyDirty = emptyRoomDirtyCount(emptyRooms);
 
   const base: Stay[] =
     tab === "day"
@@ -105,32 +147,64 @@ export function DeskMobileView() {
     { weekday: "short", day: "2-digit", month: "short" },
   );
 
-  const kpis = [
+  const kpis: {
+    id: string;
+    label: string;
+    value: number;
+    suffix?: string;
+    prefix?: string;
+    meta: string;
+    glow: "sapphire" | "gold" | "emerald" | "brass";
+    sheet?: Exclude<QueueSheet, null>;
+  }[] = [
     {
+      id: "occ",
       label: "Occupancy",
       value: occPct,
       suffix: "%",
-      meta: `${occRooms}/${rooms.length} rooms`,
-      glow: "sapphire" as const,
+      meta: `${occRooms}/${rooms.length} · Nu. ${roomRev.toLocaleString("en-BT")}`,
+      glow: "sapphire",
     },
     {
+      id: "empty",
+      label: "Empty",
+      value: emptyRooms.length,
+      meta:
+        emptyRooms.length === 0
+          ? "Full house"
+          : `${emptyReady} ready · ${emptyDirty} dirty`,
+      glow: "emerald",
+      sheet: "empty",
+    },
+    {
+      id: "arrivals",
       label: "Arrivals",
       value: arrivals.length,
       meta: unassigned ? `${unassigned} no room` : "All assigned",
-      glow: "gold" as const,
+      glow: "gold",
     },
     {
+      id: "departures",
       label: "Departures",
       value: departures.length,
-      meta: `${dirty} dirty rooms`,
-      glow: "emerald" as const,
+      meta: `${dirty} dirty HK`,
+      glow: "emerald",
     },
     {
-      label: "Yield",
-      value: roomRev,
-      prefix: "Nu. ",
-      meta: "incl. 10% SC",
-      glow: "emerald" as const,
+      id: "holds",
+      label: "Holds",
+      value: holdsQueue.length,
+      meta: holdsQueue.length === 0 ? "Clear" : "Tap to act",
+      glow: "brass",
+      sheet: "holds",
+    },
+    {
+      id: "checkin",
+      label: "Check-in",
+      value: checkInQueue.length,
+      meta: checkInQueue.length === 0 ? "None due" : "Roomed today",
+      glow: "gold",
+      sheet: "checkin",
     },
   ];
 
@@ -198,23 +272,46 @@ export function DeskMobileView() {
         </div>
       </div>
 
-      <div className="hos-mobile-kpi-grid">
-        {kpis.map((k) => (
-          <div key={k.label} className="hos-mobile-kpi-cell" data-glow={k.glow}>
-            <span className="truncate text-[9px] font-black uppercase tracking-[0.1em] text-[var(--hos-ink-3)]">
-              {k.label}
-            </span>
-            <Odometer
-              value={k.value}
-              prefix={"prefix" in k ? k.prefix : undefined}
-              suffix={"suffix" in k ? k.suffix : undefined}
-              className="mt-0.5 font-mono text-[1.05rem] font-black tabular-nums tracking-tight text-[var(--hos-ink)]"
-            />
-            <p className="m-0 mt-0.5 truncate text-[10px] font-medium text-[var(--hos-ink-3)]">
-              {k.meta}
-            </p>
-          </div>
-        ))}
+      <div className="hos-mobile-kpi-grid hos-mobile-kpi-grid--ops">
+        {kpis.map((k) => {
+          const interactive = Boolean(k.sheet);
+          const body = (
+            <>
+              <span className="truncate text-[9px] font-black uppercase tracking-[0.1em] text-[var(--hos-ink-3)]">
+                {k.label}
+              </span>
+              <Odometer
+                value={k.value}
+                prefix={k.prefix}
+                suffix={k.suffix}
+                className="mt-0.5 font-mono text-[1.15rem] font-black tabular-nums tracking-tight text-[var(--hos-ink)]"
+              />
+              <p className="m-0 mt-0.5 truncate text-[10px] font-medium text-[var(--hos-ink-3)]">
+                {k.meta}
+              </p>
+            </>
+          );
+          if (interactive && k.sheet) {
+            return (
+              <button
+                key={k.id}
+                type="button"
+                className="hos-mobile-kpi-cell hos-btn-tactile text-left"
+                data-glow={k.glow}
+                data-action="true"
+                aria-label={`${k.label}, ${k.value}${k.suffix ?? ""} — open list`}
+                onClick={() => setQueueSheet(k.sheet!)}
+              >
+                {body}
+              </button>
+            );
+          }
+          return (
+            <div key={k.id} className="hos-mobile-kpi-cell" data-glow={k.glow}>
+              {body}
+            </div>
+          );
+        })}
       </div>
 
       <div className="hos-mobile-toolbar">
@@ -591,6 +688,201 @@ export function DeskMobileView() {
         }}
         title="Desk calendar"
       />
+
+      {queueSheet ? (
+        <div
+          className="fixed inset-0 z-[120] flex flex-col justify-end bg-[rgba(15,23,42,0.5)]"
+          role="dialog"
+          aria-label={
+            queueSheet === "holds"
+              ? "Holds"
+              : queueSheet === "checkin"
+                ? "Check-in"
+                : "Empty rooms"
+          }
+          onClick={() => setQueueSheet(null)}
+        >
+          <motion.div
+            className="hos-surface-glass flex max-h-[min(78vh,640px)] w-full flex-col rounded-t-3xl border border-[var(--hos-glass-border)] border-b-0 shadow-[0_-16px_48px_-12px_rgba(15,23,42,0.45)]"
+            initial={reduce ? false : { y: 40, opacity: 0.85 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ type: "spring", stiffness: 380, damping: 32 }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center pt-2.5" aria-hidden>
+              <span className="h-1 w-10 rounded-full bg-[color-mix(in_srgb,var(--hos-ink)_22%,transparent)]" />
+            </div>
+            <div className="flex items-start justify-between gap-2 px-4 pb-2 pt-1">
+              <div className="min-w-0">
+                <strong className="text-[15px] font-bold tracking-tight text-[var(--hos-ink)]">
+                  {queueSheet === "holds"
+                    ? "Holds"
+                    : queueSheet === "checkin"
+                      ? "Check-in today"
+                      : "Empty rooms"}
+                </strong>
+                <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
+                  {queueSheet === "holds"
+                    ? `${holdsQueue.length} held`
+                    : queueSheet === "checkin"
+                      ? `${checkInQueue.length} roomed arrivals`
+                      : `${emptyRooms.length} vacant · ${emptyReady} ready`}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="!min-h-9 !rounded-xl"
+                onClick={() => setQueueSheet(null)}
+              >
+                Close
+              </Button>
+            </div>
+            <div className="hos-scrollbar-slim min-h-0 flex-1 overflow-y-auto px-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {queueSheet === "empty" ? (
+                emptyRooms.length === 0 ? (
+                  <EmptyState
+                    title="No empty rooms"
+                    description="House is full or only OOO left."
+                  />
+                ) : (
+                  <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0 pb-2">
+                    {emptyRooms.map(({ room }) => {
+                      const dirtyRoom = room.hkStatus === "dirty";
+                      const ready =
+                        room.hkStatus === "clean" ||
+                        room.hkStatus === "inspected";
+                      return (
+                        <li key={room.id}>
+                          <button
+                            type="button"
+                            className="hos-btn-tactile flex w-full flex-col items-start gap-0.5 rounded-2xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-2.5 py-2.5 text-left"
+                            onClick={() =>
+                              toast.message(`Room ${room.number}`, {
+                                description: `${room.typeName} · ${room.hkStatus}`,
+                              })
+                            }
+                          >
+                            <span className="font-mono text-[16px] font-black tabular-nums text-[var(--hos-ink)]">
+                              {room.number}
+                            </span>
+                            <span
+                              className={`text-[9px] font-bold uppercase tracking-wide ${
+                                dirtyRoom
+                                  ? "text-[var(--hos-ruby)]"
+                                  : ready
+                                    ? "text-[var(--hos-emerald)]"
+                                    : "text-[var(--hos-ink-3)]"
+                              }`}
+                            >
+                              {dirtyRoom ? "Dirty" : room.hkStatus}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )
+              ) : (queueSheet === "holds" ? holdsQueue : checkInQueue)
+                  .length === 0 ? (
+                <EmptyState
+                  title={
+                    queueSheet === "holds" ? "No holds" : "No check-ins due"
+                  }
+                  description={
+                    queueSheet === "holds"
+                      ? "Held bookings will appear here."
+                      : "Roomed arrivals for today will appear here."
+                  }
+                />
+              ) : (
+                <ul className="m-0 flex list-none flex-col gap-2 p-0 pb-2">
+                  {(queueSheet === "holds" ? holdsQueue : checkInQueue).map(
+                    (s) => (
+                      <li
+                        key={s.id}
+                        className="flex flex-col gap-2 rounded-2xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2.5"
+                      >
+                        <button
+                          type="button"
+                          className="min-w-0 text-left"
+                          onClick={() => {
+                            setQueueSheet(null);
+                            openStay(s.id);
+                          }}
+                        >
+                          <p className="m-0 truncate text-[14px] font-bold text-[var(--hos-ink)]">
+                            {s.roomNumber ? `${s.roomNumber} · ` : ""}
+                            {s.guestName}
+                          </p>
+                          <p className="m-0 truncate font-mono text-[10px] text-[var(--hos-ink-3)]">
+                            {s.confirmationNo} · {s.checkIn.slice(5)}→
+                            {s.checkOut.slice(5)}
+                          </p>
+                        </button>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            className="!min-h-9 !rounded-xl"
+                            onClick={() => {
+                              setQueueSheet(null);
+                              openStay(s.id);
+                            }}
+                          >
+                            Open
+                          </Button>
+                          {queueSheet === "holds" ? (
+                            <Button
+                              size="sm"
+                              className="hos-btn-ink !min-h-9 !rounded-xl"
+                              onClick={() => {
+                                start(() => {
+                                  void confirmHold(s.id).then((res) => {
+                                    if (!res.ok) {
+                                      toast.error(res.error);
+                                      return;
+                                    }
+                                    toast.success("Hold confirmed", {
+                                      description: s.guestName,
+                                    });
+                                  });
+                                });
+                              }}
+                            >
+                              Confirm
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              className="hos-btn-ink !min-h-9 !rounded-xl"
+                              onClick={() => {
+                                start(() => {
+                                  void checkIn(s.id).then((res) => {
+                                    if (!res.ok) {
+                                      toast.error(res.error);
+                                      return;
+                                    }
+                                    toast.success(
+                                      `Checked in · Rm ${s.roomNumber}`,
+                                    );
+                                  });
+                                });
+                              }}
+                            >
+                              Check-in
+                            </Button>
+                          )}
+                        </div>
+                      </li>
+                    ),
+                  )}
+                </ul>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      ) : null}
     </div>
   );
 }

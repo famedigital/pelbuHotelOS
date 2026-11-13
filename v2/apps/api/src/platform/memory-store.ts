@@ -275,8 +275,30 @@ export type TelegramEventRow = {
   chatId: number | null;
   direction: "in" | "out" | "system";
   intent: string;
+  /** Optional filter facet (message | alert | command | notify). */
+  kind?: string;
+  /** pending | ok | acked | error — notify inbox status. */
+  status?: string;
+  /** Human-readable summary for log search. */
+  text?: string | null;
+  latencyMs?: number | null;
   payload: Record<string, unknown>;
   createdAt: string;
+};
+
+export type HermesAlertKind =
+  | "guest_check_in"
+  | "guest_check_out"
+  | "meal_board"
+  | "invoice_issued"
+  | "hk_dirty"
+  | "night_audit";
+
+export type HermesAlertPref = {
+  kind: HermesAlertKind;
+  enabled: boolean;
+  sendAt: string | null;
+  roles: Array<"fo" | "hk" | "kitchen" | "manager" | "gm" | "agent">;
 };
 
 export type TelegramDocOcr = {
@@ -350,6 +372,8 @@ class MemoryStore {
   telegramDocDrafts: TelegramDocDraftRow[] = [];
   telegramStaffLinks: TelegramStaffLinkRow[] = [];
   telegramTopics: TelegramTopicRow[] = [];
+  /** Property-scoped alert prefs for Innora Bot push. */
+  hermesAlertPrefs = new Map<string, HermesAlertPref[]>();
   /** Agent MoU links for Hermes gate (memory mirror of desk mou-store). */
   mouLinks: {
     id: string;

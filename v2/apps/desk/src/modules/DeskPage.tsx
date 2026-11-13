@@ -46,8 +46,12 @@ import {
   type Stay,
 } from "../lib/front-office-store";
 import { nightAuditReadiness } from "../lib/action-dispatcher";
-import { DeskRoomRail } from "../components/DeskRoomRail";
 import { EndOfShiftBriefing } from "../components/EndOfShiftBriefing";
+import {
+  emptyRoomDirtyCount,
+  emptyRoomReadyCount,
+  listEmptyRooms,
+} from "../lib/desk-room-inventory";
 import { useFiscalStore } from "../lib/fiscal-store";
 import { useExtrasStore } from "../lib/extras-store";
 import { useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
@@ -137,9 +141,9 @@ export function DeskPage() {
   const [focusIdx, setFocusIdx] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
-  const [queueModal, setQueueModal] = useState<"holds" | "checkin" | null>(
-    null,
-  );
+  const [queueModal, setQueueModal] = useState<
+    "holds" | "checkin" | "empty" | null
+  >(null);
   const lastUndoStayId = useRef<string | null>(null);
   const [, start] = useTransition();
   const staysRaw = useFrontOfficeStore((s) => s.stays);
@@ -266,6 +270,12 @@ export function DeskPage() {
         ),
     [stays, today],
   );
+  const emptyRooms = useMemo(
+    () => listEmptyRooms(rooms, stays, today),
+    [rooms, stays, today],
+  );
+  const emptyReady = emptyRoomReadyCount(emptyRooms);
+  const emptyDirty = emptyRoomDirtyCount(emptyRooms);
   const vips = inHouse.filter((s) => s.vip);
   const openShift = tillShifts.find((t) => !t.closedAt);
 
@@ -504,7 +514,7 @@ export function DeskPage() {
 
       <motion.div
         data-tour="kpis"
-        className="hos-desk-kpi-strip grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--hos-line)] bg-[var(--hos-line)] sm:grid-cols-3 lg:grid-cols-7"
+        className="hos-desk-kpi-strip grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--hos-line)] bg-[var(--hos-line)] sm:grid-cols-4 xl:grid-cols-8"
         variants={staggerChildren}
         initial={reduce ? false : "hidden"}
         animate="show"
@@ -649,9 +659,31 @@ export function DeskPage() {
           </div>
         </motion.button>
 
+        <motion.button
+          type="button"
+          variants={fadeSlide}
+          className="hos-desk-kpi hos-btn-tactile cursor-pointer text-left"
+          data-jewel="slate"
+          onClick={() => setQueueModal("empty")}
+          aria-label={`Empty rooms, ${emptyRooms.length} vacant`}
+        >
+          <span className="hos-desk-kpi-label">Empty</span>
+          <div className="relative flex items-baseline gap-2">
+            <Odometer
+              value={emptyRooms.length}
+              className="font-mono text-[1.375rem] font-semibold tabular-nums tracking-tight text-[var(--hos-ink)]"
+            />
+            <span className="text-[11px] text-[var(--hos-ink-3)]">
+              {emptyRooms.length === 0
+                ? "full house"
+                : `${emptyReady} ready · ${emptyDirty} dirty`}
+            </span>
+          </div>
+        </motion.button>
+
         <motion.div
           variants={fadeSlide}
-          className="hos-desk-kpi col-span-2 sm:col-span-1"
+          className="hos-desk-kpi"
           data-jewel="brass"
         >
           <span className="hos-desk-kpi-label">Housekeeping</span>
@@ -673,13 +705,6 @@ export function DeskPage() {
           </div>
         </motion.div>
       </motion.div>
-
-      <DeskRoomRail
-        rooms={rooms}
-        stays={stays}
-        today={today}
-        onOpenStay={openStay}
-      />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-[60%_40%] xl:grid-cols-[65%_35%]">
         <GlassPanel className="flex min-h-0 flex-col gap-3 overflow-hidden p-3">
@@ -1277,7 +1302,13 @@ export function DeskPage() {
         <div
           className="fixed inset-0 z-[120] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-4 backdrop-blur-sm"
           role="dialog"
-          aria-label={queueModal === "holds" ? "Holds queue" : "Check-in queue"}
+          aria-label={
+            queueModal === "holds"
+              ? "Holds queue"
+              : queueModal === "checkin"
+                ? "Check-in queue"
+                : "Empty rooms"
+          }
           onClick={() => setQueueModal(null)}
         >
           <div
@@ -1287,12 +1318,18 @@ export function DeskPage() {
             <div className="flex items-center justify-between gap-2 border-b border-[var(--hos-line)] px-4 py-3">
               <div>
                 <strong className="text-sm text-[var(--hos-ink)]">
-                  {queueModal === "holds" ? "Holds" : "Check-in today"}
+                  {queueModal === "holds"
+                    ? "Holds"
+                    : queueModal === "checkin"
+                      ? "Check-in today"
+                      : "Empty rooms"}
                 </strong>
                 <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
                   {queueModal === "holds"
                     ? `${holdsQueue.length} held · confirm or open StayHub`
-                    : `${checkInQueue.length} roomed arrivals · check in or open`}
+                    : queueModal === "checkin"
+                      ? `${checkInQueue.length} roomed arrivals · check in or open`
+                      : `${emptyRooms.length} vacant · ${emptyReady} ready · ${emptyDirty} dirty`}
                 </p>
               </div>
               <Button size="sm" variant="ghost" onClick={() => setQueueModal(null)}>
@@ -1300,7 +1337,51 @@ export function DeskPage() {
               </Button>
             </div>
             <div className="hos-scrollbar-slim min-h-0 flex-1 overflow-y-auto p-3">
-              {(queueModal === "holds" ? holdsQueue : checkInQueue).length === 0 ? (
+              {queueModal === "empty" ? (
+                emptyRooms.length === 0 ? (
+                  <EmptyState
+                    title="No empty rooms"
+                    description="House is full or only OOO left."
+                  />
+                ) : (
+                  <ul className="m-0 grid list-none grid-cols-2 gap-2 p-0 sm:grid-cols-3">
+                    {emptyRooms.map(({ room }) => {
+                      const dirtyRoom = room.hkStatus === "dirty";
+                      const ready =
+                        room.hkStatus === "clean" || room.hkStatus === "inspected";
+                      return (
+                        <li key={room.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              toast.message(`Room ${room.number}`, {
+                                description: `${room.typeName} · ${room.hkStatus}`,
+                              });
+                            }}
+                            className="hos-btn-tactile flex w-full flex-col items-start gap-0.5 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2.5 text-left"
+                          >
+                            <span className="font-mono text-[15px] font-bold tabular-nums text-[var(--hos-ink)]">
+                              {room.number}
+                            </span>
+                            <span
+                              className={`text-[10px] font-semibold uppercase tracking-wide ${
+                                dirtyRoom
+                                  ? "text-[var(--hos-ruby)]"
+                                  : ready
+                                    ? "text-[var(--hos-emerald)]"
+                                    : "text-[var(--hos-ink-3)]"
+                              }`}
+                            >
+                              {dirtyRoom ? "Dirty" : room.hkStatus}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )
+              ) : (queueModal === "holds" ? holdsQueue : checkInQueue).length ===
+                0 ? (
                 <EmptyState
                   title={queueModal === "holds" ? "No holds" : "No check-ins due"}
                   description={
@@ -1322,7 +1403,8 @@ export function DeskPage() {
                           {s.guestName}
                         </p>
                         <p className="m-0 truncate font-mono text-[10px] text-[var(--hos-ink-3)]">
-                          {s.confirmationNo} · {s.checkIn.slice(5)}→{s.checkOut.slice(5)}
+                          {s.confirmationNo} · {s.checkIn.slice(5)}→
+                          {s.checkOut.slice(5)}
                           {s.status === "held" ? " · HOLD" : ""}
                         </p>
                       </div>
