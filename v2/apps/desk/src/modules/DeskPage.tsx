@@ -48,6 +48,7 @@ import {
   type Stay,
 } from "../lib/front-office-store";
 import { nightAuditReadiness } from "../lib/action-dispatcher";
+import { EndOfShiftBriefing } from "../components/EndOfShiftBriefing";
 import { useFiscalStore } from "../lib/fiscal-store";
 import { useExtrasStore } from "../lib/extras-store";
 import { useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
@@ -496,6 +497,8 @@ export function DeskPage() {
           </span>
         </button>
       </div>
+
+      <EndOfShiftBriefing className="shrink-0" />
 
       <motion.div
         data-tour="kpis"

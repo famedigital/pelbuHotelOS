@@ -4,6 +4,7 @@
  * Case 3 walk-in · Case 4 partner sees 1+2 · Case 5 partner book→FO→pay.
  */
 import { test, expect, type Page } from "@playwright/test";
+import { unlockKarma } from "./helpers/unlock-staff";
 
 const API = process.env.VITE_API_URL || "http://127.0.0.1:4200";
 
@@ -12,40 +13,6 @@ const GROUP_GUEST = `OpsMtx Group ${stamp}`;
 const SINGLE_GUEST = `OpsMtx Single ${stamp}`;
 const WALKIN_GUEST = `OpsMtx Walkin ${stamp}`;
 const PARTNER_GUEST = `OpsMtx Partner ${stamp}`;
-
-async function unlockKarma(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("hos_hotel_onboarded", "true");
-    localStorage.setItem("hos_hotel_onboard_dismissed", "true");
-    localStorage.setItem("hos_staff_tour_completed", "true");
-  });
-  await page.goto("/");
-  const wizardClose = page.getByRole("button", { name: "Close wizard" });
-  if (await wizardClose.isVisible().catch(() => false)) {
-    await wizardClose.click();
-  }
-  await expect(page.getByTestId("pin-staff-karma")).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByTestId("pin-staff-karma").click();
-  await page.keyboard.type("1234");
-  await expect(page.getByRole("button", { name: /Fast Book/i }).first()).toBeVisible({
-    timeout: 20_000,
-  });
-  await page
-    .locator("[data-sonner-toast]")
-    .filter({ hasText: /Welcome/i })
-    .first()
-    .waitFor({ state: "hidden", timeout: 8_000 })
-    .catch(() => undefined);
-  await expect
-    .poll(async () => {
-      const offline = await page.getByTitle(/Live sync/i).getAttribute("data-glow");
-      return offline;
-    }, { timeout: 20_000 })
-    .not.toBe("ruby");
-  await page.waitForTimeout(800);
-}
 
 function farDates(offsetDays: number, nights = 1) {
   const start = new Date();

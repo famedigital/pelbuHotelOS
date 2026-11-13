@@ -40,6 +40,8 @@ import { usePartnerPortalStore } from "../lib/partner-portal-store";
 import { useExtrasStore } from "../lib/extras-store";
 import { formatNu, useFrontOfficeStore } from "../lib/front-office-store";
 import { RateSheetShareModal } from "./RateSheetShareModal";
+import { PaidUnpaidBar } from "./PaidUnpaidBar";
+import { AgentStatementOverlay } from "./AgentStatementOverlay";
 
 type SortKey = "name" | "ar" | "headroom" | "aging90";
 type FilterKey = "all" | "active" | "near_limit" | "aging";
@@ -185,6 +187,8 @@ export function AgentsPage() {
   const [wireAmt, setWireAmt] = useState(50000);
   const [wireRef, setWireRef] = useState("BNB-WIRE-");
   const [shareOpen, setShareOpen] = useState(false);
+  const [statementOpen, setStatementOpen] = useState(false);
+  const [statementAgentId, setStatementAgentId] = useState<string | null>(null);
 
   const asOf = useMemo(
     () =>
@@ -297,6 +301,15 @@ export function AgentsPage() {
     setSelectedId(agentId);
     setDrawerOpen(true);
   };
+
+  const openStatement = (agentId: string) => {
+    setSelectedId(agentId);
+    setStatementAgentId(agentId);
+    setStatementOpen(true);
+  };
+
+  const statementAgent =
+    agents.find((a) => a.id === statementAgentId) ?? selected ?? null;
 
   const toggleBatch = (id: string) => {
     setSelectedIds((prev) => {
@@ -489,29 +502,42 @@ export function AgentsPage() {
               {directory.map((a) => {
                 const row = partneredRows.find((r) => r.agentId === a.id);
                 const ar = row?.arOutstanding ?? a.usedCredit;
+                const paid = row?.paidTotal ?? 0;
                 return (
                   <li key={a.id}>
-                    <button
-                      type="button"
-                      onClick={() => open360(a.id)}
-                      className="hos-cell flex w-full flex-col gap-1.5 rounded-xl border border-[var(--hos-line)] p-3 text-left"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <strong className="min-w-0 truncate text-[13px] text-[var(--hos-ink)]">
-                          {a.name}
-                        </strong>
-                        <Badge tone="teal">{a.code}</Badge>
-                      </div>
-                      <div className="text-[11px] text-[var(--hos-ink-3)]">
-                        {row?.mouStatus ?? "no MoU"} · {row?.rateCardCode ?? "—"}
-                      </div>
-                      <div className="flex justify-between font-mono text-[12px] tabular-nums">
-                        <span className="text-[var(--hos-ink-3)]">AR</span>
-                        <span className="font-semibold text-[var(--hos-ink)]">
-                          {formatNu(ar)}
-                        </span>
-                      </div>
-                    </button>
+                    <div className="hos-cell flex w-full flex-col gap-1.5 rounded-xl border border-[var(--hos-line)] p-3 text-left">
+                      <button
+                        type="button"
+                        onClick={() => open360(a.id)}
+                        className="flex w-full flex-col gap-1.5 text-left"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <strong className="min-w-0 truncate text-[13px] text-[var(--hos-ink)]">
+                            {a.name}
+                          </strong>
+                          <Badge tone="teal">{a.code}</Badge>
+                        </div>
+                        <div className="text-[11px] text-[var(--hos-ink-3)]">
+                          {row?.mouStatus ?? "no MoU"} · {row?.rateCardCode ?? "—"}
+                        </div>
+                        <div className="flex justify-between font-mono text-[12px] tabular-nums">
+                          <span className="text-[var(--hos-ink-3)]">AR</span>
+                          <span className="font-semibold text-[var(--hos-ink)]">
+                            {formatNu(ar)}
+                          </span>
+                        </div>
+                        <PaidUnpaidBar paid={paid} unpaid={ar} showLabels={false} />
+                      </button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        className="w-full"
+                        onClick={() => openStatement(a.id)}
+                      >
+                        <FileText className="size-3.5" aria-hidden />
+                        Account statement
+                      </Button>
+                    </div>
                   </li>
                 );
               })}
@@ -530,9 +556,11 @@ export function AgentsPage() {
                     <th className="px-3 py-2 text-right">Dbl net</th>
                     <th className="px-3 py-2 text-right">AR</th>
                     <th className="px-3 py-2 text-right">Paid</th>
+                    <th className="px-3 py-2">Paid / unpaid</th>
                     <th className="px-3 py-2 text-right">FO</th>
                     <th className="px-3 py-2">Utilisation</th>
                     <th className="px-3 py-2 text-right">90d</th>
+                    <th className="px-3 py-2">Statement</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--hos-line)]">
@@ -590,6 +618,14 @@ export function AgentsPage() {
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--hos-emerald)]">
                           {formatNu(row?.paidTotal ?? 0)}
                         </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <PaidUnpaidBar
+                            className="min-w-[7rem]"
+                            paid={row?.paidTotal ?? 0}
+                            unpaid={row?.arOutstanding ?? a.usedCredit}
+                            showLabels={false}
+                          />
+                        </td>
                         <td className="px-3 py-2 text-right text-[10px] text-[var(--hos-ink-3)]">
                           {row
                             ? `${row.staysInHouse} IH · ${row.staysHeld} held · ${row.staysArriving} arr`
@@ -606,6 +642,16 @@ export function AgentsPage() {
                         </td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums text-[var(--hos-ruby)]">
                           {a.aging.d90 > 0 ? formatNu(a.aging.d90) : "—"}
+                        </td>
+                        <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openStatement(a.id)}
+                          >
+                            <FileText className="size-3.5" aria-hidden />
+                            Statement
+                          </Button>
                         </td>
                       </tr>
                     );
@@ -697,9 +743,18 @@ export function AgentsPage() {
                       {selected.code} · {selected.name}
                     </Drawer.Description>
                   </div>
-                  <Drawer.Close className="rounded-lg px-2 py-1 text-sm text-[var(--hos-ink-2)] hover:bg-[var(--hos-cell)]">
-                    Close
-                  </Drawer.Close>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => openStatement(selected.id)}
+                    >
+                      <FileText className="size-3.5" aria-hidden />
+                      Account statement
+                    </Button>
+                    <Drawer.Close className="rounded-lg px-2 py-1 text-sm text-[var(--hos-ink-2)] hover:bg-[var(--hos-cell)]">
+                      Close
+                    </Drawer.Close>
+                  </div>
                 </div>
                 <div className="hos-scroll-thin flex flex-1 flex-col gap-4 overflow-auto bg-[var(--hos-cell)] p-4">
                   <div className="grid grid-cols-2 gap-2">
@@ -1106,6 +1161,14 @@ export function AgentsPage() {
         mealPlan={mealPlan}
         initialAudience="mou"
         initialAgentId={selected?.id}
+      />
+
+      <AgentStatementOverlay
+        open={statementOpen}
+        agent={statementAgent}
+        stays={stays}
+        fiscalDocs={fiscalDocs}
+        onClose={() => setStatementOpen(false)}
       />
     </div>
     </ModuleFrame>

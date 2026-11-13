@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pelbu Suites — Standard Operating Procedures & Shift Handover Charter</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+    @page {
+      size: A4 portrait;
+      margin: 12mm 14mm 12mm 14mm;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #0f172a;
+      background: #f8fafc;
+      font-size: 10pt;
+      line-height: 1.38;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* Web Preview Wrapper (for screen viewing) */
+    .page {
+      background: #ffffff;
+      width: 210mm;
+      min-height: 297mm;
+      margin: 10mm auto 15mm;
+      padding: 12mm 14mm;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    /* Print Exact Rules */
+    @media print {
+      body {
+        background: transparent !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .page {
+        width: 100% !important;
+        height: 100% !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-shadow: none !important;
+        page-break-before: always !important;
+        page-break-after: always !important;
+        page-break-inside: avoid !important;
+        break-before: page !important;
+        break-after: page !important;
+        break-inside: avoid !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+      }
+      .page:first-of-type {
+        page-break-before: avoid !important;
+        break-before: avoid !important;
+      }
+    }
+
+    /* Floating Print Button for Screen */
+    .print-bar {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 9999;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 12px 22px;
+      border-radius: 8px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 14px;
+    }
+    .print-btn {
+      background: #c8a85f;
+      color: #0f172a;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 6px;
+      font-weight: 800;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    /* Header Section */
+    .header {
+      border-bottom: 2.5px solid #0f172a;
+      padding-bottom: 2.5mm;
+      margin-bottom: 3mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      flex-shrink: 0;
+    }
+    .brand-group h1 {
+      font-family: 'Cinzel', serif;
+      font-size: 18pt;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      color: #0f172a;
+      line-height: 1;
+    }
+    .brand-group p {
+      font-size: 8.5pt;
+      color: #475569;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-top: 1mm;
+    }
+    .meta-box {
+      text-align: right;
+      font-size: 8.5pt;
+      color: #334155;
+    }
+    .meta-box strong {
+      font-size: 10.5pt;
+      color: #0f172a;
+      display: block;
+    }
+
+    /* Lead Hand-fill Banner */
+    .lead-banner {
+      background: #f1f5f9;
+      border: 1.5px solid #94a3b8;
+      border-radius: 5px;
+      padding: 2.5mm 3.5mm;
+      margin-bottom: 3mm;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 9.5pt;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .blank-line {
+      display: inline-block;
+      width: 65mm;
+      border-bottom: 2px solid #0f172a;
+      margin-left: 2mm;
+      height: 4mm;
+    }
+
+    /* Typography & Sections */
+    .section-title {
+      font-size: 10.5pt;
+      font-weight: 800;
+      color: #0f172a;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      border-left: 3.5px solid #c8a85f;
+      padding-left: 2.5mm;
+      margin: 2.5mm 0 1.8mm;
+    }
+
+    .card {
+      background: #ffffff;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 5px;
+      padding: 2.5mm 3mm;
+      margin-bottom: 2mm;
+    }
+    .card p, .card li {
+      font-size: 9pt;
+      color: #1e293b;
+      line-height: 1.4;
+    }
+
+    ul.check-list {
+      list-style: none;
+      padding-left: 0;
+    }
+    ul.check-list li {
+      position: relative;
+      padding-left: 4.5mm;
+      margin-bottom: 1.2mm;
+      font-size: 9pt;
+    }
+    ul.check-list li::before {
+      content: "■";
+      position: absolute;
+      left: 0;
+      color: #c8a85f;
+      font-size: 7.5pt;
+      top: 0.8mm;
+    }
+
+    /* Shift & Info Tables */
+    .shift-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.8pt;
+      margin: 1.5mm 0 2.5mm;
+    }
+    .shift-table th, .shift-table td {
+      border: 1.5px solid #94a3b8;
+      padding: 2mm 2.5mm;
+      text-align: left;
+    }
+    .shift-table th {
+      background: #e2e8f0;
+      font-weight: 800;
+      color: #0f172a;
+    }
+    .shift-table tr:nth-child(even) {
+      background: #f8fafc;
+    }
+
+    /* Alert and Golden Callout Boxes */
+    .alert-box {
+      border: 1.5px solid #dc2626;
+      background: #fef2f2;
+      border-radius: 5px;
+      padding: 2.5mm 3mm;
+      margin: 2mm 0;
+    }
+    .alert-box strong {
+      color: #991b1b;
+      font-size: 9.5pt;
+      display: block;
+      margin-bottom: 0.8mm;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .alert-box p, .alert-box li {
+      color: #7f1d1d;
+      font-size: 8.8pt;
+      line-height: 1.38;
+    }
+
+    .golden-box {
+      border: 1.5px solid #c8a85f;
+      background: #fdfbf7;
+      border-radius: 5px;
+      padding: 2.5mm 3mm;
+      margin: 2mm 0;
+    }
+    .golden-box strong {
+      color: #78350f;
+      font-size: 9.5pt;
+      display: block;
+      margin-bottom: 0.8mm;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .golden-box p {
+      color: #92400e;
+      font-size: 9pt;
+      line-height: 1.38;
+    }
+
+    .buffer-badge {
+      display: inline-block;
+      background: #fef3c7;
+      border: 1px solid #d97706;
+      color: #92400e;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 8pt;
+    }
+
+    /* Footer Section (Firmly Anchored at Bottom) */
+    .footer {
+      border-top: 2px solid #0f172a;
+      padding-top: 2.5mm;
+      margin-top: 3mm;
+      flex-shrink: 0;
+    }
+    .sig-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4mm;
+      font-size: 8pt;
+      color: #334155;
+    }
+    .sig-line {
+      border-top: 1.5px solid #475569;
+      margin-top: 7mm;
+      padding-top: 1.2mm;
+      text-align: center;
+      font-weight: 700;
+    }
+    .page-num {
+      text-align: right;
+      font-size: 7.5pt;
+      color: #64748b;
+      font-family: 'JetBrains Mono', monospace;
+      margin-top: 1mm;
+    }
+
+    .page-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Print Button Bar (Hidden in Print) -->
+  <div class="print-bar no-print">
+    <span>🖨️ <strong>Pelbu Suites Manual:</strong> Exact A4 Calibrated (Zero Overlap)</span>
+    <button class="print-btn" onclick="window.print()">Print to A4 / Save PDF</button>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 1: MASTER CHARTER & THE REALITY OF BOOKINGS                          -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Standard Operating Charter · Executive Order #01</p>
+      </div>
+      <div class="meta-box">
+        <strong>MASTER CHAIN OF COMMAND</strong>
+        <span>Autonomous Hotel Operations</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="lead-banner">
+        <div>
+          <strong>APPOINTED ON-SITE OPERATIONS LEAD (HOD):</strong>
+          <span class="blank-line"></span>
+        </div>
+        <div>
+          <span>Effective Date: </span><strong>Immediate</strong>
+        </div>
+      </div>
+
+      <div class="golden-box">
+        <strong>THE FUNDAMENTAL TRUTH: ALL BOOKINGS ARE GENERATED BY THE OWNER</strong>
+        <p>
+          Every single tour group contract (Druk Asia, Yangphel, Bhutan Travel Club), corporate group, FIT tourist, and Ngultrum that enters Pelbu Suites is 
+          <strong>personally brought in through the relationships, negotiations, and financial risk of the OWNER (Rajiv)</strong>. 
+          Bookings do not generate themselves. Staff do not bring in business; staff are hired to <strong>PROTECT AND DELIVER</strong> the service that keeps those contracts alive. 
+          When kitchen cooks drink or abandon lunch, when reception bickers, or when rooms are dirty, you are directly destroying the contracts the Owner fought to bring into this property.
+        </p>
+      </div>
+
+      <div class="alert-box">
+        <strong>THE GOVERNANCE RULE: NO OWNER OR GM DIRECT INTERFERENCE</strong>
+        <p>
+          The GM is off-island in the Philippines. The Owners (Rajiv & Director of Ops) are the Executive Board. 
+          <strong>From today, no staff member may approach the Owners' personal residence or office for shift complaints or daily operational disputes.</strong> 
+          All authority, shift rosters, task assignments, and discipline flow 100% through the appointed on-site Operations Lead.
+        </p>
+      </div>
+
+      <div class="section-title">1. Operational Hierarchy (The Chain of Command)</div>
+      <div class="card">
+        <ul class="check-list">
+          <li><strong>Appointed Operations Lead (HOD):</strong> Runs the property ground. Inspects kitchen sobriety, resolves guest/agent complaints, enforces shift rosters, and oversees cashier till cash balances.</li>
+          <li><strong>Front Office (5 Staff):</strong> Flight check-ins, guest relations, room allocation, and delivering next-day breakfast counts.</li>
+          <li><strong>Kitchen Team (3 Staff):</strong> 06:00 breakfast boxes, 07:00 breakfast buffet, 12:00–14:30 lunch, and 19:00 dinner. Zero alcohol.</li>
+          <li><strong>Housekeeping (6 Staff):</strong> Pristine room turnaround, linen wash, corridor hygiene, and evening rollaway deployment.</li>
+          <li><strong>F&B Service (3 Staff):</strong> Courteous table service, buffet warmth, bar monitoring, and instant KOT billing.</li>
+          <li><strong>Reservations (1 Staff):</strong> Strictly manages agency contracts, allotments, rate quotes, and Hotel OS holds. <em>Does not manage field operations.</em></li>
+        </ul>
+      </div>
+
+      <div class="section-title">2. Mandatory Daily Management Rhythm</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 18%;">Time</th>
+          <th style="width: 32%;">Action</th>
+          <th style="width: 50%;">Accountability & Protocol</th>
+        </tr>
+        <tr>
+          <td><strong>08:30 AM</strong></td>
+          <td>Morning Walkthrough</td>
+          <td>Operations Lead inspects breakfast pass, lobby cleanliness, and morning flight departures.</td>
+        </tr>
+        <tr>
+          <td><strong>09:30 AM</strong></td>
+          <td>10-Min Owner Briefing</td>
+          <td>Operations Lead presents 3 numbers to Owners: 1) Yesterday's revenue, 2) Today's arrivals, 3) Staff issues.</td>
+        </tr>
+        <tr>
+          <td><strong>11:30 AM</strong></td>
+          <td>Lunch Handover Check</td>
+          <td>Operations Lead verifies kitchen is staffed and lunch is actively being cooked.</td>
+        </tr>
+        <tr>
+          <td><strong>05:30 PM</strong></td>
+          <td>Pre-Dinner Sobriety Check</td>
+          <td>Operations Lead conducts physical sobriety inspection on all kitchen and dining staff.</td>
+        </tr>
+        <tr>
+          <td><strong>09:00 PM</strong></td>
+          <td>Night Taking-Over Handover</td>
+          <td>Evening staff and Night Auditor begin 1-hour taking over buffer & cash count.</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">Appointed Operations Lead</div>
+        <div class="sig-line">Director of Operations (Wife)</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+      </div>
+      <div class="page-num">Page 1 of 8 · Master Operating Charter</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 2: FINANCIAL POLICY — SALARY ADVANCES & SERVICE CHARGE               -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Finance & Payroll Policy · Executive Order #02</p>
+      </div>
+      <div class="meta-box">
+        <strong>SALARY ADVANCES & S.C. CHARTER</strong>
+        <span>Cash Flow Discipline & Fairness</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="lead-banner">
+        <div>
+          <strong>FINANCE & PAYROLL CONTROLLER:</strong>
+          <span class="blank-line"></span>
+        </div>
+        <div>
+          <span>Applicable to: </span><strong>All 19 Staff Members</strong>
+        </div>
+      </div>
+
+      <div class="alert-box">
+        <strong>STRICT POLICY: THE BAN ON NON-STOP SALARY ADVANCES</strong>
+        <p>
+          Staff members (specifically in Kitchen, F&B, and Front Office) have been taking non-stop cash advances, depleting the hotel till and leaving zero salary at month-end. 
+          <strong>Housekeeping and Reservations are hereby officially commended for their financial discipline in NOT abusing advances.</strong> 
+          From today, casual borrowing from the front desk or owner is permanently terminated.
+        </p>
+      </div>
+
+      <div class="section-title">1. The New Salary Advance Rules (Strictly Enforced)</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 28%;">Rule Criterion</th>
+          <th style="width: 72%;">Mandatory Standard & Limitation</th>
+        </tr>
+        <tr>
+          <td><strong>Eligible Date</strong></td>
+          <td>Advances are permitted <strong>ONLY AFTER the 15th of the month</strong>. No advance will be disbursed during the first 14 days of any month.</td>
+        </tr>
+        <tr>
+          <td><strong>Maximum Ceiling</strong></td>
+          <td>Maximum <strong>30% of base monthly salary</strong>. You cannot borrow money you have not yet worked to earn.</td>
+        </tr>
+        <tr>
+          <td><strong>Frequency Cap</strong></td>
+          <td><strong>Maximum 1 advance per calendar month</strong> per employee. Zero exceptions.</td>
+        </tr>
+        <tr>
+          <td><strong>Clear Balance Rule</strong></td>
+          <td>Any prior advance balance must be 100% cleared before a new request can be considered.</td>
+        </tr>
+        <tr>
+          <td><strong>Approval Process</strong></td>
+          <td>Written slip submitted to Operations Lead → Forwarded to Director of Operations for approval → Disbursed via bank transfer. <em>Never taken directly from the Front Desk Cashier Till.</em></td>
+        </tr>
+        <tr>
+          <td><strong>Disciplinary Ban</strong></td>
+          <td>Any employee with an active disciplinary strike or alcohol violation is <strong>strictly barred</strong> from receiving salary advances.</td>
+        </tr>
+      </table>
+
+      <div class="section-title">2. Service Charge (S.C.) Reality: Peak Season vs. 3-Month Off-Season</div>
+      <div class="card">
+        <p style="margin-bottom: 1.5mm;">
+          Service Charge (10%) is an earned statutory pool collected directly from paying hotel guests. <strong>It is NOT a guaranteed fixed salary entitlement.</strong>
+        </p>
+        <ul class="check-list">
+          <li><strong>Peak Season (Spring & Autumn):</strong> When tour groups and festival guests fill the hotel, the 10% S.C. pool is large and distributed transparently among eligible staff based on attendance and performance.</li>
+          <li><strong>The 3-Month Off-Season Reality (Winter Dec–Feb / Monsoon):</strong> 
+            During these 3 months, Bhutan experiences extreme low season. <strong>Pelbu Suites hardly makes any sales.</strong> 
+            When guest revenue is near zero, the collected Service Charge pool is naturally near zero. Staff cannot expect peak season S.C. payouts when hotel rooms are empty. 
+            The Owner guarantees your base monthly salary even when the hotel operates at a loss in off-season.
+          </li>
+          <li><strong>Performance Deductions:</strong> Any staff member who arrives smelling of alcohol, abandons the kitchen at lunch, or incurs a verified guest complaint forfeits their entire monthly S.C. share.</li>
+        </ul>
+      </div>
+
+      <div class="section-title">3. Cashier Till Vault Protection</div>
+      <div class="card">
+        <p>
+          The Front Desk Till Vault (Nu. 48,250 baseline) exists solely for guest cash changes, foreign currency exchanges, and official hotel emergency purchases. 
+          <strong>Taking staff personal advances or personal loans from the Front Desk Till is treated as financial embezzlement.</strong>
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">Appointed Operations Lead</div>
+        <div class="sig-line">Director of Operations (Wife)</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+      </div>
+      <div class="page-num">Page 2 of 8 · Financial & Payroll Charter</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 3: FRONT OFFICE SHIFTS & MANDATORY 1-HOUR TAKING-OVER BUFFERS        -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Front Office (5 Staff) & Reservations (1 Staff)</p>
+      </div>
+      <div class="meta-box">
+        <strong>FRONT DESK SHIFT & BUFFER CHARTER</strong>
+        <span>Zero Handover Gaps</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="lead-banner">
+        <div>
+          <strong>FRONT OFFICE SUPERVISOR / LEAD:</strong>
+          <span class="blank-line"></span>
+        </div>
+        <div>
+          <span>Staff Count: </span><strong>5 FO + 1 Res</strong>
+        </div>
+      </div>
+
+      <div class="golden-box">
+        <strong>THE 1-HOUR TAKING-OVER BUFFER RULE (NO EMPTY DESK & NO RUSHED HANDOVER)</strong>
+        <p>
+          Front Office shifts do not end the moment the next person walks in. 
+          <strong>Every shift has a mandatory 1-hour overlap buffer.</strong> 
+          Both incoming and outgoing staff must physically stand together at the desk to count the cashier cash till, review pending arrivals, verify Tiger's Nest breakfast lists, and sign the Handover Register before outgoing staff departs.
+        </p>
+      </div>
+
+      <div class="section-title">1. Corrected Front Office Shift Schedule</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 22%;">Shift Name</th>
+          <th style="width: 26%;">Exact Hours</th>
+          <th style="width: 14%;">Coverage</th>
+          <th style="width: 38%;">Handover Overlap & Core Duties</th>
+        </tr>
+        <tr>
+          <td><strong>Night Shift</strong></td>
+          <td><strong>09:00 PM – 08:00 AM</strong><br><span style="font-size:8pt; color:#64748b;">(21:00 – 08:00 Sharp)</span></td>
+          <td>1 Staff</td>
+          <td>
+            • <strong>Arrives 09:00 PM sharp.</strong><br>
+            • Runs Automated Night Audit.<br>
+            • Delivers 05:45 AM Tiger's Nest packed boxes to guides.<br>
+            • <span class="buffer-badge">07:00 – 08:00 AM Overlap</span> with Morning Shift.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Morning Shift</strong></td>
+          <td><strong>07:00 AM – 04:00 PM</strong><br><span style="font-size:8pt; color:#64748b;">(07:00 – 16:00 Sharp)</span></td>
+          <td>2 Staff</td>
+          <td>
+            • <strong>Arrives 07:00 AM sharp.</strong><br>
+            • <span class="buffer-badge">07:00 – 08:00 AM Overlap</span> taking over from Night.<br>
+            • Handles 07:00 AM breakfast check-outs & bills.<br>
+            • <strong>Greets morning Paro Airport flight landings (KB/B3).</strong><br>
+            • <span class="buffer-badge">03:00 – 04:00 PM Overlap</span> with Evening Shift.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Evening Shift</strong></td>
+          <td><strong>03:00 PM – 10:00 PM</strong><br><span style="font-size:8pt; color:#64748b;">(15:00 – 22:00 Sharp)</span></td>
+          <td>2 Staff</td>
+          <td>
+            • <strong>Arrives 03:00 PM sharp.</strong><br>
+            • <span class="buffer-badge">03:00 – 04:00 PM Overlap</span> taking over from Morning.<br>
+            • <strong>Greets road arrivals from Dochula / Thimphu.</strong><br>
+            • Delivers 08:00 PM Tiger's Nest box list to Kitchen.<br>
+            • <span class="buffer-badge">09:00 – 10:00 PM Overlap</span> with Night Shift.
+          </td>
+        </tr>
+      </table>
+
+      <div class="section-title">2. Mandatory 1-Hour Buffer Checkpoints</div>
+      <div class="card">
+        <ul class="check-list">
+          <li><strong>07:00 AM – 08:00 AM Buffer:</strong> Night staff and Morning staff jointly count physical till cash (Nu. 48,250 baseline), review morning flight landing times, and verify guide departure vouchers. Night staff departs at 08:00 AM sharp.</li>
+          <li><strong>03:00 PM – 04:00 PM Buffer:</strong> Morning staff hands over room clean/inspected status from Housekeeping, expected afternoon tour coaster buses, and pending guest requests. Morning staff departs at 04:00 PM sharp.</li>
+          <li><strong>09:00 PM – 10:00 PM Buffer:</strong> Evening staff and Night staff verify dinner KOT billings, post-charges, and room key inventory. Both sign the Shift Handover Register. Evening staff departs at 10:00 PM sharp.</li>
+        </ul>
+      </div>
+
+      <div class="section-title">3. Reservations Role</div>
+      <div class="card">
+        <p>
+          <strong>Reservation Staff (09:00 AM – 06:00 PM):</strong> Dedicated strictly to tour operator emails, B2B agent contracts, phone inquiries, rate quotes, and Hotel OS room inventory. <em>Does not manage or police on-site hotel staff.</em>
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">FO Supervisor Signature</div>
+        <div class="sig-line">Appointed Operations Lead</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+      </div>
+      <div class="page-num">Page 3 of 8 · Front Office Charter</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 4: KITCHEN DEPARTMENT — FOOD, LUNCH & SOBRIETY PROTOCOL             -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Kitchen Department (3 Staff) · Operating Guideline</p>
+      </div>
+      <div class="meta-box">
+        <strong>KITCHEN & HYGIENE CHARTER</strong>
+        <span>Zero-Failure Food Operations</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="lead-banner">
+        <div>
+          <strong>HEAD COOK / KITCHEN IN-CHARGE:</strong>
+          <span class="blank-line"></span>
+        </div>
+        <div>
+          <span>Staff Count: </span><strong>3 Cooks</strong>
+        </div>
+      </div>
+
+      <div class="alert-box">
+        <strong>CRITICAL NOTICE: ZERO-TOLERANCE ALCOHOL & SUBSTANCE POLICY</strong>
+        <p>
+          Drinking alcohol before or during a shift is strictly forbidden. The Operations Lead will conduct physical sobriety inspections at 11:30 AM and 05:30 PM daily. 
+          <strong>Any cook arriving with alcohol odor or impairment will be turned away instantly, marked AWOL, lose 2 days' base wages, and lose 100% of their monthly Service Charge (SC).</strong> 
+          A second offense results in instant termination and replacement.
+        </p>
+      </div>
+
+      <div class="section-title">1. The Mandatory 2-Shift Staggered Schedule (Lunch is NEVER Empty)</div>
+      <p style="font-size: 8.5pt; color: #475569; margin-bottom: 1.5mm;">
+        The 3 cooks can no longer abandon the kitchen between 10:00 AM and 06:00 PM. Lunch service must be active every single day.
+      </p>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 25%;">Shift</th>
+          <th style="width: 25%;">Hours</th>
+          <th style="width: 50%;">Assigned Duties & Requirements</th>
+        </tr>
+        <tr>
+          <td><strong>Shift A (Morning + Lunch)</strong></td>
+          <td>06:00 AM – 02:30 PM</td>
+          <td>
+            • 06:00 AM: Packed breakfast boxes for Tiger's Nest hikers.<br>
+            • 07:00 AM: Breakfast buffet readiness & egg station.<br>
+            • <strong>12:00 PM – 02:00 PM: ACTIVE LUNCH SERVICE (À la carte & groups).</strong>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Shift B (Lunch + Dinner)</strong></td>
+          <td>11:30 AM – 08:30 PM</td>
+          <td>
+            • <strong>11:30 AM: Kitchen arrival & lunch handover with Cook A.</strong><br>
+            • 02:30 PM – 05:00 PM: Dinner mise-en-place & butchery prep.<br>
+            • 07:00 PM: Dinner buffet / à la carte service & kitchen deep clean.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>Shift C (Relief / Peak)</strong></td>
+          <td>07:00 AM – 04:00 PM or 12:00 – 09:00 PM</td>
+          <td>
+            • Rotates to cover Shift A and B weekly off-days.<br>
+            • Supports 20+ pax tour group dinner buffets and bakery inventory.
+          </td>
+        </tr>
+      </table>
+
+      <div class="section-title">2. Cross-Department Coordination (How Kitchen Works with Others)</div>
+      <div class="card">
+        <ul class="check-list">
+          <li><strong>With Front Office:</strong> Head Cook receives the next morning's Tiger's Nest packed breakfast count and guest dietary requirements (Jain, Vegan, Gluten-Free) by <strong>08:00 PM every night</strong> from the desk.</li>
+          <li><strong>With F&B Service:</strong> Food must be ready on the pass within 18 minutes of KOT order ticket time. Front-of-House service staff will never be blamed for kitchen delays.</li>
+          <li><strong>With Operations Lead:</strong> Head Cook must submit market purchase requisitions 24 hours in advance. No emergency shopping during meal hours.</li>
+        </ul>
+      </div>
+
+      <div class="section-title">3. Head Cook Personal Accountability</div>
+      <div class="card">
+        <p>
+          The appointed <strong>Kitchen In-Charge</strong> is personally responsible for food quality, kitchen cleanliness, temperature control, and ensuring all 3 meals (07:00 Breakfast, 12:30 Lunch, 19:00 Dinner) are served on time without excuses.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">Head Cook / Kitchen Lead Signature</div>
+        <div class="sig-line">Appointed Operations Lead</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+      </div>
+      <div class="page-num">Page 4 of 8 · Kitchen Operational Charter</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 5: HOUSEKEEPING & F&B SERVICE — ROOMS & DINING                       -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Housekeeping (6 Staff) & F&B Service (3 Staff)</p>
+      </div>
+      <div class="meta-box">
+        <strong>ROOM READINESS & DINING SERVICE</strong>
+        <span>Cleanliness & Gracious Hospitality</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="lead-banner">
+        <div>
+          <strong>HK SUPERVISOR:</strong> <span class="blank-line" style="width: 32mm;"></span>
+          <strong style="margin-left: 3mm;">F&B CAPTAIN:</strong> <span class="blank-line" style="width: 32mm;"></span>
+        </div>
+        <div>
+          <span>Total Staff: </span><strong>9 Staff</strong>
+        </div>
+      </div>
+
+      <div class="section-title">1. Housekeeping Allocation (6 Dedicated Staff for 30 Keys)</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 25%;">Shift / Role</th>
+          <th style="width: 25%;">Hours</th>
+          <th style="width: 12%;">Staff</th>
+          <th style="width: 38%;">Core Standard & Execution</th>
+        </tr>
+        <tr>
+          <td><strong>Room Turnaround</strong></td>
+          <td>08:00 AM – 04:30 PM</td>
+          <td>4 Staff</td>
+          <td>Cleans 30 guest rooms. <strong>Priority: Early flight arrivals cleaned by 11:30 AM.</strong> Crisp hospital-corner bed linen, zero hair in bath drains, polished timber.</td>
+        </tr>
+        <tr>
+          <td><strong>Linen & Public Areas</strong></td>
+          <td>07:30 AM – 04:00 PM</td>
+          <td>1 Staff</td>
+          <td>Washes, dries, and irons white bedsheets & towels; maintains sparkling lobby restrooms and courtyard.</td>
+        </tr>
+        <tr>
+          <td><strong>Evening Turndown</strong></td>
+          <td>01:00 PM – 09:30 PM</td>
+          <td>1 Staff</td>
+          <td>Conducts evening turndown; <strong>deploys late rollaway extra beds</strong>; ensures Driver Bunks (Bed B-02) have clean sheets.</td>
+        </tr>
+      </table>
+
+      <div class="section-title" style="margin-top: 2.5mm;">2. F&B Service Allocation (3 Front-of-House Staff)</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 25%;">Shift / Role</th>
+          <th style="width: 25%;">Hours</th>
+          <th style="width: 12%;">Staff</th>
+          <th style="width: 38%;">Dining & Bar Standard</th>
+        </tr>
+        <tr>
+          <td><strong>Breakfast & Lunch</strong></td>
+          <td>06:30 AM – 03:00 PM</td>
+          <td>1 Staff</td>
+          <td>Sets 07:00 AM breakfast buffet; takes table orders; <strong>serves active lunch between 12:00 PM and 02:30 PM</strong>.</td>
+        </tr>
+        <tr>
+          <td><strong>Dinner & Bar Pass</strong></td>
+          <td>12:30 PM – 09:30 PM</td>
+          <td>2 Staff</td>
+          <td>Assists lunch; sets 19:00 dinner buffet warmers; manages bar service (Druk 11000 beer, Ara, wine); clears tables.</td>
+        </tr>
+      </table>
+
+      <div class="section-title">3. Front-of-House Service & Billing Rules</div>
+      <div class="card">
+        <ul class="check-list">
+          <li><strong>No KOT, No Food:</strong> The kitchen will not issue food without a printed or written Kitchen Order Ticket (KOT).</li>
+          <li><strong>Immediate Room Folio Posting:</strong> All restaurant and bar bills must be signed by the guest and posted to their room on Hotel OS within 5 minutes. Never leave bills overnight.</li>
+          <li><strong>No Public Disputes:</strong> If food is delayed, service staff must NEVER bicker with the kitchen in front of guests. Inform the Operations Lead immediately and serve complimentary tea.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">Housekeeping Supervisor</div>
+        <div class="sig-line">F&B Service Captain</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+      </div>
+      <div class="page-num">Page 5 of 8 · Rooms & Dining Charter</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 6: CROSS-DEPARTMENT INFORMATION RELAY WORKFLOW                       -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Inter-Departmental Information Relay Protocol</p>
+      </div>
+      <div class="meta-box">
+        <strong>COMMUNICATION & PRINTOUT RELAY</strong>
+        <span>Eliminating Verbal Chaos</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="golden-box">
+        <strong>THE WRITTEN PRINTOUT RULE: VERBAL MESSAGES ARE NOT ACCEPTED</strong>
+        <p>
+          WhatsApp voice notes, verbal corridor whispers, and memory handovers are permanently banned. 
+          <strong>All operational handovers must be accompanied by physical printed/written manifests with two-party signatures</strong> 
+          (one giving, one taking over). If an order is not signed in the physical log, it does not exist.
+        </p>
+      </div>
+
+      <div class="section-title">1. The 4 Mandatory Daily Information Printouts</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 25%;">Relay Document</th>
+          <th style="width: 22%;">Origin & Destination</th>
+          <th style="width: 18%;">Deadline</th>
+          <th style="width: 35%;">Required Signatures & Purpose</th>
+        </tr>
+        <tr>
+          <td><strong>1. Tiger's Nest Breakfast Manifest</strong></td>
+          <td>Front Office ➔ Kitchen In-Charge</td>
+          <td><strong>Daily by 08:00 PM</strong></td>
+          <td>
+            • Signed by FO Clerk & Head Cook.<br>
+            • Lists exact count of breakfast boxes, pickup time (e.g. 05:45 AM), and dietary restrictions.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>2. Daily Arrival & VIP Flight Sheet</strong></td>
+          <td>Front Office ➔ HK Supervisor</td>
+          <td><strong>Daily by 07:30 AM</strong></td>
+          <td>
+            • Signed by Morning FO & HK Supervisor.<br>
+            • Highlights early Paro Airport flight arrivals so rooms are cleaned first by 11:30 AM.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>3. Driver Dorm & Coaster Bay Slip</strong></td>
+          <td>Front Office ➔ Driver Fleet</td>
+          <td><strong>Upon Check-In</strong></td>
+          <td>
+            • Signed by Desk & Tour Driver.<br>
+            • Confirms Dorm Bed B-02 assignment, linen key, and Bus Bay parking number.
+          </td>
+        </tr>
+        <tr>
+          <td><strong>4. Cashier Till Reconciliation Sheet</strong></td>
+          <td>Outgoing FO ➔ Incoming FO</td>
+          <td><strong>Every Shift Change</strong></td>
+          <td>
+            • Signed by both FO Staff.<br>
+            • Verifies physical cash count vs. Hotel OS system shift balance.
+          </td>
+        </tr>
+      </table>
+
+      <div class="section-title">2. How Each Department Relays Information</div>
+      <div class="card">
+        <ul class="check-list">
+          <li><strong>Front Office ➔ Kitchen:</strong> Deliver the physical 08:00 PM printout. Head cook signs on the clipboard. Never rely on verbal phone calls.</li>
+          <li><strong>Housekeeping ➔ Front Office:</strong> Housekeeping updates room status directly on Hotel OS ("Inspected"). If internet is down, supervisor writes room numbers on the physical FO board.</li>
+          <li><strong>F&B ➔ Front Office:</strong> All signed dinner chits, laundry slips, and mini-bar checks are handed to FO at 09:30 PM for immediate folio posting before night audit.</li>
+          <li><strong>Department Heads ➔ Operations Lead:</strong> Any equipment breakdown (geyser, stove, heater) or guest complaint is logged immediately in the Master Property Logbook.</li>
+        </ul>
+      </div>
+
+      <div class="section-title">3. Resolving Cross-Department Disputes</div>
+      <div class="card">
+        <p>
+          If Kitchen and F&B disagree, or FO and Housekeeping clash, <strong>neither department argues</strong>. Both report to the <strong>Operations Lead</strong>, who makes the final decision on the spot. The Owner will not entertain cross-department finger-pointing.
+        </p>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">Appointed Operations Lead</div>
+        <div class="sig-line">Director of Operations (Wife)</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+      </div>
+      <div class="page-num">Page 6 of 8 · Information Relay Protocol</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 7: OFFICIAL SHIFT HANDOVER & TAKING-OVER REGISTER                     -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Official Daily Shift Handover & Taking-Over Register</p>
+      </div>
+      <div class="meta-box">
+        <strong>SHIFT LOG & ACCOUNTABILITY</strong>
+        <span>Daily Physical Audit Record</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="lead-banner">
+        <div>
+          <span>Date: </span><strong style="margin-right: 6mm;">____ / ____ / 2026</strong>
+          <span>Day: </span><strong>________________</strong>
+        </div>
+        <div>
+          <span>Front Desk Till Baseline: </span><strong>Nu. 48,250</strong>
+        </div>
+      </div>
+
+      <!-- Shift 1 Handover -->
+      <div class="section-title">1. Morning Handover (07:00 AM – 08:00 AM Buffer) — Night to Morning</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 25%;">Handing Over (Night)</th>
+          <th style="width: 25%;">Taking Over (Morning)</th>
+          <th style="width: 25%;">Physical Cash Count</th>
+          <th style="width: 25%;">Tiger's Nest Status</th>
+        </tr>
+        <tr>
+          <td>Name: ________________<br>Sig: __________________</td>
+          <td>Name: ________________<br>Sig: __________________</td>
+          <td>Nu. __________________<br><span style="font-size:7.5pt; color:#64748b;">(Verified by both staff)</span></td>
+          <td>[ ] Packed & Delivered<br>[ ] Guide Signed Voucher</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="font-size:8pt;">
+            <strong>Night Auditor Notes / Early Departures:</strong> __________________________________________________________________________
+          </td>
+        </tr>
+      </table>
+
+      <!-- Shift 2 Handover -->
+      <div class="section-title">2. Afternoon Handover (03:00 PM – 04:00 PM Buffer) — Morning to Evening</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 25%;">Handing Over (Morning)</th>
+          <th style="width: 25%;">Taking Over (Evening)</th>
+          <th style="width: 25%;">Physical Cash Count</th>
+          <th style="width: 25%;">Paro Airport Arrivals</th>
+        </tr>
+        <tr>
+          <td>Name: ________________<br>Sig: __________________</td>
+          <td>Name: ________________<br>Sig: __________________</td>
+          <td>Nu. __________________<br><span style="font-size:7.5pt; color:#64748b;">(Verified by both staff)</span></td>
+          <td>[ ] Landed & Checked In<br>[ ] Luggage in Rooms</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="font-size:8pt;">
+            <strong>Pending Check-Ins / Road Transfers from Dochula:</strong> __________________________________________________________________
+          </td>
+        </tr>
+      </table>
+
+      <!-- Shift 3 Handover -->
+      <div class="section-title">3. Evening Handover (09:00 PM – 10:00 PM Buffer) — Evening to Night</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 25%;">Handing Over (Evening)</th>
+          <th style="width: 25%;">Taking Over (Night)</th>
+          <th style="width: 25%;">Physical Cash Count</th>
+          <th style="width: 25%;">Kitchen Breakfast Manifest</th>
+        </tr>
+        <tr>
+          <td>Name: ________________<br>Sig: __________________</td>
+          <td>Name: ________________<br>Sig: __________________</td>
+          <td>Nu. __________________<br><span style="font-size:7.5pt; color:#64748b;">(Verified by both staff)</span></td>
+          <td>[ ] Delivered to Kitchen<br>[ ] Head Cook Signed</td>
+        </tr>
+        <tr>
+          <td colspan="4" style="font-size:8pt;">
+            <strong>Dinner Billings / Incidentals to Audit:</strong> __________________________________________________________________________
+          </td>
+        </tr>
+      </table>
+
+      <div class="section-title">4. Operations Lead Daily Review & Sign-Off</div>
+      <div class="card" style="display:flex; justify-content:space-between; align-items:center; font-size:9pt;">
+        <div>
+          <span>I have inspected the front desk cash till, kitchen sobriety, and shift handover entries for today.</span>
+        </div>
+        <div style="text-align:right;">
+          <span>Operations Lead Signature: ___________________________</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">Appointed Operations Lead</div>
+        <div class="sig-line">Director of Operations (Wife)</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+      </div>
+      <div class="page-num">Page 7 of 8 · Shift Handover Register</div>
+    </div>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- PAGE 8: DISCIPLINARY CODE & ALL-STAFF COMMITMENT SIGNATURES               -->
+  <!-- ========================================================================= -->
+  <div class="page">
+    <div class="header">
+      <div class="brand-group">
+        <h1>PELBU SUITES</h1>
+        <p>Staff Code of Conduct & Disciplinary Policy</p>
+      </div>
+      <div class="meta-box">
+        <strong>ENFORCEMENT POLICY</strong>
+        <span>Workplace Discipline & Fairness</span>
+      </div>
+    </div>
+
+    <div class="page-body">
+      <div class="alert-box">
+        <strong>ZERO-TOLERANCE OFFENSES (IMMEDIATE ACTION)</strong>
+        <p>
+          The following 4 violations result in immediate suspension, forfeiture of monthly Service Charge (SC), and possible termination under the Labour and Employment Act of Bhutan:
+        </p>
+        <ul style="margin-top: 1mm; padding-left: 4.5mm; font-size: 8.8pt; color: #7f1d1d;">
+          <li><strong>1. Alcohol or Narcotics:</strong> Consuming alcohol before or during shift, or reporting to duty with breath alcohol.</li>
+          <li><strong>2. Abandonment of Post:</strong> Leaving kitchen, front desk, or dining room unattended during meal or arrival hours.</li>
+          <li><strong>3. Casual Advance Demands:</strong> Demanding daily/weekly cash advances from the Front Desk Till or harassing management for loans.</li>
+          <li><strong>4. Insubordination & Bypassing:</strong> Refusing direct orders from the Operations Lead or bypassing the HOD to complain to the Owners.</li>
+        </ul>
+      </div>
+
+      <div class="section-title">1. The 3-Strike Disciplinary Framework</div>
+      <table class="shift-table">
+        <tr>
+          <th style="width: 22%;">Offense Level</th>
+          <th style="width: 38%;">Administrative Action</th>
+          <th style="width: 40%;">Financial & Service Charge Penalty</th>
+        </tr>
+        <tr>
+          <td><strong>1st Strike</strong></td>
+          <td>Official Written Warning logged in staff HR file by Operations Lead.</td>
+          <td>Forfeiture of 50% of monthly Service Charge (SC) pool.</td>
+        </tr>
+        <tr>
+          <td><strong>2nd Strike</strong></td>
+          <td>Final Written Warning and mandatory hearing with Owners.</td>
+          <td>Deduction of 2 days' base wages + 100% loss of monthly SC + Advance Ban.</td>
+        </tr>
+        <tr>
+          <td><strong>3rd Strike</strong></td>
+          <td>Immediate Termination of Employment contract.</td>
+          <td>Formal reporting to Ministry of Industry, Commerce & Employment (MoICE).</td>
+        </tr>
+      </table>
+
+      <div class="section-title">2. All-Staff Commitment & Acknowledgment</div>
+      <div class="card" style="font-size: 8.5pt;">
+        <p>
+          <em>"I hereby acknowledge that I have received, read, and understood the Standard Operating Procedures, Shift Timings, Salary Advance Rules, and Management Guidelines for Pelbu Suites. 
+          I acknowledge that 100% of hotel bookings are brought in by the Owner, and my duty is to deliver flawless hospitality to protect those bookings. 
+          I agree to take operational direction from the appointed on-site Operations Lead. I understand that reporting to duty under the influence of alcohol, 
+          fighting, demanding unapproved cash advances, or deserting my post will result in immediate wage deductions, forfeiture of Service Charge, and termination."</em>
+        </p>
+      </div>
+
+      <div class="section-title">3. Department Head Signatures (Commitment to Enforce)</div>
+      <table class="shift-table" style="margin-top: 1.5mm;">
+        <tr>
+          <th style="width: 22%;">Department</th>
+          <th style="width: 26%;">Designation</th>
+          <th style="width: 26%;">Name (Handwritten)</th>
+          <th style="width: 26%;">Signature & Date</th>
+        </tr>
+        <tr>
+          <td><strong>Operations</strong></td>
+          <td>Appointed Operations Lead (HOD)</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><strong>Kitchen</strong></td>
+          <td>Head Cook / Kitchen Lead</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><strong>Front Office</strong></td>
+          <td>FO Supervisor</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><strong>Housekeeping</strong></td>
+          <td>Housekeeping Supervisor</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><strong>F&B Service</strong></td>
+          <td>F&B Service Captain</td>
+          <td></td>
+          <td></td>
+        </tr>
+        <tr>
+          <td><strong>Reservations</strong></td>
+          <td>Reservations Coordinator</td>
+          <td></td>
+          <td></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="footer">
+      <div class="sig-grid">
+        <div class="sig-line">Director of Operations (Wife)</div>
+        <div class="sig-line">Managing Owner (Rajiv)</div>
+        <div class="sig-line">Official Pelbu Suites Seal</div>
+      </div>
+      <div class="page-num">Page 8 of 8 · Disciplinary Code & Acknowledgment</div>
+    </div>
+  </div>
+
+</body>
+</html>

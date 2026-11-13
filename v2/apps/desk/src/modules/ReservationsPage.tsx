@@ -266,7 +266,7 @@ export function ReservationsPage() {
           />
         ) : (
           <>
-          <ul className="m-0 grid list-none gap-2 p-0 md:hidden">
+          <ul className="m-0 grid list-none gap-2 p-0 lg:hidden">
             {filtered.map((s) => {
               const bal = folioBalance(s);
               const flag = FLAG[s.nationality] ?? "🏳️";
@@ -311,7 +311,7 @@ export function ReservationsPage() {
               );
             })}
           </ul>
-          <div className="hidden overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] md:block">
+          <div className="hidden overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] lg:block">
             <table className="w-full min-w-[720px] text-left text-xs lg:min-w-[980px]">
               <thead>
                 <tr className="border-b border-[var(--hos-line)] text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">

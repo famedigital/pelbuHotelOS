@@ -34,7 +34,7 @@ export function DeskMobileView() {
   const reduce = useReducedMotion();
   const navigate = useNavigate();
   const [tab, setTab] = useState<Tab>("arrivals");
-  const [listMode, setListMode] = useState<ListMode>("table");
+  const [listMode, setListMode] = useState<ListMode>("cards");
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [vipOnly, setVipOnly] = useState(false);

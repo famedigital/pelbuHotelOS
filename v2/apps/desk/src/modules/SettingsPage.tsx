@@ -24,8 +24,9 @@ import {
   peekNextPsbnNo,
   resolveHotelInitial,
 } from "../lib/doc-numbers";
+import { loadDeptSop, saveDeptSop, type DeptSop } from "../lib/dept-sop";
 
-type Tab = "property" | "rooms" | "fiscal" | "payments";
+type Tab = "property" | "rooms" | "fiscal" | "payments" | "sop";
 
 const DZONGKHAGS: Dzongkhag[] = [
   "Paro",
@@ -47,12 +48,14 @@ export function SettingsPage() {
   const [roomNo, setRoomNo] = useState("401");
   const [floorId, setFloorId] = useState(s.floors[0]?.id ?? "");
   const [catId, setCatId] = useState(s.categories[0]?.id ?? "");
+  const [sop, setSop] = useState<DeptSop>(() => loadDeptSop());
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "property", label: "Property" },
     { id: "rooms", label: "Rooms & Floors" },
     { id: "fiscal", label: "DRC Fiscal" },
     { id: "payments", label: "Payments & RMA" },
+    { id: "sop", label: "Dept SOP" },
   ];
 
   return (
@@ -357,6 +360,134 @@ export function SettingsPage() {
             <input type="number" value={s.tillMaxCash} onChange={(e) => s.updatePayments({ tillMaxCash: Number(e.target.value) || 0 })} className="rounded-lg border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2 text-sm" />
           </label>
           <Button onClick={() => toast.success("Payment methods saved")}>Save payments</Button>
+        </GlassPanel>
+      ) : null}
+
+      {tab === "sop" ? (
+        <GlassPanel className="grid max-w-3xl gap-4 p-4">
+          <p className="m-0 text-[12px] text-[var(--hos-ink-2)]">
+            Flexible department clocks seeded from Pelbu guidelines — edit times per property;
+            handover checklists drive End of shift print/file.
+          </p>
+          <FieldInput
+            label="Handover buffer (minutes)"
+            type="number"
+            min={0}
+            max={180}
+            value={sop.bufferMinutes}
+            onChange={(e) =>
+              setSop((prev) => ({
+                ...prev,
+                bufferMinutes: Number(e.target.value) || 0,
+              }))
+            }
+          />
+          <strong className="text-sm text-[var(--hos-ink)]">FO shifts</strong>
+          {sop.foShifts.map((shift, idx) => (
+            <div key={shift.id} className="grid gap-2 sm:grid-cols-3">
+              <FieldInput
+                label={`${shift.label} start`}
+                type="time"
+                value={shift.start}
+                onChange={(e) => {
+                  const foShifts = sop.foShifts.map((s, i) =>
+                    i === idx ? { ...s, start: e.target.value } : s,
+                  );
+                  setSop((prev) => ({ ...prev, foShifts }));
+                }}
+              />
+              <FieldInput
+                label={`${shift.label} end`}
+                type="time"
+                value={shift.end}
+                onChange={(e) => {
+                  const foShifts = sop.foShifts.map((s, i) =>
+                    i === idx ? { ...s, end: e.target.value } : s,
+                  );
+                  setSop((prev) => ({ ...prev, foShifts }));
+                }}
+              />
+              <div className="flex items-end text-[11px] text-[var(--hos-ink-3)]">
+                {shift.id}
+              </div>
+            </div>
+          ))}
+          <strong className="text-sm text-[var(--hos-ink)]">Reservations hours</strong>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <FieldInput
+              label="Open"
+              type="time"
+              value={sop.reservationsHours.start}
+              onChange={(e) =>
+                setSop((prev) => ({
+                  ...prev,
+                  reservationsHours: {
+                    ...prev.reservationsHours,
+                    start: e.target.value,
+                  },
+                }))
+              }
+            />
+            <FieldInput
+              label="Close"
+              type="time"
+              value={sop.reservationsHours.end}
+              onChange={(e) =>
+                setSop((prev) => ({
+                  ...prev,
+                  reservationsHours: {
+                    ...prev.reservationsHours,
+                    end: e.target.value,
+                  },
+                }))
+              }
+            />
+          </div>
+          <strong className="text-sm text-[var(--hos-ink)]">Kitchen windows</strong>
+          {sop.kitchenWindows.map((w, idx) => (
+            <div key={w.id} className="grid gap-2 sm:grid-cols-2">
+              <FieldInput
+                label={`${w.label} start`}
+                type="time"
+                value={w.start}
+                onChange={(e) => {
+                  const kitchenWindows = sop.kitchenWindows.map((row, i) =>
+                    i === idx ? { ...row, start: e.target.value } : row,
+                  );
+                  setSop((prev) => ({ ...prev, kitchenWindows }));
+                }}
+              />
+              <FieldInput
+                label={`${w.label} end`}
+                type="time"
+                value={w.end}
+                onChange={(e) => {
+                  const kitchenWindows = sop.kitchenWindows.map((row, i) =>
+                    i === idx ? { ...row, end: e.target.value } : row,
+                  );
+                  setSop((prev) => ({ ...prev, kitchenWindows }));
+                }}
+              />
+            </div>
+          ))}
+          <Button
+            onClick={() => {
+              try {
+                const next = saveDeptSop(sop);
+                setSop(next);
+                toast.success("Department SOP saved", {
+                  description: `Buffer ${next.bufferMinutes}m · ${next.foShifts.length} FO shifts`,
+                });
+              } catch (err) {
+                console.error("[settings] sop save", err);
+                toast.error(
+                  err instanceof Error ? err.message : "Invalid SOP times",
+                );
+              }
+            }}
+          >
+            Save department SOP
+          </Button>
         </GlassPanel>
       ) : null}
     </div>

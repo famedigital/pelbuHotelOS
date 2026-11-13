@@ -1,5 +1,5 @@
-import { useMemo, useState, useTransition } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState, useTransition } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   Download,
   Printer,
@@ -32,7 +32,9 @@ import {
   buildBalanceSheet,
   buildBankReconSummary,
   buildChartOfAccounts,
+  buildExpenseGlance,
   buildExpenseRows,
+  buildIncomeGlance,
   buildIncomeRows,
   buildProfitAndLoss,
   buildTrialBalance,
@@ -40,6 +42,7 @@ import {
   exportCsv,
   type MoneyFilter,
 } from "../lib/finance-reports";
+import { PaidUnpaidBar } from "./PaidUnpaidBar";
 
 type FinTab =
   | "overview"
@@ -52,15 +55,53 @@ type FinTab =
   | "fiscal"
   | "till";
 
+const FIN_TABS: readonly FinTab[] = [
+  "overview",
+  "income",
+  "expense",
+  "recon",
+  "pl",
+  "bs",
+  "tb",
+  "fiscal",
+  "till",
+] as const;
+
+function parseFinTab(raw: string | null): FinTab {
+  if (raw && (FIN_TABS as readonly string[]).includes(raw)) return raw as FinTab;
+  return "overview";
+}
+
 export function FinancePage() {
   const [, start] = useTransition();
+  const [searchParams, setSearchParams] = useSearchParams();
   const period0 = defaultPeriod();
-  const [tab, setTab] = useState<FinTab>("overview");
+  const [tab, setTabState] = useState<FinTab>(() =>
+    parseFinTab(searchParams.get("tab")),
+  );
   const [from, setFrom] = useState(period0.from);
   const [to, setTo] = useState(period0.to);
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<MoneyFilter["status"]>("all");
   const [dept, setDept] = useState<MoneyFilter["dept"]>("all");
+
+  const setTab = (next: FinTab) => {
+    setTabState(next);
+    setSearchParams(
+      (prev) => {
+        const p = new URLSearchParams(prev);
+        if (next === "overview") p.delete("tab");
+        else p.set("tab", next);
+        return p;
+      },
+      { replace: true },
+    );
+  };
+
+  useEffect(() => {
+    const fromUrl = parseFinTab(searchParams.get("tab"));
+    setTabState((cur) => (cur === fromUrl ? cur : fromUrl));
+  }, [searchParams]);
 
   const docs = useExtrasStore((s) => s.fiscalDocs);
   const shifts = useExtrasStore((s) => s.tillShifts);
@@ -122,6 +163,8 @@ export function FinancePage() {
   const incomeTotal = income.reduce((s, r) => s + r.amount, 0);
   const incomePaid = income.reduce((s, r) => s + r.paid, 0);
   const expenseTotal = expenses.reduce((s, r) => s + r.amount, 0);
+  const incomeGlance = useMemo(() => buildIncomeGlance(income), [income]);
+  const expenseGlance = useMemo(() => buildExpenseGlance(expenses), [expenses]);
 
   const openShift = shifts.find((s) => !s.closedAt);
 
@@ -328,7 +371,7 @@ export function FinancePage() {
         <MorphTabs
           glowId="finHubTab"
           value={tab}
-          onChange={setTab}
+          onChange={(id) => setTab(parseFinTab(id))}
           size="md"
           items={[
             { id: "overview", label: "Overview" },
@@ -388,126 +431,242 @@ export function FinancePage() {
         ) : null}
 
         {tab === "income" ? (
-          <GlassPanel className="p-3.5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className="m-0 text-sm font-bold">Income register</h3>
-                <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
-                  Folio charges + fiscal docs · reconcile to bank inflows
-                </p>
+          <div className="flex flex-col gap-3">
+            <GlassPanel className="p-3.5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Bookings</div>
+                  <div className="mt-1 text-lg font-bold tabular-nums">{incomeGlance.bookings}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Income</div>
+                  <div className="mt-1 text-lg font-bold tabular-nums">{formatNu(incomeGlance.income)}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Collected</div>
+                  <div className="mt-1 text-lg font-bold tabular-nums text-[var(--hos-emerald)]">
+                    {formatNu(incomeGlance.collected)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Dues</div>
+                  <div className="mt-1 text-lg font-bold tabular-nums text-[var(--hos-ruby)]">
+                    {formatNu(incomeGlance.dues)}
+                  </div>
+                </div>
               </div>
-              <Button size="sm" variant="secondary" onClick={exportIncome}>
-                <Download className="mr-1 size-3.5" /> CSV
-              </Button>
-            </div>
-            {income.length === 0 ? (
-              <EmptyState title="No income in period" description="Widen dates or clear filters." />
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
-                <table className="w-full min-w-[820px] text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-[var(--hos-line)] text-[10px] uppercase text-[var(--hos-ink-3)]">
-                      <th className="px-3 py-2">Date</th>
-                      <th className="px-3 py-2">Ref</th>
-                      <th className="px-3 py-2">Party</th>
-                      <th className="px-3 py-2">Source</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
-                      <th className="px-3 py-2 text-right">Paid</th>
-                      <th className="px-3 py-2 text-right">Balance</th>
-                      <th className="px-3 py-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--hos-line)]">
-                    {income.map((r) => (
-                      <tr key={r.id}>
-                        <td className="px-3 py-2 font-mono text-[11px]">{r.date}</td>
-                        <td className="px-3 py-2 font-mono font-semibold text-[var(--hos-primary)]">
-                          {r.ref}
-                        </td>
-                        <td className="px-3 py-2 font-semibold">{r.party}</td>
-                        <td className="px-3 py-2">
-                          <Badge tone="muted">{r.source}</Badge>
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono">{formatNu(r.amount)}</td>
-                        <td className="px-3 py-2 text-right font-mono">{formatNu(r.paid)}</td>
-                        <td className="px-3 py-2 text-right font-mono font-semibold">
-                          {formatNu(r.balance)}
-                        </td>
-                        <td className="px-3 py-2">
-                          <Badge
-                            tone={
-                              r.status === "paid"
-                                ? "success"
-                                : r.status === "partial"
-                                  ? "vip"
-                                  : "danger"
-                            }
-                          >
-                            {r.status}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </GlassPanel>
-        ) : null}
-
-        {tab === "expense" ? (
-          <GlassPanel className="p-3.5">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div>
-                <h3 className="m-0 text-sm font-bold">Expense register</h3>
-                <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
-                  Purchase bills · journal nos · payment mode
-                </p>
-              </div>
-              <div className="flex gap-2">
-                <Button size="sm" variant="ghost" asChild>
-                  <Link to="/purchases">Purchases</Link>
-                </Button>
-                <Button size="sm" variant="secondary" onClick={exportExpenses}>
+              <PaidUnpaidBar
+                className="mt-3"
+                paid={incomeGlance.collected}
+                unpaid={incomeGlance.dues}
+              />
+              {incomeGlance.months.length > 0 ? (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5">
+                  {incomeGlance.months.map((m) => (
+                    <div
+                      key={m.key}
+                      className="shrink-0 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2"
+                    >
+                      <div className="text-[10px] font-bold uppercase text-[var(--hos-ink-3)]">
+                        {m.label}
+                      </div>
+                      <div className="mt-0.5 font-mono text-xs font-semibold tabular-nums">
+                        {formatNu(m.amount)}
+                      </div>
+                      <div className="text-[10px] text-[var(--hos-ink-3)]">
+                        {m.count} · dues {formatNu(m.dues)}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </GlassPanel>
+            <GlassPanel className="p-3.5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="m-0 text-sm font-bold">Income register</h3>
+                  <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
+                    Folio charges + fiscal docs · reconcile to bank inflows
+                  </p>
+                </div>
+                <Button size="sm" variant="secondary" onClick={exportIncome}>
                   <Download className="mr-1 size-3.5" /> CSV
                 </Button>
               </div>
-            </div>
-            {expenses.length === 0 ? (
-              <EmptyState title="No expenses in period" description="Post purchase bills or widen dates." />
-            ) : (
-              <div className="overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
-                <table className="w-full min-w-[760px] text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-[var(--hos-line)] text-[10px] uppercase text-[var(--hos-ink-3)]">
-                      <th className="px-3 py-2">Date</th>
-                      <th className="px-3 py-2">Journal / bill</th>
-                      <th className="px-3 py-2">Supplier</th>
-                      <th className="px-3 py-2">Category</th>
-                      <th className="px-3 py-2">Mode</th>
-                      <th className="px-3 py-2 text-right">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--hos-line)]">
-                    {expenses.map((r) => (
-                      <tr key={r.id}>
-                        <td className="px-3 py-2 font-mono text-[11px]">{r.date}</td>
-                        <td className="px-3 py-2 font-mono font-semibold">{r.ref}</td>
-                        <td className="px-3 py-2 font-semibold">{r.party}</td>
-                        <td className="px-3 py-2 capitalize">{r.category.replaceAll("_", " ")}</td>
-                        <td className="px-3 py-2">
-                          <Badge tone="muted">{r.paymentMode}</Badge>
-                        </td>
-                        <td className="px-3 py-2 text-right font-mono font-semibold">
-                          {formatNu(r.amount)}
-                        </td>
+              {income.length === 0 ? (
+                <EmptyState title="No income in period" description="Widen dates or clear filters." />
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+                  <table className="w-full min-w-[820px] text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-[var(--hos-line)] text-[10px] uppercase text-[var(--hos-ink-3)]">
+                        <th className="px-3 py-2">Date</th>
+                        <th className="px-3 py-2">Ref</th>
+                        <th className="px-3 py-2">Party</th>
+                        <th className="px-3 py-2">Source</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                        <th className="px-3 py-2 text-right">Paid</th>
+                        <th className="px-3 py-2 text-right">Balance</th>
+                        <th className="px-3 py-2">Status</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--hos-line)]">
+                      {income.map((r) => (
+                        <tr key={r.id}>
+                          <td className="px-3 py-2 font-mono text-[11px]">{r.date}</td>
+                          <td className="px-3 py-2 font-mono font-semibold text-[var(--hos-primary)]">
+                            {r.ref}
+                          </td>
+                          <td className="px-3 py-2 font-semibold">{r.party}</td>
+                          <td className="px-3 py-2">
+                            <Badge tone="muted">{r.source}</Badge>
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono">{formatNu(r.amount)}</td>
+                          <td className="px-3 py-2 text-right font-mono">{formatNu(r.paid)}</td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold">
+                            {formatNu(r.balance)}
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge
+                              tone={
+                                r.status === "paid"
+                                  ? "success"
+                                  : r.status === "partial"
+                                    ? "vip"
+                                    : "danger"
+                              }
+                            >
+                              {r.status}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </GlassPanel>
+          </div>
+        ) : null}
+
+        {tab === "expense" ? (
+          <div className="flex flex-col gap-3">
+            <GlassPanel className="p-3.5">
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Expenses</div>
+                  <div className="mt-1 text-lg font-bold tabular-nums">
+                    {formatNu(expenseGlance.expense)}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Bills</div>
+                  <div className="mt-1 text-lg font-bold tabular-nums">{expenseGlance.count}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Categories</div>
+                  <div className="mt-1 text-lg font-bold tabular-nums">
+                    {expenseGlance.categories.length}
+                  </div>
+                </div>
               </div>
-            )}
-          </GlassPanel>
+              {expenseGlance.months.length > 0 ? (
+                <div className="mt-3 flex gap-2 overflow-x-auto pb-0.5">
+                  {expenseGlance.months.map((m) => (
+                    <div
+                      key={m.key}
+                      className="shrink-0 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2"
+                    >
+                      <div className="text-[10px] font-bold uppercase text-[var(--hos-ink-3)]">
+                        {m.label}
+                      </div>
+                      <div className="mt-0.5 font-mono text-xs font-semibold tabular-nums">
+                        {formatNu(m.amount)}
+                      </div>
+                      <div className="text-[10px] text-[var(--hos-ink-3)]">{m.count} bills</div>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+              {expenseGlance.categories.length > 0 ? (
+                <ul className="m-0 mt-3 list-none space-y-1.5 p-0">
+                  {expenseGlance.categories.slice(0, 6).map((c) => {
+                    const pct = expenseGlance.expense
+                      ? Math.round((c.amount / expenseGlance.expense) * 100)
+                      : 0;
+                    return (
+                      <li key={c.category} className="text-xs">
+                        <div className="mb-0.5 flex justify-between gap-2">
+                          <span className="capitalize text-[var(--hos-ink-2)]">
+                            {c.category.replaceAll("_", " ")}
+                          </span>
+                          <span className="font-mono tabular-nums">{formatNu(c.amount)}</span>
+                        </div>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-[rgba(15,23,42,0.08)]">
+                          <div
+                            className="h-full bg-[var(--hos-brass)]"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </GlassPanel>
+            <GlassPanel className="p-3.5">
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <h3 className="m-0 text-sm font-bold">Expense register</h3>
+                  <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
+                    Purchase bills · journal nos · payment mode
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" asChild>
+                    <Link to="/purchases">Purchases</Link>
+                  </Button>
+                  <Button size="sm" variant="secondary" onClick={exportExpenses}>
+                    <Download className="mr-1 size-3.5" /> CSV
+                  </Button>
+                </div>
+              </div>
+              {expenses.length === 0 ? (
+                <EmptyState title="No expenses in period" description="Post purchase bills or widen dates." />
+              ) : (
+                <div className="overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
+                  <table className="w-full min-w-[760px] text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-[var(--hos-line)] text-[10px] uppercase text-[var(--hos-ink-3)]">
+                        <th className="px-3 py-2">Date</th>
+                        <th className="px-3 py-2">Journal / bill</th>
+                        <th className="px-3 py-2">Supplier</th>
+                        <th className="px-3 py-2">Category</th>
+                        <th className="px-3 py-2">Mode</th>
+                        <th className="px-3 py-2 text-right">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--hos-line)]">
+                      {expenses.map((r) => (
+                        <tr key={r.id}>
+                          <td className="px-3 py-2 font-mono text-[11px]">{r.date}</td>
+                          <td className="px-3 py-2 font-mono font-semibold">{r.ref}</td>
+                          <td className="px-3 py-2 font-semibold">{r.party}</td>
+                          <td className="px-3 py-2 capitalize">{r.category.replaceAll("_", " ")}</td>
+                          <td className="px-3 py-2">
+                            <Badge tone="muted">{r.paymentMode}</Badge>
+                          </td>
+                          <td className="px-3 py-2 text-right font-mono font-semibold">
+                            {formatNu(r.amount)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </GlassPanel>
+          </div>
         ) : null}
 
         {tab === "recon" ? (

@@ -3,7 +3,8 @@
  * Night Audit cockpit reachable + API night_audit.run advances business date.
  * Does not flip V2_DESK_CUTOVER.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { unlockAuditor } from "./helpers/unlock-staff";
 
 const API = process.env.VITE_API_URL || "http://127.0.0.1:4200";
 const PROPERTY_ID = "00000000-0000-4000-8000-000000000001";
@@ -13,26 +14,6 @@ const ACTOR = {
   propertyId: PROPERTY_ID,
   tenantId: PROPERTY_ID,
 };
-
-async function unlockAuditor(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("hos_hotel_onboarded", "true");
-    localStorage.setItem("hos_staff_tour_completed", "true");
-  });
-  await page.goto("/");
-  const wizardClose = page.getByRole("button", { name: "Close wizard" });
-  if (await wizardClose.isVisible().catch(() => false)) {
-    await wizardClose.click();
-  }
-  await expect(page.getByTestId("pin-staff-ugyen")).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByTestId("pin-staff-ugyen").click();
-  await page.keyboard.type("4567");
-  await expect(page.getByTestId("night-audit-run")).toBeVisible({
-    timeout: 25_000,
-  });
-}
 
 test.describe("OPERATIONS-FLOW §5.5 day close", () => {
   test("cutover flag stays false", () => {

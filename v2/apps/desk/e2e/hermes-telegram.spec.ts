@@ -1,35 +1,10 @@
 /**
  * Hermes Wave 1 smoke — pair link + simulate OCR apply path via desk UI.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { unlockKarma } from "./helpers/unlock-staff";
 
 const API = process.env.VITE_API_URL || "http://127.0.0.1:4200";
-
-async function unlockKarma(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("hos_hotel_onboarded", "true");
-    localStorage.setItem("hos_staff_tour_completed", "true");
-  });
-  await page.goto("/");
-  const wizardClose = page.getByRole("button", { name: "Close wizard" });
-  if (await wizardClose.isVisible().catch(() => false)) {
-    await wizardClose.click();
-  }
-  await expect(page.getByTestId("pin-staff-karma")).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByTestId("pin-staff-karma").click();
-  await page.keyboard.type("1234");
-  await expect(page.getByRole("button", { name: /Fast Book/i }).first()).toBeVisible({
-    timeout: 20_000,
-  });
-  await page
-    .locator("[data-sonner-toast]")
-    .filter({ hasText: /Welcome/i })
-    .first()
-    .waitFor({ state: "hidden", timeout: 8_000 })
-    .catch(() => undefined);
-}
 
 test.describe("Hermes Telegram Wave 1", () => {
   test("API health exposes hermes commands", async ({ request }) => {

@@ -485,10 +485,12 @@ export type PinAuthResult =
 
 function verifyLocalDemoPin(input: {
   propertySlug: string;
-  staffId: string;
+  staffId?: string;
   pin: string;
 }): PinAuthResult {
-  const hit = LOCAL_DEMO_PINS.find((s) => s.staffId === input.staffId && s.pin === input.pin);
+  const hit = input.staffId
+    ? LOCAL_DEMO_PINS.find((s) => s.staffId === input.staffId && s.pin === input.pin)
+    : LOCAL_DEMO_PINS.find((s) => s.pin === input.pin);
   if (!hit) {
     return { ok: false, status: 401, error: "Incorrect PIN" };
   }
@@ -511,10 +513,15 @@ function verifyLocalDemoPin(input: {
 
 export async function verifyStaffPin(input: {
   propertySlug: string;
-  staffId: string;
+  /** Omit for anonymous PIN pad. */
+  staffId?: string;
   pin: string;
   confirmPin?: string;
 }): Promise<PinAuthResult> {
+  /* Local Vite UAT / Playwright — never hit GoTrue with the synthetic hotel gate. */
+  if (isLocalDemoAuthEnabled() && readHotelToken() === "local-demo-hotel") {
+    return verifyLocalDemoPin(input);
+  }
   try {
     const hotel = readHotelToken();
     const res = await fetch(`${API_BASE}/v1/auth/pin`, {

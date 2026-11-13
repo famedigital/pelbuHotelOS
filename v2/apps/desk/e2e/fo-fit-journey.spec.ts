@@ -3,7 +3,8 @@
  * Fast Book → assign → check in → charge → mBoB settle → check out → night audit cockpit.
  * Money authority is fail-closed via API ACK. Does not set V2_DESK_CUTOVER.
  */
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { unlockKarma } from "./helpers/unlock-staff";
 
 const API = process.env.VITE_API_URL || "http://127.0.0.1:4200";
 const PROPERTY_ID = "00000000-0000-4000-8000-000000000001";
@@ -13,43 +14,6 @@ const ACTOR = {
   propertyId: PROPERTY_ID,
   tenantId: PROPERTY_ID,
 };
-
-async function unlockKarma(page: Page) {
-  await page.addInitScript(() => {
-    localStorage.setItem("hos_hotel_onboarded", "true");
-    localStorage.setItem("hos_hotel_onboard_dismissed", "true");
-    localStorage.setItem("hos_staff_tour_completed", "true");
-  });
-  await page.goto("/");
-  const wizardClose = page.getByRole("button", { name: "Close wizard" });
-  if (await wizardClose.isVisible().catch(() => false)) {
-    await wizardClose.click();
-  }
-  await expect(page.getByTestId("pin-staff-karma")).toBeVisible({
-    timeout: 30_000,
-  });
-  await page.getByTestId("pin-staff-karma").click();
-  /* Keyboard path — PinGateway window keydown; avoids overlay interception on keypad. */
-  await page.keyboard.type("1234");
-  await expect(page.getByRole("button", { name: /Fast Book/i }).first()).toBeVisible({
-    timeout: 20_000,
-  });
-  /* Dismiss PIN welcome toast so later Fast Book toasts are unambiguous. */
-  await page
-    .locator("[data-sonner-toast]")
-    .filter({ hasText: /Welcome/i })
-    .first()
-    .waitFor({ state: "hidden", timeout: 8_000 })
-    .catch(() => undefined);
-  /* Hydrate inventory before money path (apiOffline blocks createBooking). */
-  await expect
-    .poll(async () => {
-      const offline = await page.getByTitle(/Live sync/i).getAttribute("data-glow");
-      return offline;
-    }, { timeout: 20_000 })
-    .not.toBe("ruby");
-  await page.waitForTimeout(1_200);
-}
 
 test.describe("OPERATIONS-FLOW §5.2 FIT", () => {
   test("API health before desk money path", async ({ request }) => {

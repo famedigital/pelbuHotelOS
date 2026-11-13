@@ -615,7 +615,7 @@ export function DepartmentPrintModal({
     >
       {/* Chrome header — glass elevated, not on sheet */}
       <header className="hos-module-chrome no-print shrink-0 rounded-none border-x-0 border-t-0 px-3 py-2.5 sm:px-4">
-        <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <strong className="text-[15px] text-[var(--hos-ink)]">
@@ -626,11 +626,11 @@ export function DepartmentPrintModal({
                 Last · {relativePrintTime(lastPrintAt)}
               </span>
             </div>
-            <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
+            <p className="m-0 mt-0.5 hidden text-[11px] text-[var(--hos-ink-3)] sm:block">
               Department passes · A4 clipboard / 80mm thermal · Esc close · ⌘P print · 1–4 pass
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex max-w-full flex-wrap items-center gap-1.5 pb-[env(safe-area-inset-bottom,0px)] sm:pb-0">
             <StatusLegend
               dense
               className="hidden lg:flex"

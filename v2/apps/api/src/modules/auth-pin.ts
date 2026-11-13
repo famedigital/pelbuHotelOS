@@ -6,6 +6,7 @@ import type { FastifyInstance } from "fastify";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { queryRaw, requireDb } from "@hos-v2/db";
+import { homeRouteForDeskRole } from "@hos-v2/domain";
 import { bearerToken, issueDeskToken, verifyDeskToken } from "../platform/desk-token.js";
 
 const PIN_PREFIX = "scrypt$";
@@ -32,22 +33,21 @@ export function verifyPin(pin: string, stored: string | null | undefined): boole
 }
 
 function homeRouteForRole(deskRole: string | null | undefined, fallback: string): string {
-  const role = String(deskRole ?? "").toLowerCase();
-  if (role === "fnb" || role === "cashier") return "/pos";
-  if (role === "kitchen") return "/kds";
-  if (role === "hk" || role === "housekeeping") return "/housekeeping";
-  if (role === "owner" || role === "gm") return "/owner";
-  if (role === "hr" || role === "hr_admin") return "/hr";
+  const routed = homeRouteForDeskRole(deskRole);
+  if (routed !== "/desk") return routed;
+  /* Unknown roles keep DB home_route when FO-shaped default would hide a custom landing. */
+  if (!deskRole) return fallback || "/desk";
+  const role = String(deskRole).toLowerCase().replace(/\s+/g, "_");
   if (
     role === "fo" ||
     role === "front_desk" ||
     role === "fo_agent" ||
-    role === "fo_manager"
+    role === "fo_manager" ||
+    role === "front_office"
   ) {
     return "/desk";
   }
-  if (role === "night_auditor") return "/night-audit";
-  return fallback || "/desk";
+  return fallback || routed;
 }
 
 function assertDb() {
@@ -233,7 +233,8 @@ export async function registerAuthPinRoutes(app: FastifyInstance) {
   const pinBody = z.object({
     propertySlug: z.string().min(1).optional(),
     propertyId: z.string().uuid().optional(),
-    staffId: z.string().uuid(),
+    /** Optional — omit for anonymous PIN pad (match by PIN only). */
+    staffId: z.string().uuid().optional(),
     pin: z.string().regex(/^\d{4,8}$/),
     confirmPin: z.string().regex(/^\d{4,8}$/).optional(),
   });
@@ -254,20 +255,51 @@ export async function registerAuthPinRoutes(app: FastifyInstance) {
       if (property.id !== gate.propertyId) {
         return reply.code(403).send({ ok: false, error: "PIN unlock exclusive to gated hotel" });
       }
-      const rows = (await queryRaw(
-        `SELECT id, property_id, display_name, role, desk_role, employee_code, home_route,
-                pin_hash, pin_reset_required, can_login, active
-         FROM v2.staff
-         WHERE id = ${sqlLiteral(body.staffId)} AND property_id = ${sqlLiteral(property.id)}
-         LIMIT 1`,
-      )) as StaffRow[];
-      const staff = rows?.[0];
+
+      let staff: StaffRow | undefined;
+      if (body.staffId) {
+        const rows = (await queryRaw(
+          `SELECT id, property_id, display_name, role, desk_role, employee_code, home_route,
+                  pin_hash, pin_reset_required, can_login, active
+           FROM v2.staff
+           WHERE id = ${sqlLiteral(body.staffId)} AND property_id = ${sqlLiteral(property.id)}
+           LIMIT 1`,
+        )) as StaffRow[];
+        staff = rows?.[0];
+      } else {
+        /* Anonymous pad: scan active desk logins — do not reveal which staff exist. */
+        const rows = (await queryRaw(
+          `SELECT id, property_id, display_name, role, desk_role, employee_code, home_route,
+                  pin_hash, pin_reset_required, can_login, active
+           FROM v2.staff
+           WHERE property_id = ${sqlLiteral(property.id)}
+             AND active = true AND can_login = true
+             AND pin_hash IS NOT NULL AND pin_reset_required = false`,
+        )) as StaffRow[];
+        for (const row of rows ?? []) {
+          if (verifyPin(body.pin, row.pin_hash)) {
+            staff = row;
+            break;
+          }
+        }
+        if (!staff) {
+          return reply.code(401).send({ ok: false, error: "Incorrect PIN" });
+        }
+      }
+
       if (!staff || !staff.active || !staff.can_login) {
-        return reply.code(401).send({ ok: false, error: "Staff not found for property" });
+        return reply.code(401).send({ ok: false, error: "Incorrect PIN" });
       }
 
       const needsSet = staff.pin_reset_required || !staff.pin_hash;
       if (needsSet) {
+        if (!body.staffId) {
+          return reply.code(409).send({
+            ok: false,
+            error: "PIN_SETUP_REQUIRED",
+            message: "Ask Operations Lead to complete first-login PIN setup for this staff.",
+          });
+        }
         if (!body.confirmPin) {
           return reply.code(409).send({
             ok: false,

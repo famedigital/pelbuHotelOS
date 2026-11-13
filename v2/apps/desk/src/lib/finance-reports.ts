@@ -307,3 +307,123 @@ export function moneyLabel(n: number): string {
 export function agentArTotal(agents: Agent[]): number {
   return agents.reduce((s, a) => s + a.usedCredit, 0);
 }
+
+export type MonthBucket = {
+  key: string;
+  label: string;
+  amount: number;
+  paid: number;
+  dues: number;
+  count: number;
+};
+
+export type IncomeGlance = {
+  bookings: number;
+  income: number;
+  collected: number;
+  dues: number;
+  months: MonthBucket[];
+};
+
+export type ExpenseGlance = {
+  expense: number;
+  count: number;
+  months: MonthBucket[];
+  categories: { category: string; amount: number; count: number }[];
+};
+
+function monthKey(date: string): string {
+  return date.slice(0, 7);
+}
+
+function monthLabel(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  if (!y || !m) return key;
+  return new Date(y, m - 1, 1).toLocaleDateString("en-GB", {
+    month: "short",
+    year: "numeric",
+  });
+}
+
+/** Period glance for Income tab — totals + monthwise chips. */
+export function buildIncomeGlance(rows: IncomeRow[]): IncomeGlance {
+  const byMonth = new Map<string, MonthBucket>();
+  let income = 0;
+  let collected = 0;
+  let dues = 0;
+  for (const r of rows) {
+    income += r.amount;
+    collected += r.paid;
+    dues += r.balance;
+    const key = monthKey(r.date);
+    const cur = byMonth.get(key) ?? {
+      key,
+      label: monthLabel(key),
+      amount: 0,
+      paid: 0,
+      dues: 0,
+      count: 0,
+    };
+    cur.amount += r.amount;
+    cur.paid += r.paid;
+    cur.dues += r.balance;
+    cur.count += 1;
+    byMonth.set(key, cur);
+  }
+  return {
+    bookings: rows.length,
+    income,
+    collected,
+    dues,
+    months: [...byMonth.values()].sort((a, b) => a.key.localeCompare(b.key)),
+  };
+}
+
+/** Period glance for Expense tab — totals + monthwise + category. */
+export function buildExpenseGlance(rows: ExpenseRow[]): ExpenseGlance {
+  const byMonth = new Map<string, MonthBucket>();
+  const byCat = new Map<string, { category: string; amount: number; count: number }>();
+  let expense = 0;
+  for (const r of rows) {
+    expense += r.amount;
+    const key = monthKey(r.date);
+    const cur = byMonth.get(key) ?? {
+      key,
+      label: monthLabel(key),
+      amount: 0,
+      paid: 0,
+      dues: 0,
+      count: 0,
+    };
+    cur.amount += r.amount;
+    cur.count += 1;
+    byMonth.set(key, cur);
+    const cat = byCat.get(r.category) ?? {
+      category: r.category,
+      amount: 0,
+      count: 0,
+    };
+    cat.amount += r.amount;
+    cat.count += 1;
+    byCat.set(r.category, cat);
+  }
+  return {
+    expense,
+    count: rows.length,
+    months: [...byMonth.values()].sort((a, b) => a.key.localeCompare(b.key)),
+    categories: [...byCat.values()].sort((a, b) => b.amount - a.amount),
+  };
+}
+
+/** Green (paid) / red (unpaid) share of total — zero-safe. */
+export function paidUnpaidPct(paid: number, unpaid: number): {
+  paidPct: number;
+  unpaidPct: number;
+} {
+  const p = Math.max(0, paid);
+  const u = Math.max(0, unpaid);
+  const t = p + u;
+  if (t <= 0) return { paidPct: 0, unpaidPct: 0 };
+  const paidPct = Math.round((p / t) * 100);
+  return { paidPct, unpaidPct: 100 - paidPct };
+}

@@ -39,6 +39,7 @@ import {
   SmartAssignSheet,
   type SmartAssignMode,
 } from "./SmartAssignSheet";
+import { StayViewMobileView } from "./mobile/StayViewMobileView";
 import {
   addDays,
   computeMonthStayviewStats,
@@ -1104,6 +1105,8 @@ export function StayViewPage() {
     { id: "out", label: "Departed", swatch: "var(--hos-ink-3)" },
     { id: "due", label: "Balance due", swatch: "var(--hos-ruby)" },
   ];
+
+  if (isPhone) return <StayViewMobileView />;
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>

@@ -1,4 +1,6 @@
 import { motion, useReducedMotion } from "motion/react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Badge,
@@ -9,19 +11,52 @@ import {
   StatusLegend,
 } from "@hos-v2/ui";
 import { DRC_REPORTS, useFiscalStore } from "../lib/fiscal-store";
+import { useFrontOfficeStore } from "../lib/front-office-store";
+import { useExtrasStore } from "../lib/extras-store";
+import {
+  buildExpenseGlance,
+  buildExpenseRows,
+  buildIncomeGlance,
+  buildIncomeRows,
+  defaultPeriod,
+  type MoneyFilter,
+} from "../lib/finance-reports";
+import { formatNu } from "../lib/front-office-store";
+import { PaidUnpaidBar } from "./PaidUnpaidBar";
 
 export function ReportsPage() {
   const reduce = useReducedMotion();
   const selectedReport = useFiscalStore((s) => s.selectedReport);
   const setSelectedReport = useFiscalStore((s) => s.setSelectedReport);
   const reportPayload = useFiscalStore((s) => s.reportPayload);
+  const purchases = useFiscalStore((s) => s.purchases);
   const payload = reportPayload(selectedReport);
   const meta = DRC_REPORTS.find((r) => r.id === selectedReport)!;
+  const stays = useFrontOfficeStore((s) => s.stays);
+  const fiscalDocs = useExtrasStore((s) => s.fiscalDocs);
+  const period = defaultPeriod();
+  const [from] = useState(period.from);
+  const [to] = useState(period.to);
+
+  const filter: MoneyFilter = useMemo(
+    () => ({ from, to, query: "", status: "all", dept: "all" }),
+    [from, to],
+  );
+  const income = useMemo(
+    () => buildIncomeRows({ stays, fiscalDocs, filter }),
+    [stays, fiscalDocs, filter],
+  );
+  const expenses = useMemo(
+    () => buildExpenseRows({ purchases, filter }),
+    [purchases, filter],
+  );
+  const incomeGlance = useMemo(() => buildIncomeGlance(income), [income]);
+  const expenseGlance = useMemo(() => buildExpenseGlance(expenses), [expenses]);
 
   return (
     <ModuleFrame
       title="Reports Studio"
-      description="16 DRC reports · BST-3 pack — live from desk RAM engine"
+      description="Ops glance + 16 DRC reports · BST-3 pack — live from desk RAM engine"
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <StatusLegend
@@ -47,6 +82,50 @@ export function ReportsPage() {
       }
     >
     <div className="flex flex-col gap-4">
+      <GlassPanel className="p-3.5">
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <strong className="text-xs font-bold uppercase tracking-wider text-[var(--hos-ink-3)]">
+            Period glance · {from} → {to}
+          </strong>
+          <span className="text-[10px] text-[var(--hos-ink-3)]">Tap a KPI to open Finance</span>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <Link to="/finance?tab=income" className="no-underline">
+            <KpiCard
+              label="Bookings"
+              value={incomeGlance.bookings}
+              delta="Income tab"
+            />
+          </Link>
+          <Link to="/finance?tab=income" className="no-underline">
+            <KpiCard
+              label="Income"
+              value={formatNu(incomeGlance.income)}
+              delta="Collected + dues"
+            />
+          </Link>
+          <Link to="/finance?tab=income" className="no-underline">
+            <KpiCard
+              label="Dues"
+              value={formatNu(incomeGlance.dues)}
+              delta="Unpaid + partial"
+            />
+          </Link>
+          <Link to="/finance?tab=expense" className="no-underline">
+            <KpiCard
+              label="Expenses"
+              value={formatNu(expenseGlance.expense)}
+              delta={`${expenseGlance.count} bills`}
+            />
+          </Link>
+        </div>
+        <PaidUnpaidBar
+          className="mt-3"
+          paid={incomeGlance.collected}
+          unpaid={incomeGlance.dues}
+        />
+      </GlassPanel>
+
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard label="Reports" value={16} delta="DRC standard" />
         <KpiCard label="Selected" value={`#${meta.no}`} delta={meta.title} />
@@ -78,7 +157,10 @@ export function ReportsPage() {
         </GlassPanel>
 
         <GlassPanel className="p-4">
-          <h2 className="m-0 text-lg font-bold text-[var(--hos-ink)]">{meta.title}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="m-0 text-lg font-bold text-[var(--hos-ink)]">{meta.title}</h2>
+            <Badge tone="muted">DRC</Badge>
+          </div>
           <p className="mt-1 text-xs text-[var(--hos-ink-3)]">{payload.headline}</p>
           <div className="mt-4 overflow-x-auto rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
             <table className="w-full text-left text-xs">

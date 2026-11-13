@@ -36,6 +36,16 @@ export function readDeskToken(): string | null {
   return sessionStorage.getItem(TOKEN_KEY);
 }
 
+export function readDeskStaff(): DeskSessionStaff | null {
+  const raw = sessionStorage.getItem(STAFF_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as DeskSessionStaff;
+  } catch {
+    return null;
+  }
+}
+
 export function clearDeskSession(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(STAFF_KEY);

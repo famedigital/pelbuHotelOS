@@ -6,7 +6,7 @@ import type { Agent, RateCard, RateCell, MealPlan, Season } from "./commercial-s
 import { cellsForCard, rateCardById } from "./commercial-store";
 import type { FiscalDoc } from "./extras-store";
 import type { Stay } from "./front-office-store";
-import { folioBalance } from "./front-office-store";
+import { folioBalance, folioTotals, nightsBetween } from "./front-office-store";
 import type { AllotmentBlock } from "./ecosystem-store";
 import type { MouLink, MouStatus } from "./mou-store";
 
@@ -341,4 +341,116 @@ function statusRank(s: MouStatus): number {
     default:
       return 0;
   }
+}
+
+export type AgentStatementLine = {
+  id: string;
+  invDate: string;
+  folioNo: string;
+  guestRef: string;
+  roomPlan: string;
+  stayDates: string;
+  nights: number;
+  amount: number;
+  paid: number;
+  balance: number;
+};
+
+export type AgentStatementDoc = {
+  agentId: string;
+  agentName: string;
+  agentCode: string;
+  agentContact: string;
+  from: string;
+  to: string;
+  statementDate: string;
+  lines: AgentStatementLine[];
+  totalAmount: number;
+  totalPaid: number;
+  totalDue: number;
+};
+
+function fmtStayRange(checkIn: string, checkOut: string): string {
+  const a = checkIn.slice(0, 10).split("-").reverse().join("/");
+  const b = checkOut.slice(0, 10).split("-").reverse().join("/");
+  return `${a} - ${b}`;
+}
+
+/** Period statement lines for one agent — stays + agent fiscal docs. */
+export function buildAgentStatement(input: {
+  agent: Agent;
+  stays: Stay[];
+  fiscalDocs: FiscalDoc[];
+  from: string;
+  to: string;
+  statementDate?: string;
+}): AgentStatementDoc {
+  const { agent, from, to } = input;
+  const statementDate =
+    input.statementDate ?? new Date().toISOString().slice(0, 10);
+  const lines: AgentStatementLine[] = [];
+
+  for (const s of input.stays.filter((x) => stayMatchesAgent(x, agent))) {
+    if (["cancelled", "no_show"].includes(s.status)) continue;
+    const anchor = (s.checkOut || s.checkIn).slice(0, 10);
+    if (anchor < from || anchor > to) continue;
+    const t = folioTotals(s);
+    if (t.charged <= 0) continue;
+    const nts = Math.max(1, nightsBetween(s.checkIn, s.checkOut));
+    lines.push({
+      id: `stay-${s.id}`,
+      invDate: anchor,
+      folioNo: s.folioNo || s.taxInvoiceNo || s.confirmationNo,
+      guestRef: s.guestName || s.confirmationNo,
+      roomPlan: `${s.typeCode} ${s.mealPlan}`,
+      stayDates: fmtStayRange(s.checkIn, s.checkOut),
+      nights: nts,
+      amount: t.charged,
+      paid: t.paid,
+      balance: Math.max(0, t.balance),
+    });
+  }
+
+  const token = agencyToken(agent.name);
+  for (const d of input.fiscalDocs) {
+    if (d.partyType !== "agent" || d.status === "void") continue;
+    const hit =
+      d.party.toLowerCase().includes(token) ||
+      agent.name.toLowerCase().includes(d.party.toLowerCase().split(" ")[0] ?? "");
+    if (!hit) continue;
+    const day = d.at.slice(0, 10);
+    if (day < from || day > to) continue;
+    if (lines.some((l) => l.folioNo === d.docNo)) continue;
+    lines.push({
+      id: `doc-${d.id}`,
+      invDate: day,
+      folioNo: d.docNo,
+      guestRef: d.party,
+      roomPlan: d.kind,
+      stayDates: "—",
+      nights: 0,
+      amount: d.amount,
+      paid: d.status === "paid" ? d.amount : 0,
+      balance: d.status === "paid" ? 0 : d.amount,
+    });
+  }
+
+  lines.sort((a, b) => a.invDate.localeCompare(b.invDate) || a.folioNo.localeCompare(b.folioNo));
+  const totalAmount = lines.reduce((n, l) => n + l.amount, 0);
+  const totalPaid = lines.reduce((n, l) => n + l.paid, 0);
+  const totalDue = lines.reduce((n, l) => n + l.balance, 0);
+
+  return {
+    agentId: agent.id,
+    agentName: agent.name,
+    agentCode: agent.code,
+    agentContact: agent.contact,
+    from,
+    to,
+    statementDate,
+    lines,
+    totalAmount,
+    totalPaid,
+    totalDue,
+  };
 }

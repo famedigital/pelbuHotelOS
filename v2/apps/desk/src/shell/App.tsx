@@ -47,7 +47,12 @@ import {
 import { useFiscalStore } from "../lib/fiscal-store";
 import { useSettingsStore } from "../lib/settings-store";
 import { clearHotelGate } from "../lib/auth-session";
-import { clearDeskSession } from "../lib/desk-session";
+import { clearDeskSession, readDeskStaff } from "../lib/desk-session";
+import {
+  readNavPro,
+  simpleRailItems,
+  writeNavPro,
+} from "../lib/dept-sop";
 import { apiGet, HOS_PROPERTY_CHANGED_EVENT, runCommandRaw, sessionPropertyId } from "../lib/api";
 import { hydratePartnersRemote } from "../lib/partners-remote";
 import { nightAuditReadiness } from "../lib/action-dispatcher";
@@ -244,6 +249,7 @@ const TITLE: Record<string, string> = {
   services: "Services",
   events: "Events & Banquets",
   website: "Website notes",
+  print: "Print Studio",
 };
 
 /** Every sidebar module has a deep page — ModulePage stubs are retired. */
@@ -371,6 +377,7 @@ export function App() {
     if (typeof window === "undefined") return false;
     return window.matchMedia("(min-width: 768px) and (max-width: 1023px)").matches;
   });
+  const [navPro, setNavPro] = useState(() => readNavPro());
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [dispatcherOpen, setDispatcherOpen] = useState(false);
   const [printOpen, setPrintOpen] = useState(false);
@@ -437,6 +444,18 @@ export function App() {
       month: "short",
     });
   }, [businessDate]);
+
+  const deskStaff = useMemo(() => readDeskStaff(), [location.pathname, navPro]);
+  const visibleSidebarGroups = useMemo(() => {
+    if (navPro) return SIDEBAR_GROUPS;
+    const allow = new Set(simpleRailItems(deskStaff?.deskRole));
+    allow.add("settings");
+    return SIDEBAR_GROUPS.map((g) => ({
+      ...g,
+      items: g.items.filter((id) => allow.has(id)),
+    })).filter((g) => g.items.length > 0);
+  }, [deskStaff?.deskRole, navPro]);
+
   const [theme, setTheme] = useState<"light" | "midnight">(() => {
     if (typeof window === "undefined") return "light";
     const saved = localStorage.getItem("hos_theme");
@@ -744,10 +763,38 @@ export function App() {
         onSelect: () => navigate("/agents"),
       },
       {
+        id: "agent-statement",
+        label: "Agent account statement",
+        hint: "Paid / unpaid · print SOA",
+        group: "Sales",
+        onSelect: () => navigate("/agents"),
+      },
+      {
         id: "partner",
         label: "Partner Portal",
         group: "Sales",
         onSelect: () => navigate("/partner"),
+      },
+      {
+        id: "finance",
+        label: "Finance hub",
+        hint: "Income · expenses · AR",
+        group: "Finance",
+        onSelect: () => navigate("/finance"),
+      },
+      {
+        id: "income",
+        label: "Income",
+        hint: "Bookings · collected · dues",
+        group: "Finance",
+        onSelect: () => navigate("/finance?tab=income"),
+      },
+      {
+        id: "expenses",
+        label: "Expenses",
+        hint: "Bills · monthwise spend",
+        group: "Finance",
+        onSelect: () => navigate("/finance?tab=expense"),
       },
       {
         id: "guide",
@@ -816,6 +863,7 @@ export function App() {
   const onProfileSwitchStaff = useCallback(() => {
     setProfileOpen(false);
     clearDeskSession();
+    localStorage.removeItem("hos_desk_role");
     navigate("/pin");
   }, [navigate]);
   const onProfileToggleTheme = useCallback(() => {
@@ -825,6 +873,7 @@ export function App() {
   const onProfileLogoutHotel = useCallback(() => {
     setProfileOpen(false);
     clearDeskSession();
+    localStorage.removeItem("hos_desk_role");
     clearHotelGate();
     navigate("/login/hotel");
   }, [navigate]);
@@ -845,9 +894,11 @@ export function App() {
   /** PIN, logins, rate share, and field portals — no desk rail / till / FO dock. */
   const isChromeLess =
     isPinRoute || isLoginRoute || isShareRoute || isFieldPortalRoute;
-  /* StayView rack is zero-scroll on all viewports; Desk cockpit desktop-only */
+  /* StayView zero-scroll on tablet/desktop rack; phone uses mobile scroll view */
   const isZeroScrollRoute =
-    isPinRoute || isStayViewRoute || (isDeskRoute && !isPhone);
+    isPinRoute ||
+    (isStayViewRoute && !isPhone) ||
+    (isDeskRoute && !isPhone);
 
   return (
     <div
@@ -1175,7 +1226,7 @@ export function App() {
               </span>
               <span className="relative z-10">{railCollapsed ? "PIN" : "PIN Gateway"}</span>
             </NavLink>
-            {SIDEBAR_GROUPS.map((g) => (
+            {visibleSidebarGroups.map((g) => (
               <div key={g.id} className="mb-1">
                 {!railCollapsed ? (
                   <h3 className="hos-rail-section" data-tone={g.tone}>
@@ -1259,6 +1310,19 @@ export function App() {
                 })}
               </div>
             ))}
+            <button
+              type="button"
+              className="mt-auto flex items-center gap-2 rounded-full px-3 py-2 text-[11px] font-bold uppercase tracking-[0.08em] text-[var(--hos-ink-2)] hover:bg-[color-mix(in_srgb,var(--hos-primary)_8%,transparent)]"
+              onClick={() => {
+                const next = !navPro;
+                setNavPro(next);
+                writeNavPro(next);
+              }}
+              title={navPro ? "Show role modules only" : "Show all modules"}
+            >
+              <Zap className="size-3.5 shrink-0" aria-hidden />
+              {!railCollapsed ? (navPro ? "Simple rail" : "Show all") : null}
+            </button>
           </nav>
           )}
 

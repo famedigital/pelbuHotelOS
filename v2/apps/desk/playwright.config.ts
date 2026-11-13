@@ -22,6 +22,11 @@ export default defineConfig({
     screenshot: "off",
     video: "off",
     ...devices["Desktop Chrome"],
+    // Windows WDAC often blocks ms-playwright headless_shell (spawn UNKNOWN).
+    // Set PLAYWRIGHT_CHANNEL=chrome to use installed Google Chrome.
+    ...(process.env.PLAYWRIGHT_CHANNEL
+      ? { channel: process.env.PLAYWRIGHT_CHANNEL }
+      : {}),
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: process.env.PLAYWRIGHT_SKIP_WEBSERVER
@@ -40,6 +45,11 @@ export default defineConfig({
           url: baseURL,
           reuseExistingServer: true,
           timeout: 120_000,
+          env: {
+            ...process.env,
+            /* PIN/hotel gate without GoTrue when API has no DATABASE_URL */
+            VITE_ALLOW_LOCAL_DEMO_AUTH: "1",
+          },
         },
       ],
 });

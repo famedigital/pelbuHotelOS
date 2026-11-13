@@ -1,0 +1,83 @@
+---
+description: CI/CD test ladder — unit → integration → e2e → perf → ship; map every change to a rung
+alwaysApply: true
+---
+
+# CI/CD test ladder (Hotel OS v2)
+
+Do not vibe-ship. Every change climbs this ladder before claiming green.
+Live product is `v2/` (Vite desk + Fastify). Archive `v1/web/` is not the ship path.
+Canon done-bar: `.cursor/skills/v2-module-done` + `docs/v2/CUTOVER.md`. This rule is **how** to test.
+
+## Ladder (push → ship)
+
+```
+push → unit → integration → e2e → perf → ship
+```
+
+| Rung | What it proves | Hotel OS how |
+|------|----------------|--------------|
+| **CI/CD** | Pipeline is the spine — start here, not after UI | Local gate before Coolify droplet; `pnpm typecheck:v2` + domain tests before deploy |
+| **UNIT** | One function / pure math fails closed | `node --import tsx --test` on the touched `v2/packages/domain` module; money → `pnpm --dir v2 test` |
+| **INTEGRATION** | Units chained (API → DB → domain) | Fastify route / command + domain test; no fake `{ok:true}`; money paths via atomic SQL / RPC |
+| **E2E** | Front → API → logic → DB (agent can click) | Desk Playwright on `:5174` + API `:4200` (`pnpm --dir v2 test:e2e:fo`); reuse servers if up |
+| **PERF** | Path does not suck under load | Opaque rack/calendar cells; no full-table dump; no heavy blur on virtualized grids |
+| **SHIP** | Coolify droplet (self-hosted Supabase) | `pnpm typecheck:v2` + unit/e2e evidence; never invent pass counts; never flip `V2_DESK_CUTOVER` |
+
+## Rules of engagement
+
+1. **Start with the lowest rung that can catch the bug.** UI polish without unit on rate/tax/folio math is incomplete.
+2. **A failed unit blocks higher rungs.** Fix production; do not skip ACCEPTANCE.
+3. **E2E is not a substitute for unit.** Math (GST/BTNtax, folio balance, numbering, PIN, POS tenders) stays in domain unit tests.
+4. **One Playwright FO runner at a time.** Prefer `test:e2e:fo` shard; do not spawn a second suite against the same `:5174`.
+5. **Claim green only with evidence.** Command output or report path. ECONNREFUSED on `:4200`/`:5174` is not a fail inventory.
+6. **Two fails same money/inventory area → fix code.** No degrade-and-skip; no stub “ok”.
+
+## Area map (pick the matching proof)
+
+| Area | Unit | E2E / proof |
+|------|------|-------------|
+| Tax · numbering · PIN | `pnpm --dir v2 test` (`tax`, `numbering`, `auth`) | — |
+| FO FIT journey · ops laws | `ops-laws` / `fo-fit-journey` under domain test | `pnpm --dir v2 test:e2e:fo` (fit + group StayView + day-close) |
+| POS / KOT / tenders | `v2/packages/domain/src/pos/*.test.ts` | FO / POS journey specs when path touched |
+| Permissions / auth | `permissions` + `auth` domain tests | — |
+| Day close / night audit | domain ops-laws when touched | `e2e/fo-day-close.spec.ts` |
+| Cutover readiness | — | `pnpm --dir v2 cutover:go-no-go` (HOLD until manual □s + e2e green) |
+
+## Agent workflow (every feature PR)
+
+```
+1. UNIT         — write/extend failing test for the pure bit → make it pass
+2. INTEGRATION  — hit the Fastify command/route once in unit or thin node test if I/O
+3. E2E          — one Playwright that clicks the desk path (e.g. book → assign → CI → folio → CO)
+4. PERF         — confirm no unpaginated desk dump / Save starve / blur on rack cells
+5. SHIP         — typecheck:v2 + domain test (+ e2e:fo when FO path) → Coolify; report evidence in chat
+```
+
+## Anti-patterns (refuse)
+
+- UI-only “done” with no unit when tax/folio/numbering/PIN/POS math changed
+- Second Playwright while one is alive on `:5174`
+- Fake bank / soft-empty folio / print before sync
+- Wiping droplet Postgres to “fix” tests
+- Claiming green from a dead `:4200` or `:5174`
+- Declaring cutover / flipping `V2_DESK_CUTOVER` without `cutover:go-no-go` green
+- Extending `v1/web/` as the production desk
+
+## Quick commands
+
+```bash
+# Ship gate (type + domain unit)
+pnpm typecheck:v2
+pnpm test:v2
+
+# FO money / journey unit (includes fo-fit-journey)
+pnpm --dir v2 test
+
+# FO Playwright (API :4200 + desk :5174; reuses if up)
+# Windows WDAC: PLAYWRIGHT_CHANNEL=chrome (bundled headless_shell often blocked)
+PLAYWRIGHT_CHANNEL=chrome pnpm --dir v2 test:e2e:fo
+
+# Cutover checklist (never auto-flips flag)
+pnpm --dir v2 cutover:go-no-go
+```

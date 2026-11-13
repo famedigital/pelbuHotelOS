@@ -25,6 +25,7 @@ import {
   type PosTender,
 } from "../lib/fnb-store";
 import { useFrontOfficeStore } from "../lib/front-office-store";
+import { EndOfShiftBriefing } from "../components/EndOfShiftBriefing";
 import { PosMobileView } from "./mobile/PosMobileView";
 import { PosTabletView } from "./mobile/PosTabletView";
 
@@ -813,6 +814,7 @@ export function PosPage() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
+      <EndOfShiftBriefing className="mt-3 shrink-0" />
     </ModuleFrame>
   );
 }

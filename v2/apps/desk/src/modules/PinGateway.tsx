@@ -754,11 +754,6 @@ export function PinGateway() {
 
   const selected = STAFF.find((s) => s.id === selectedId) ?? STAFF[0] ?? null;
   const greeting = useMemo(() => greetingForHour(now.getHours()), [now]);
-  const pinHint = pendingNewPin
-    ? "Confirm your new PIN"
-    : selected?.live && selected.pinResetRequired
-      ? "Choose a new 4-digit PIN"
-      : "Enter PIN";
 
   const logoutHotel = useCallback(() => {
     clearDeskSession();
@@ -940,55 +935,43 @@ export function PinGateway() {
     [reduce],
   );
 
-  const failPin = useCallback(
-    (message: string) => {
-      setShake(true);
-      toast.error(message, {
-        description: selected ? `Try again for ${selected.name}` : "Try again",
-      });
-      window.setTimeout(() => {
-        setDigits("");
-        setShake(false);
-      }, 420);
-    },
-    [selected],
-  );
+  const failPin = useCallback((message: string) => {
+    setShake(true);
+    toast.error(message, { description: "Try again" });
+    window.setTimeout(() => {
+      setDigits("");
+      setShake(false);
+    }, 420);
+  }, []);
 
   const tryUnlock = useCallback(
     (next: string) => {
-      if (!selected) {
-        setDigits("");
-        return;
-      }
       if (next.length < 4) {
         setDigits(next);
         return;
       }
       setDigits(next);
 
-      /* Field portals stay local presets. */
-      if (!selected.live) {
-        if (next === selected.pin) {
-          setUnlocking(true);
-          const fieldRole: FieldPortalRole | null =
-            selected.route === "/partner"
-              ? "partner"
-              : selected.route === "/guide"
-                ? "guide"
-                : selected.route === "/driver"
-                  ? "driver"
-                  : null;
-          if (fieldRole) {
-            const hint = FIELD_DEMO_HINTS[fieldRole];
-            useFieldPortalAuth.getState().unlock(fieldRole, hint.code, hint.pin);
-          }
-          toast.success(`Welcome, ${selected.name.split(" ")[0]}`, {
-            description: `${selected.role} · ${selected.route}`,
-          });
-          window.setTimeout(() => navigate(selected.route), reduce ? 0 : 280);
-          return;
+      /* Field portals: anonymous PIN match (no staff gallery). */
+      const fieldHit = FIELD_STAFF.find((s) => s.pin === next);
+      if (fieldHit) {
+        setUnlocking(true);
+        const fieldRole: FieldPortalRole | null =
+          fieldHit.route === "/partner"
+            ? "partner"
+            : fieldHit.route === "/guide"
+              ? "guide"
+              : fieldHit.route === "/driver"
+                ? "driver"
+                : null;
+        if (fieldRole) {
+          const hint = FIELD_DEMO_HINTS[fieldRole];
+          useFieldPortalAuth.getState().unlock(fieldRole, hint.code, hint.pin);
         }
-        failPin("Incorrect PIN");
+        toast.success(`Welcome · ${fieldHit.role}`, {
+          description: fieldHit.route,
+        });
+        window.setTimeout(() => navigate(fieldHit.route), reduce ? 0 : 280);
         return;
       }
 
@@ -997,16 +980,7 @@ export function PinGateway() {
         return;
       }
 
-      /* First-login: collect PIN, then confirm. */
-      if ((selected.pinResetRequired || pendingNewPin) && !pendingNewPin) {
-        setPendingNewPin(next);
-        setDigits("");
-        toast.message("Confirm your new PIN", {
-          description: "Enter the same 4 digits again",
-        });
-        return;
-      }
-
+      /* First-login confirm: second entry after API said reset required. */
       const confirmPin = pendingNewPin ? next : undefined;
       const pin = pendingNewPin ?? next;
       if (pendingNewPin && pendingNewPin !== next) {
@@ -1018,7 +992,6 @@ export function PinGateway() {
       setUnlocking(true);
       void verifyStaffPin({
         propertySlug,
-        staffId: selected.id,
         pin,
         confirmPin,
       }).then((result) => {
@@ -1032,23 +1005,35 @@ export function PinGateway() {
             });
             return;
           }
+          if (result.error === "PIN_SETUP_REQUIRED") {
+            setPendingNewPin(null);
+            failPin("Ask a manager to set your first PIN");
+            return;
+          }
           setPendingNewPin(null);
           failPin(result.error);
           return;
         }
-        writeDeskSession(result.token, {
-          id: result.staff.id,
-          fullName: result.staff.fullName,
-          deskRole: result.staff.deskRole,
-          employeeCode: result.staff.employeeCode,
-        }, {
-          id: result.property.id,
-          slug: result.property.slug,
-          name: result.property.name,
-        });
+        writeDeskSession(
+          result.token,
+          {
+            id: result.staff.id,
+            fullName: result.staff.fullName,
+            deskRole: result.staff.deskRole,
+            employeeCode: result.staff.employeeCode,
+          },
+          {
+            id: result.property.id,
+            slug: result.property.slug,
+            name: result.property.name,
+          },
+        );
+        if (result.staff.deskRole) {
+          localStorage.setItem("hos_desk_role", result.staff.deskRole);
+        }
         setPendingNewPin(null);
         toast.success(`Welcome, ${result.staff.fullName.split(" ")[0]}`, {
-          description: `${result.staff.deskRole ?? selected.role} · ${result.homeRoute}`,
+          description: `${result.staff.deskRole ?? "desk"} · ${result.homeRoute}`,
         });
         window.setTimeout(() => navigate(result.homeRoute), reduce ? 0 : 280);
       }).catch((err) => {
@@ -1058,7 +1043,7 @@ export function PinGateway() {
         failPin(err instanceof Error ? err.message : "PIN verification failed");
       });
     },
-    [failPin, navigate, pendingNewPin, propertySlug, reduce, selected],
+    [failPin, navigate, pendingNewPin, propertySlug, reduce],
   );
 
   const onKey = useCallback(
@@ -1100,35 +1085,32 @@ export function PinGateway() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [onKey]);
 
-  /* Empty staff must not dereference selected — that blanked the whole SPA. */
-  if (!selected) {
+  /* Anonymous pad needs a hotel slug only — staff gallery is not required. */
+  if (!propertySlug) {
     return (
       <Shell accent="#2563eb" onMove={onStageMove} stageRef={stageRef}>
         <div className="relative z-[1] mx-auto flex h-full w-full max-w-lg flex-col items-center justify-center gap-4 px-6 text-center">
           <p className="m-0 text-[15px] font-semibold text-[var(--hos-ink)]">
-            {staffLoading
-              ? "Loading staff PIN pad…"
-              : staffError
-                ? staffError
-                : propertySlug
-                  ? "No staff with desk login for this property."
-                  : "Hotel unlock required before staff PIN."}
+            {staffError ?? "Hotel unlock required before staff PIN."}
           </p>
-          {!staffLoading ? (
-            <Button type="button" variant="primary" onClick={logoutHotel}>
-              <LogOut className="mr-1.5 size-3.5" strokeWidth={2} aria-hidden />
-              Log out of hotel
-            </Button>
-          ) : null}
+          <Button type="button" variant="primary" onClick={logoutHotel}>
+            <LogOut className="mr-1.5 size-3.5" strokeWidth={2} aria-hidden />
+            Log out of hotel
+          </Button>
         </div>
       </Shell>
     );
   }
 
-  /* —— Phone: neumorph hero station + pad (full name first) —— */
+  const padAccent = selected?.accent ?? "#2563eb";
+  const pinLabel = pendingNewPin
+    ? "Confirm new PIN"
+    : "Enter your 4-digit PIN";
+
+  /* —— Phone: anonymous PIN vault —— */
   if (isPhone) {
     return (
-      <Shell accent={selected.accent} onMove={onStageMove} stageRef={stageRef}>
+      <Shell accent={padAccent} onMove={onStageMove} stageRef={stageRef}>
         <div
           className="hos-pin-mobile hos-pin-neo hos-fo-contrast relative z-[1] mx-auto flex h-full w-full max-w-lg flex-col px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.65rem,env(safe-area-inset-top))]"
           data-density={shortPhone ? "short" : "comfort"}
@@ -1165,11 +1147,6 @@ export function PinGateway() {
               ))}
             </select>
           ) : null}
-          {staffError ? (
-            <p className="relative z-[1] mt-1.5 text-[11px] font-semibold text-[var(--hos-ruby)]">
-              {staffError}
-            </p>
-          ) : null}
 
           <motion.div
             className="hos-pin-vault relative z-[1] mt-3 flex min-h-0 flex-1 flex-col justify-between gap-3"
@@ -1178,39 +1155,29 @@ export function PinGateway() {
             transition={easeVolary}
             style={
               {
-                ["--hos-hover-accent" as string]: selected.accent,
+                ["--hos-hover-accent" as string]: padAccent,
               } as CSSProperties
             }
           >
             <div className="flex shrink-0 flex-col items-center gap-2 pt-1">
               <span
-                className="hos-pin-hero-avatar flex size-16 items-center justify-center rounded-[1.35rem] text-[18px] font-black text-white"
+                className="hos-pin-hero-avatar flex size-16 items-center justify-center rounded-[1.35rem] text-white"
                 style={{
-                  background: `linear-gradient(145deg, ${selected.accent} 0%, #111 100%)`,
+                  background: `linear-gradient(145deg, ${padAccent} 0%, #111 100%)`,
                 }}
               >
-                {selected.initials}
+                <Fingerprint className="size-7" strokeWidth={2} aria-hidden />
               </span>
               <div className="text-center">
                 <div className="text-[20px] font-black tracking-tight text-[var(--hos-ink)]">
-                  {selected.name}
+                  {greeting}
                 </div>
                 <div className="mt-0.5 text-[12px] font-semibold text-[var(--hos-ink-2)]">
-                  {selected.role}
-                  {selected.badge ? ` · ${selected.badge}` : ""}
+                  Desk unlock · role opens from your PIN
                 </div>
               </div>
-              <div className="w-full max-w-sm">
-                <StaffPicker
-                  staff={STAFF}
-                  selectedId={selectedId}
-                  onSelect={setSelectedId}
-                  mode="avatars"
-                  reduce={reduce}
-                />
-              </div>
               <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-2)]">
-                {pinHint}
+                {pinLabel}
               </span>
               <PinDots digits={digits} shake={shake} reduce={reduce} premium />
             </div>
@@ -1218,7 +1185,7 @@ export function PinGateway() {
             <div className="flex min-h-0 flex-1 flex-col justify-center">
               <Keypad
                 unlocking={unlocking}
-                accent={selected.accent}
+                accent={padAccent}
                 reduce={reduce}
                 onKey={onKey}
                 premium
@@ -1249,10 +1216,10 @@ export function PinGateway() {
     );
   }
 
-  /* —— Tablet: left staff · right name stacked above keypad —— */
+  /* —— Tablet: weather + anonymous pad —— */
   if (isTablet) {
     return (
-      <Shell accent={selected.accent} onMove={onStageMove} stageRef={stageRef}>
+      <Shell accent={padAccent} onMove={onStageMove} stageRef={stageRef}>
         <div className="relative z-[1] mx-auto grid h-full w-full max-w-[980px] grid-cols-[minmax(240px,0.9fr)_minmax(320px,1.1fr)] gap-4 overflow-hidden p-4">
           <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
             <div className="flex items-start justify-between gap-2">
@@ -1302,9 +1269,9 @@ export function PinGateway() {
               loading={weatherLoading}
             />
 
-            <div className="hos-surface-glass flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[var(--hos-glass-border)] p-2 shadow-[var(--hos-shadow-volaro)] [backdrop-filter:blur(24px)]">
+            <div className="hos-surface-glass flex min-h-0 flex-1 flex-col gap-2 overflow-auto rounded-[18px] border border-[var(--hos-glass-border)] p-4 shadow-[var(--hos-shadow-volaro)] [backdrop-filter:blur(24px)]">
               {properties.length > 1 ? (
-                <label className="px-2 pb-1 pt-1.5">
+                <label>
                   <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
                     Hotel
                   </span>
@@ -1322,16 +1289,13 @@ export function PinGateway() {
                   </select>
                 </label>
               ) : null}
-              <div className="px-2 pb-1.5 pt-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
-                On duty{staffLoading ? " · loading" : ""}
-              </div>
-              <StaffPicker
-                staff={STAFF}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                mode="grid"
-                reduce={reduce}
-              />
+              <p className="m-0 text-[13px] font-semibold text-[var(--hos-ink)]">
+                Anonymous desk unlock
+              </p>
+              <p className="m-0 text-[12px] leading-relaxed text-[var(--hos-ink-2)]">
+                Enter your PIN. Your role opens the right home — Front Office, POS,
+                Housekeeping, or Owner books. No name gallery on the pad.
+              </p>
             </div>
           </div>
 
@@ -1341,12 +1305,16 @@ export function PinGateway() {
             animate={{ opacity: 1, x: 0 }}
             transition={easeVolary}
           >
-            {/* Name band — top of keypad column */}
             <div className="shrink-0 border-b border-[var(--hos-glass-border)] bg-[rgba(255,255,255,0.35)] px-5 py-4 dark:bg-[rgba(15,23,42,0.25)]">
               <div className="flex items-center justify-between gap-3">
-                <IdentityHero staff={selected} align="left" />
+                <div>
+                  <div className="text-[18px] font-black text-[var(--hos-ink)]">{pinLabel}</div>
+                  <div className="mt-0.5 text-[12px] font-semibold text-[var(--hos-ink-2)]">
+                    Role opens from your code
+                  </div>
+                </div>
                 <span className="hos-glass-card inline-flex size-10 items-center justify-center rounded-full text-[var(--hos-ink-2)]">
-                  <Lock className="size-4" strokeWidth={1.75} aria-hidden />
+                  <Fingerprint className="size-4" strokeWidth={1.75} aria-hidden />
                 </span>
               </div>
               <div className="mt-4">
@@ -1354,12 +1322,11 @@ export function PinGateway() {
               </div>
             </div>
 
-            {/* Keypad — lower thumb-friendly pane */}
             <div className="flex min-h-0 flex-1 flex-col justify-center px-5 py-5">
               <div className="mx-auto w-full max-w-[340px]">
                 <Keypad
                   unlocking={unlocking}
-                  accent={selected.accent}
+                  accent={padAccent}
                   reduce={reduce}
                   onKey={onKey}
                 />
@@ -1370,9 +1337,6 @@ export function PinGateway() {
                     onUnlock={() => digits.length === 4 && tryUnlock(digits)}
                   />
                 </div>
-                <p className="m-0 mt-3 text-center font-mono text-[10px] text-[var(--hos-ink-3)]">
-                  Hint · {selected.badge} {selected.pin}
-                </p>
               </div>
             </div>
           </motion.div>
@@ -1381,9 +1345,9 @@ export function PinGateway() {
     );
   }
 
-  /* —— Desktop: classic split —— */
+  /* —— Desktop: classic split, anonymous pad —— */
   return (
-    <Shell accent={selected.accent} onMove={onStageMove} stageRef={stageRef}>
+    <Shell accent={padAccent} onMove={onStageMove} stageRef={stageRef}>
       <div className="relative z-[1] mx-auto flex h-full w-full max-w-[1180px] gap-5 overflow-hidden p-5">
         <div className="flex w-[min(360px,36%)] shrink-0 flex-col gap-4">
           <div className="flex items-start justify-between gap-3">
@@ -1403,7 +1367,7 @@ export function PinGateway() {
                 {greeting}
               </h1>
               <p className="m-0 mt-1.5 max-w-[28ch] text-[13px] text-[var(--hos-ink-3)]">
-                Pick your hotel and station, {pinHint.toLowerCase()}, open your dashboard.
+                Enter your PIN — your department home opens. No staff gallery.
               </p>
             </div>
             <div className="flex flex-col items-end gap-1.5">
@@ -1436,9 +1400,9 @@ export function PinGateway() {
             loading={weatherLoading}
           />
 
-          <div className="hos-surface-glass flex min-h-0 flex-1 flex-col overflow-hidden rounded-[18px] border border-[var(--hos-glass-border)] p-2 shadow-[var(--hos-shadow-volaro)] [backdrop-filter:blur(24px)]">
+          <div className="hos-surface-glass flex min-h-0 flex-1 flex-col gap-2 overflow-auto rounded-[18px] border border-[var(--hos-glass-border)] p-4 shadow-[var(--hos-shadow-volaro)] [backdrop-filter:blur(24px)]">
             {properties.length > 1 ? (
-              <label className="px-2.5 pb-1 pt-2">
+              <label>
                 <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
                   Hotel
                 </span>
@@ -1456,16 +1420,13 @@ export function PinGateway() {
                 </select>
               </label>
             ) : null}
-            <div className="px-2.5 pb-1.5 pt-2 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
-              On duty{staffLoading ? " · loading" : ""}
-            </div>
-            <StaffPicker
-              staff={STAFF}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
-              mode="list"
-              reduce={reduce}
-            />
+            <p className="m-0 text-[13px] font-semibold text-[var(--hos-ink)]">
+              Bhutan desk · few powerful clicks
+            </p>
+            <p className="m-0 text-[12px] leading-relaxed text-[var(--hos-ink-2)]">
+              FO, Reservations, F&amp;B, Housekeeping, and Owner books each open from
+              PIN. Shift briefings print and file from your home screen.
+            </p>
           </div>
         </div>
 
@@ -1477,9 +1438,14 @@ export function PinGateway() {
         >
           <div className="mx-auto w-full max-w-[360px]">
             <div className="mb-6 flex items-center justify-between gap-3">
-              <IdentityHero staff={selected} align="left" />
+              <div>
+                <div className="text-[20px] font-black text-[var(--hos-ink)]">{pinLabel}</div>
+                <div className="mt-0.5 text-[12px] font-semibold text-[var(--hos-ink-2)]">
+                  Your role opens from this code
+                </div>
+              </div>
               <span className="hos-glass-card inline-flex size-10 items-center justify-center rounded-full text-[var(--hos-ink-2)]">
-                <Lock className="size-4" strokeWidth={1.75} aria-hidden />
+                <Fingerprint className="size-4" strokeWidth={1.75} aria-hidden />
               </span>
             </div>
             <div className="mb-6">
@@ -1487,7 +1453,7 @@ export function PinGateway() {
             </div>
             <Keypad
               unlocking={unlocking}
-              accent={selected.accent}
+              accent={padAccent}
               reduce={reduce}
               onKey={onKey}
             />
@@ -1499,10 +1465,7 @@ export function PinGateway() {
               />
             </div>
             <p className="m-0 mt-4 text-center text-[11px] text-[var(--hos-ink-3)]">
-              Demo PINs for training · production uses HR-assigned codes.
-            </p>
-            <p className="m-0 mt-1 text-center font-mono text-[10px] text-[var(--hos-ink-3)]">
-              Hint · {selected.badge} {selected.pin}
+              Production uses HR-assigned PINs · training may use demo codes.
             </p>
           </div>
         </motion.div>

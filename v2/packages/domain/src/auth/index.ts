@@ -3,6 +3,8 @@
  * Framework-free: env verifier injected by host (API).
  */
 
+export { homeRouteForDeskRole, simpleRailItems } from "./desk-homes.js";
+
 export type DeskRole =
   | "owner"
   | "gm"
