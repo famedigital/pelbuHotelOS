@@ -48,7 +48,7 @@ function platformAdminToken(): string | null {
 
 /**
  * SaaS SuperAdmin — live tenants from `/v1/superadmin/tenants`.
- * Canonical national control plane remains Next `/admin` (hotels, MoU, Hermes, OTA).
+ * Canonical national control plane remains Next `/admin` (hotels, MoU, Innora Bot, OTA).
  * Mock TENANTS arrays are banned here.
  */
 export function SuperAdminPage() {
@@ -126,7 +126,7 @@ export function SuperAdminPage() {
             </Badge>
           </div>
           <p className="m-0 mt-0.5 text-xs text-[var(--hos-ink-3)]">
-            Wired to <code>/v1/superadmin/tenants</code>. Full MoU · Hermes · OTA commission console:{" "}
+            Wired to <code>/v1/superadmin/tenants</code>. Full MoU · Innora Bot · OTA commission console:{" "}
             <strong>/admin</strong> on Innora web.
           </p>
         </div>
@@ -277,7 +277,7 @@ export function SuperAdminPage() {
             <GlassPanel className="p-3.5">
               <strong className="text-sm text-[var(--hos-ink)]">Platform /admin</strong>
               <p className="mt-1 text-[11px] text-[var(--hos-ink-3)]">
-                OTA commissions, MoU registry, Hermes fleet, vault, and licence controls live on the
+                OTA commissions, MoU registry, Innora Bot fleet, vault, and licence controls live on the
                 Innora Next admin console — not mock data here.
               </p>
               <Button

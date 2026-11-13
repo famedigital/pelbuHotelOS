@@ -41,7 +41,7 @@ import { useExtrasStore } from "../lib/extras-store";
 import { formatNu, useFrontOfficeStore } from "../lib/front-office-store";
 import { RateSheetShareModal } from "./RateSheetShareModal";
 import { PaidUnpaidBar } from "./PaidUnpaidBar";
-import { AgentStatementOverlay } from "./AgentStatementOverlay";
+import { AgentPrintPackOverlay } from "./AgentPrintPackOverlay";
 
 type SortKey = "name" | "ar" | "headroom" | "aging90";
 type FilterKey = "all" | "active" | "near_limit" | "aging";
@@ -535,7 +535,7 @@ export function AgentsPage() {
                         onClick={() => openStatement(a.id)}
                       >
                         <FileText className="size-3.5" aria-hidden />
-                        Account statement
+                        Print pack
                       </Button>
                     </div>
                   </li>
@@ -560,7 +560,7 @@ export function AgentsPage() {
                     <th className="px-3 py-2 text-right">FO</th>
                     <th className="px-3 py-2">Utilisation</th>
                     <th className="px-3 py-2 text-right">90d</th>
-                    <th className="px-3 py-2">Statement</th>
+                    <th className="px-3 py-2">Print pack</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[var(--hos-line)]">
@@ -648,9 +648,10 @@ export function AgentsPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => openStatement(a.id)}
+                            data-testid="agents-print-pack-row"
                           >
                             <FileText className="size-3.5" aria-hidden />
-                            Statement
+                            Print pack
                           </Button>
                         </td>
                       </tr>
@@ -747,10 +748,18 @@ export function AgentsPage() {
                     <Button
                       size="sm"
                       onClick={() => openStatement(selected.id)}
+                      data-testid="agents-print-pack-360"
                     >
                       <FileText className="size-3.5" aria-hidden />
-                      Account statement
+                      Print pack
                     </Button>
+                    <Link
+                      to="/reports?intel=agents"
+                      className="inline-flex min-h-9 items-center gap-1 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 text-[12px] font-semibold text-[var(--hos-ink-2)] no-underline"
+                      data-testid="agents-insights-360"
+                    >
+                      Insights
+                    </Link>
                     <Drawer.Close className="rounded-lg px-2 py-1 text-sm text-[var(--hos-ink-2)] hover:bg-[var(--hos-cell)]">
                       Close
                     </Drawer.Close>
@@ -1163,7 +1172,7 @@ export function AgentsPage() {
         initialAgentId={selected?.id}
       />
 
-      <AgentStatementOverlay
+      <AgentPrintPackOverlay
         open={statementOpen}
         agent={statementAgent}
         stays={stays}

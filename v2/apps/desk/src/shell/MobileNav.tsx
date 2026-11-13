@@ -18,7 +18,7 @@ const TITLE: Record<string, string> = {
   stayview: "StayView",
   groups: "Groups",
   guests: "Guests",
-  telegram: "Hermes",
+  telegram: "Innora Bot",
   "night-audit": "Night Audit",
   housekeeping: "Housekeeping",
   laundry: "Laundry",

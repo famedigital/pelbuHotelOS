@@ -1014,6 +1014,9 @@ export function PinGateway() {
           failPin(result.error);
           return;
         }
+        /* Keep the pad's live hotel (Pelbu) — local demo PIN must not stomp propertyId to demo UUID. */
+        const padProperty =
+          properties.find((p) => p.slug === propertySlug) ?? result.property;
         writeDeskSession(
           result.token,
           {
@@ -1023,9 +1026,9 @@ export function PinGateway() {
             employeeCode: result.staff.employeeCode,
           },
           {
-            id: result.property.id,
-            slug: result.property.slug,
-            name: result.property.name,
+            id: padProperty.id,
+            slug: padProperty.slug,
+            name: padProperty.name,
           },
         );
         if (result.staff.deskRole) {
@@ -1043,7 +1046,7 @@ export function PinGateway() {
         failPin(err instanceof Error ? err.message : "PIN verification failed");
       });
     },
-    [failPin, navigate, pendingNewPin, propertySlug, reduce],
+    [failPin, navigate, pendingNewPin, properties, propertySlug, reduce],
   );
 
   const onKey = useCallback(

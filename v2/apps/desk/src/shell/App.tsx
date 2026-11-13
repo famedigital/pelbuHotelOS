@@ -215,7 +215,7 @@ const TITLE: Record<string, string> = {
   stayview: "StayView",
   groups: "Groups",
   guests: "Guests",
-  telegram: "Hermes Telegram",
+  telegram: "Innora Bot",
   "night-audit": "Night Audit",
   housekeeping: "Housekeeping",
   laundry: "Laundry",
@@ -681,7 +681,7 @@ export function App() {
       },
       {
         id: "telegram",
-        label: "Hermes Telegram",
+        label: "Innora Bot",
         hint: "OCR",
         group: "Front Office",
         onSelect: () => navigate("/telegram"),
@@ -764,8 +764,8 @@ export function App() {
       },
       {
         id: "agent-statement",
-        label: "Agent account statement",
-        hint: "Paid / unpaid · print SOA",
+        label: "Agent print pack",
+        hint: "Master · invoices · summary · print",
         group: "Sales",
         onSelect: () => navigate("/agents"),
       },
@@ -882,6 +882,7 @@ export function App() {
 
   const isDeskRoute = location.pathname === "/desk";
   const isStayViewRoute = location.pathname === "/stayview";
+  const isPrintRoute = location.pathname.startsWith("/print");
   const isPinRoute = location.pathname === "/" || location.pathname === "/pin";
   const isLoginRoute = location.pathname.startsWith("/login/");
   const isShareRoute = location.pathname.startsWith("/rates/share/");
@@ -894,9 +895,10 @@ export function App() {
   /** PIN, logins, rate share, and field portals — no desk rail / till / FO dock. */
   const isChromeLess =
     isPinRoute || isLoginRoute || isShareRoute || isFieldPortalRoute;
-  /* StayView zero-scroll on tablet/desktop rack; phone uses mobile scroll view */
+  /* StayView / Print Studio fill the main pane; phone dock clearance kept on print */
   const isZeroScrollRoute =
     isPinRoute ||
+    isPrintRoute ||
     (isStayViewRoute && !isPhone) ||
     (isDeskRoute && !isPhone);
 
@@ -912,12 +914,18 @@ export function App() {
         {isChromeLess ? null : (
         <header
           data-tour="header"
-          className="hos-surface-glass z-10 flex h-[46px] max-w-full shrink-0 items-center overflow-hidden px-3"
+          className="hos-surface-glass z-10 flex h-[46px] max-w-full shrink-0 items-center overflow-x-hidden overflow-y-visible px-3"
         >
           {/* Phone sticky top bar — keep under 390px (till + 2×48 controls fit) */}
           <div className="flex w-full min-w-0 items-center gap-1.5 md:hidden">
             <div className="flex min-w-0 flex-1 items-center gap-1.5">
-              <InnoraLogo size="sm" variant="sovereign" showText={false} />
+              <InnoraLogo
+                size="xs"
+                variant="sovereign"
+                showText={false}
+                animated={false}
+                className="shrink-0"
+              />
               <div className="min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-1">
                   <strong className="truncate text-[13px] font-bold tracking-tight text-[var(--hos-ink)]">
@@ -990,7 +998,13 @@ export function App() {
                 title="innorahotel.com · Sovereign Desk"
                 aria-label="innorahotel.com · Sovereign Desk"
               >
-                <InnoraLogo size="sm" variant="sovereign" showText={false} />
+                <InnoraLogo
+                  size="xs"
+                  variant="sovereign"
+                  showText={false}
+                  animated={false}
+                  className="shrink-0"
+                />
                 <div className="min-w-0">
                   <div className="flex items-center gap-1.5">
                     <strong className="truncate text-[14px] font-bold tracking-tight text-[var(--hos-ink)]">
@@ -1205,26 +1219,30 @@ export function App() {
             <NavLink
               to="/"
               end
+              title="PIN Gateway"
               className={({ isActive }) =>
                 [
-                  "relative mb-1 flex items-center gap-2.5 rounded-full px-3 py-2 text-[13px] transition-colors",
+                  "relative mb-1 flex items-center rounded-full py-2 text-[13px] transition-colors",
+                  railCollapsed ? "justify-center px-2" : "gap-2.5 px-3",
                   isActive
                     ? "font-medium text-[var(--hos-primary-on-container)]"
                     : "font-medium text-[var(--hos-ink-2)] hover:bg-[color-mix(in_srgb,var(--hos-primary)_8%,transparent)]",
                 ].join(" ")
               }
             >
-              {location.pathname === "/" ? (
+              {location.pathname === "/" || location.pathname === "/pin" ? (
                 <motion.span
                   layoutId="activeNavPill"
                   className="absolute inset-0 rounded-full bg-[var(--hos-primary-container)]"
                   transition={springButter}
                 />
               ) : null}
-              <span className="relative z-10">
+              <span className="relative z-10 shrink-0">
                 <ModuleIcon id="pin" className="size-3.5" />
               </span>
-              <span className="relative z-10">{railCollapsed ? "PIN" : "PIN Gateway"}</span>
+              {!railCollapsed ? (
+                <span className="relative z-10 truncate">PIN Gateway</span>
+              ) : null}
             </NavLink>
             {visibleSidebarGroups.map((g) => (
               <div key={g.id} className="mb-1">
@@ -1334,6 +1352,9 @@ export function App() {
                 : isStayViewRoute
                   /* Edge-to-edge rack on phone; dock clearance matches glass-dock height once */
                   ? "px-0 pt-0 pb-[var(--mobile-dock-clearance)] md:p-2 md:pb-2"
+                  : isPrintRoute
+                    /* Print Studio fills column; phone keeps dock clearance */
+                    ? "p-0 pb-[var(--mobile-dock-clearance)] md:pb-0"
                   /* Symmetric gutters; md+ has no dock so drop the dock clearance */
                   : "px-3 pt-3 pb-[var(--mobile-dock-clearance)] md:p-3 md:pb-3",
               /* Non–zero-scroll modules need both axes (wide ledgers / mobile) */

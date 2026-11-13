@@ -41,7 +41,7 @@ push → unit → integration → e2e → perf → ship
 | FO FIT journey · ops laws | `ops-laws` / `fo-fit-journey` under domain test | `pnpm --dir v2 test:e2e:fo` (fit + group StayView + day-close) |
 | POS / KOT / tenders | `v2/packages/domain/src/pos/*.test.ts` | FO / POS journey specs when path touched |
 | Permissions / auth | `permissions` + `auth` domain tests | — |
-| Day close / night audit | domain ops-laws when touched | `e2e/fo-day-close.spec.ts` |
+| Day close / night audit | domain ops-laws when touched | `e2e/fo-03-day-close.spec.ts` |
 | Cutover readiness | — | `pnpm --dir v2 cutover:go-no-go` (HOLD until manual □s + e2e green) |
 
 ## Agent workflow (every feature PR)

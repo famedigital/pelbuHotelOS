@@ -1,6 +1,6 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Badge,
@@ -23,9 +23,15 @@ import {
 } from "../lib/finance-reports";
 import { formatNu } from "../lib/front-office-store";
 import { PaidUnpaidBar } from "./PaidUnpaidBar";
+import { IntelligenceHub } from "./IntelligenceHub";
 
 export function ReportsPage() {
   const reduce = useReducedMotion();
+  const [searchParams] = useSearchParams();
+  const intelParam = searchParams.get("intel");
+  const [studio, setStudio] = useState<"intelligence" | "drc">(
+    intelParam ? "intelligence" : "intelligence",
+  );
   const selectedReport = useFiscalStore((s) => s.selectedReport);
   const setSelectedReport = useFiscalStore((s) => s.setSelectedReport);
   const reportPayload = useFiscalStore((s) => s.reportPayload);
@@ -56,32 +62,62 @@ export function ReportsPage() {
   return (
     <ModuleFrame
       title="Reports Studio"
-      description="Ops glance + 16 DRC reports · BST-3 pack — live from desk RAM engine"
+      description="Intelligence · ops glance · 16 DRC reports · BST-3 — live from desk RAM"
       actions={
         <div className="flex flex-wrap items-center gap-2">
           <StatusLegend
             dense
             className="hidden md:flex"
             items={[
+              { id: "intel", label: "Intel", swatch: "var(--hos-brass)" },
               { id: "drc", label: "DRC", swatch: "var(--hos-primary)" },
               { id: "live", label: "Live RAM", swatch: "var(--hos-emerald)" },
-              { id: "pack", label: "BST-3", swatch: "var(--hos-brass)" },
             ]}
           />
           <Button
             size="sm"
-            onClick={() =>
-              toast.success(`Exported ${meta.title}`, {
-                description: "PDF + XLSX queued for owner inbox",
-              })
-            }
+            variant={studio === "intelligence" ? "primary" : "secondary"}
+            onClick={() => setStudio("intelligence")}
+            data-testid="reports-studio-intelligence"
           >
-            Export PDF / XLSX
+            Intelligence
           </Button>
+          <Button
+            size="sm"
+            variant={studio === "drc" ? "primary" : "secondary"}
+            onClick={() => setStudio("drc")}
+            data-testid="reports-studio-drc"
+          >
+            DRC pack
+          </Button>
+          {studio === "drc" ? (
+            <Button
+              size="sm"
+              onClick={() =>
+                toast.success(`Exported ${meta.title}`, {
+                  description: "PDF + XLSX queued for owner inbox",
+                })
+              }
+            >
+              Export PDF / XLSX
+            </Button>
+          ) : null}
         </div>
       }
     >
     <div className="flex flex-col gap-4">
+      {studio === "intelligence" ? (
+        <IntelligenceHub
+          initialTab={
+            intelParam === "guests" || intelParam === "ops" || intelParam === "agents"
+              ? intelParam
+              : "agents"
+          }
+        />
+      ) : null}
+
+      {studio === "drc" ? (
+      <>
       <GlassPanel className="p-3.5">
         <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
           <strong className="text-xs font-bold uppercase tracking-wider text-[var(--hos-ink-3)]">
@@ -189,6 +225,8 @@ export function ReportsPage() {
           </div>
         </GlassPanel>
       </div>
+      </>
+      ) : null}
     </div>
     </ModuleFrame>
   );

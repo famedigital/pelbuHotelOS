@@ -34,6 +34,7 @@ import {
   Odometer,
 } from "@hos-v2/ui";
 import { InvoiceModal } from "./InvoiceModal";
+import { AgentPrintPackOverlay } from "./AgentPrintPackOverlay";
 import { FieldPortalGate } from "./field/FieldPortalGate";
 import { MarketplaceDeskPanel } from "./field/MarketplaceDeskPanel";
 import { useFieldPortalAuth } from "../lib/field-portal-auth";
@@ -373,6 +374,7 @@ function PartnerPortalBody() {
   const [invoiceQuery, setInvoiceQuery] = useState("");
   const [paperStayId, setPaperStayId] = useState<string | null>(null);
   const [paperAutoPrint, setPaperAutoPrint] = useState(false);
+  const [printPackOpen, setPrintPackOpen] = useState(false);
   const [voucherFile, setVoucherFile] = useState("");
   const [voucherAmt, setVoucherAmt] = useState(25000);
   const allotments = useEcosystemStore((s) => s.allotments);
@@ -1934,6 +1936,16 @@ function PartnerPortalBody() {
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="!min-h-9 !rounded-full !px-3"
+                    onClick={() => setPrintPackOpen(true)}
+                    data-testid="partner-print-pack"
+                  >
+                    <Printer className="size-3.5" strokeWidth={2} />
+                    Print pack
+                  </Button>
                   {(
                     [
                       {
@@ -2368,6 +2380,14 @@ function PartnerPortalBody() {
           setPaperStayId(null);
           setPaperAutoPrint(false);
         }}
+      />
+
+      <AgentPrintPackOverlay
+        open={printPackOpen}
+        agent={agent}
+        stays={ownStays}
+        fiscalDocs={fiscalDocs}
+        onClose={() => setPrintPackOpen(false)}
       />
     </ModuleFrame>
   );

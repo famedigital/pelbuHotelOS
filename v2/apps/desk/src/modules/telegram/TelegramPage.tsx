@@ -58,7 +58,7 @@ export function TelegramPage() {
 
   return (
     <ModuleFrame
-      title="Hermes · Telegram"
+      title="Innora Bot · Telegram"
       description="Pair FO chats · passport/SDF photo OCR · Guests & Docs apply"
       actions={
         <StatusLegend
@@ -136,8 +136,8 @@ export function TelegramPage() {
                       simulate: true,
                       hintKind: "passport",
                       simulateFields: {
-                        fullName: "Hermes Demo Guest",
-                        passportOrCid: "P-BT-HERMES-01",
+                        fullName: "Innora Bot Demo Guest",
+                        passportOrCid: "P-BT-INNORA-01",
                         nationality: "International",
                       },
                     });
@@ -166,8 +166,8 @@ export function TelegramPage() {
                       simulate: true,
                       hintKind: "sdf",
                       simulateFields: {
-                        fullName: "Hermes Demo Guest",
-                        sdfRef: "SDF-HERMES-99",
+                        fullName: "Innora Bot Demo Guest",
+                        sdfRef: "SDF-INNORA-99",
                         nationality: "International",
                       },
                     });
@@ -187,7 +187,7 @@ export function TelegramPage() {
             </div>
             <div className="overflow-hidden rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)]">
               <div className="border-b border-[var(--hos-line)] px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
-                Recent Hermes events
+                Recent Innora Bot events
               </div>
               <ul className="m-0 max-h-56 list-none overflow-y-auto p-0">
                 {(overview?.recentEvents ?? []).length === 0 ? (

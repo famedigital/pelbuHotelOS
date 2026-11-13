@@ -1,9 +1,10 @@
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ChefHat,
   ClipboardList,
   History,
+  Maximize2,
   Printer,
   Search,
   Sparkles,
@@ -232,6 +233,23 @@ export function DepartmentPrintModal({
   const [hkFloor, setHkFloor] = useState<number | "all">("all");
   const [hkDirtyOnly, setHkDirtyOnly] = useState(false);
   const [zoom, setZoom] = useState(1);
+  /** When true, ResizeObserver must not override user ± until Fit / pass / format. */
+  const [zoomManual, setZoomManual] = useState(false);
+  const stageRef = useRef<HTMLDivElement | null>(null);
+
+  const sheetCssMm = format === "thermal80" ? 80 : 210;
+
+  const fitZoomToStage = useCallback(() => {
+    const el = stageRef.current;
+    if (!el) return;
+    const pad = 16;
+    const usable = Math.max(120, el.clientWidth - pad);
+    /* CSS mm ≈ 96dpi CSS pixels — screen zoom only; print CSS clears transform. */
+    const nativePx = (sheetCssMm / 25.4) * 96;
+    const next = Math.min(2, Math.max(0.7, (usable * 0.94) / nativePx));
+    setZoom(Number(next.toFixed(2)));
+    setZoomManual(false);
+  }, [sheetCssMm]);
 
   useEffect(() => {
     if (!open) return;
@@ -239,8 +257,24 @@ export function DepartmentPrintModal({
     setPass(nextPass);
     setFormatManual(false);
     setFormat(DEFAULT_FORMAT_BY_PASS[nextPass]);
+    setZoomManual(false);
     if (initialStayId) setFoStayId(initialStayId);
   }, [open, initialPass, initialStayId]);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = stageRef.current;
+    if (!el || typeof ResizeObserver === "undefined") {
+      if (!zoomManual) fitZoomToStage();
+      return;
+    }
+    const ro = new ResizeObserver(() => {
+      if (!zoomManual) fitZoomToStage();
+    });
+    ro.observe(el);
+    if (!zoomManual) fitZoomToStage();
+    return () => ro.disconnect();
+  }, [open, format, pass, zoomManual, fitZoomToStage, isPage]);
 
   useEffect(() => {
     if (!open) return;
@@ -255,6 +289,7 @@ export function DepartmentPrintModal({
       setPass(next);
       setFormatManual(false);
       setFormat(DEFAULT_FORMAT_BY_PASS[next]);
+      setZoomManual(false);
       onPassChange?.(next);
     },
     [onPassChange],
@@ -263,6 +298,7 @@ export function DepartmentPrintModal({
   const pickFormat = useCallback((next: PrintFormat) => {
     setFormatManual(true);
     setFormat(next);
+    setZoomManual(false);
   }, []);
 
   const persistJob = useCallback((job: DeptPrintJob) => {
@@ -557,7 +593,7 @@ export function DepartmentPrintModal({
     [pass, format, businessDate, persistJob, onPassChange],
   );
 
-  const sendToHermes = useCallback(async () => {
+  const sendToInnoraBot = useCallback(async () => {
     const label = PASSES.find((p) => p.id === pass)?.label ?? pass;
     const root = document.getElementById("hos-print-root");
     const snippet =
@@ -569,7 +605,7 @@ export function DepartmentPrintModal({
       toast.error(res.error);
       return;
     }
-    toast.success("Sent to Hermes", {
+    toast.success("Sent to Innora Bot", {
       description:
         res.data.delivery === "telegram"
           ? `Chat ${res.data.chatId}`
@@ -609,13 +645,17 @@ export function DepartmentPrintModal({
     <div
       className={`flex min-h-0 flex-1 flex-col overflow-hidden ${
         isPage
-          ? "rounded-2xl border border-[var(--hos-line)] bg-[var(--hos-cell)] shadow-[0_18px_48px_-28px_rgba(15,23,42,0.35)]"
+          ? "rounded-none border-0 bg-[var(--hos-cell)] md:rounded-none"
           : ""
       }`}
     >
       {/* Chrome header — glass elevated, not on sheet */}
-      <header className="hos-module-chrome no-print shrink-0 rounded-none border-x-0 border-t-0 px-3 py-2.5 sm:px-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+      <header
+        className={`hos-module-chrome no-print shrink-0 rounded-none border-x-0 border-t-0 px-2 sm:px-3 ${
+          isPage ? "py-1.5" : "px-3 py-2.5 sm:px-4"
+        }`}
+      >
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-2">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <strong className="text-[15px] text-[var(--hos-ink)]">
@@ -626,7 +666,7 @@ export function DepartmentPrintModal({
                 Last · {relativePrintTime(lastPrintAt)}
               </span>
             </div>
-            <p className="m-0 mt-0.5 hidden text-[11px] text-[var(--hos-ink-3)] sm:block">
+            <p className="m-0 mt-0.5 hidden text-[11px] text-[var(--hos-ink-3)] lg:block">
               Department passes · A4 clipboard / 80mm thermal · Esc close · ⌘P print · 1–4 pass
             </p>
           </div>
@@ -667,9 +707,9 @@ export function DepartmentPrintModal({
               size="sm"
               variant="secondary"
               className="!rounded-xl"
-              onClick={() => void sendToHermes()}
+              onClick={() => void sendToInnoraBot()}
             >
-              Send to Hermes
+              Send to Innora Bot
             </Button>
             <Button
               size="sm"
@@ -683,8 +723,14 @@ export function DepartmentPrintModal({
           </div>
         </div>
 
-        {/* Pass rail */}
-        <div className="mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        {/* Pass rail — compact on page / phone so preview gets height */}
+        <div
+          className={
+            isPage
+              ? "mt-1.5 grid grid-cols-4 gap-1"
+              : "mt-2.5 grid grid-cols-2 gap-1.5 sm:grid-cols-4"
+          }
+        >
           {PASSES.map((p, i) => {
             const active = pass === p.id;
             const Icon = p.Icon;
@@ -693,14 +739,18 @@ export function DepartmentPrintModal({
                 key={p.id}
                 type="button"
                 onClick={() => selectPass(p.id)}
-                className={`hos-btn-tactile flex items-start gap-2 rounded-xl border px-2.5 py-2 text-left transition ${
+                className={`hos-btn-tactile flex items-center gap-1.5 rounded-xl border text-left transition ${
+                  isPage ? "px-1.5 py-1.5 sm:px-2.5" : "items-start px-2.5 py-2"
+                } ${
                   active
                     ? "border-[var(--hos-primary)] bg-[color-mix(in_srgb,var(--hos-primary)_12%,var(--hos-cell))] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
                     : "border-[var(--hos-line)] bg-[var(--hos-cell)] hover:bg-[color-mix(in_srgb,var(--hos-ink)_3%,var(--hos-cell))]"
                 }`}
               >
                 <span
-                  className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-lg ${
+                  className={`flex shrink-0 items-center justify-center rounded-lg ${
+                    isPage ? "size-6" : "mt-0.5 size-7"
+                  } ${
                     active
                       ? "bg-[var(--hos-primary)] text-white"
                       : "bg-[color-mix(in_srgb,var(--hos-ink)_6%,transparent)] text-[var(--hos-ink-2)]"
@@ -711,19 +761,23 @@ export function DepartmentPrintModal({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span
-                      className={`truncate text-[12px] font-bold ${
+                      className={`truncate font-bold ${
+                        isPage ? "text-[11px] sm:text-[12px]" : "text-[12px]"
+                      } ${
                         active ? "text-[var(--hos-primary)]" : "text-[var(--hos-ink)]"
                       }`}
                     >
                       {p.short}
                     </span>
-                    <kbd className="hidden rounded border border-[var(--hos-line)] px-1 font-mono text-[9px] text-[var(--hos-ink-3)] sm:inline">
+                    <kbd className="hidden rounded border border-[var(--hos-line)] px-1 font-mono text-[9px] text-[var(--hos-ink-3)] lg:inline">
                       {i + 1}
                     </kbd>
                   </span>
-                  <span className="block truncate text-[10px] text-[var(--hos-ink-3)]">
-                    {p.hint}
-                  </span>
+                  {!isPage ? (
+                    <span className="block truncate text-[10px] text-[var(--hos-ink-3)]">
+                      {p.hint}
+                    </span>
+                  ) : null}
                 </span>
               </button>
             );
@@ -731,11 +785,19 @@ export function DepartmentPrintModal({
         </div>
 
         {/* KPI strip */}
-        <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+        <div
+          className={
+            isPage
+              ? "mt-1 grid grid-cols-4 gap-1"
+              : "mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4"
+          }
+        >
           {passKpi.map((k) => (
             <div
               key={k.label}
-              className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-2.5 py-1.5"
+              className={`rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] ${
+                isPage ? "px-1.5 py-1 sm:px-2.5 sm:py-1.5" : "px-2.5 py-1.5"
+              }`}
             >
               <div className="text-[9px] font-black uppercase tracking-[0.1em] text-[var(--hos-ink-3)]">
                 {k.label}
@@ -744,12 +806,16 @@ export function DepartmentPrintModal({
                 <Odometer
                   value={k.value}
                   prefix="Nu. "
-                  className="font-mono text-[13px] font-black tabular-nums text-[var(--hos-ink)]"
+                  className={`font-mono font-black tabular-nums text-[var(--hos-ink)] ${
+                    isPage ? "text-[11px] sm:text-[13px]" : "text-[13px]"
+                  }`}
                 />
               ) : (
                 <Odometer
                   value={k.value}
-                  className="font-mono text-[15px] font-black tabular-nums text-[var(--hos-ink)]"
+                  className={`font-mono font-black tabular-nums text-[var(--hos-ink)] ${
+                    isPage ? "text-[13px] sm:text-[15px]" : "text-[15px]"
+                  }`}
                 />
               )}
             </div>
@@ -805,8 +871,12 @@ export function DepartmentPrintModal({
         ) : null}
       </AnimatePresence>
 
-      {/* Filters + format */}
-      <div className="no-print shrink-0 space-y-2 border-b border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2 sm:px-4">
+      {/* Filters + format + zoom */}
+      <div
+        className={`no-print shrink-0 space-y-1.5 border-b border-[var(--hos-line)] bg-[var(--hos-cell)] ${
+          isPage ? "px-2 py-1.5 sm:px-3" : "space-y-2 px-3 py-2 sm:px-4"
+        }`}
+      >
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex gap-1 rounded-xl bg-[color-mix(in_srgb,var(--hos-ink)_4%,transparent)] p-0.5">
@@ -815,17 +885,20 @@ export function DepartmentPrintModal({
                   key={f}
                   type="button"
                   onClick={() => pickFormat(f)}
-                  className={`min-h-9 rounded-[10px] px-3 text-[11px] font-bold transition ${
+                  className={`min-h-9 rounded-[10px] px-2.5 text-[11px] font-bold transition sm:px-3 ${
                     format === f
                       ? "bg-[#111] text-white shadow-sm"
                       : "text-[var(--hos-ink-2)]"
                   }`}
                 >
-                  {f === "a4" ? "A4 Clipboard" : "80mm Thermal"}
+                  {f === "a4" ? "A4" : "80mm"}
+                  <span className="hidden sm:inline">
+                    {f === "a4" ? " Clipboard" : " Thermal"}
+                  </span>
                 </button>
               ))}
             </div>
-            <span className="text-[10px] text-[var(--hos-ink-3)]">
+            <span className="hidden text-[10px] text-[var(--hos-ink-3)] sm:inline">
               {formatManual
                 ? "Manual size"
                 : pass === "fb"
@@ -837,8 +910,11 @@ export function DepartmentPrintModal({
             <button
               type="button"
               aria-label="Zoom out"
-              className="hos-btn-tactile inline-flex size-9 items-center justify-center rounded-xl border border-[var(--hos-line)] bg-[var(--hos-surface)]"
-              onClick={() => setZoom((z) => Math.max(0.7, Number((z - 0.1).toFixed(1))))}
+              className="hos-btn-tactile inline-flex size-9 min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--hos-line)] bg-[var(--hos-surface)] sm:min-h-9 sm:min-w-9"
+              onClick={() => {
+                setZoomManual(true);
+                setZoom((z) => Math.max(0.7, Number((z - 0.1).toFixed(1))));
+              }}
             >
               <ZoomOut className="size-3.5" strokeWidth={2} />
             </button>
@@ -848,10 +924,23 @@ export function DepartmentPrintModal({
             <button
               type="button"
               aria-label="Zoom in"
-              className="hos-btn-tactile inline-flex size-9 items-center justify-center rounded-xl border border-[var(--hos-line)] bg-[var(--hos-surface)]"
-              onClick={() => setZoom((z) => Math.min(1.4, Number((z + 0.1).toFixed(1))))}
+              className="hos-btn-tactile inline-flex size-9 min-h-11 min-w-11 items-center justify-center rounded-xl border border-[var(--hos-line)] bg-[var(--hos-surface)] sm:min-h-9 sm:min-w-9"
+              onClick={() => {
+                setZoomManual(true);
+                setZoom((z) => Math.min(2, Number((z + 0.1).toFixed(1))));
+              }}
             >
               <ZoomIn className="size-3.5" strokeWidth={2} />
+            </button>
+            <button
+              type="button"
+              aria-label="Fit to screen"
+              title="Fit width"
+              className="hos-btn-tactile inline-flex min-h-11 items-center gap-1 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-surface)] px-2.5 text-[11px] font-bold text-[var(--hos-ink-2)] sm:min-h-9"
+              onClick={() => fitZoomToStage()}
+            >
+              <Maximize2 className="size-3.5" strokeWidth={2} aria-hidden />
+              Fit
             </button>
           </div>
         </div>
@@ -955,14 +1044,18 @@ export function DepartmentPrintModal({
         ) : null}
       </div>
 
-      {/* Opaque preview stage — no blur on sheet */}
-      <div className="hos-print-stage hos-scroll-thin min-h-0 flex-1 overflow-auto bg-[#e8edf5] p-3 dark:bg-[#0b1220] sm:p-4">
+      {/* Opaque preview stage — no blur on sheet; zoom fills width (Fit) */}
+      <div
+        ref={stageRef}
+        className="hos-print-stage hos-scroll-thin min-h-0 flex-1 overflow-auto bg-[#e8edf5] p-2 dark:bg-[#0b1220] sm:p-2"
+      >
         <div
           className="hos-print-zoom mx-auto origin-top transition-transform duration-150"
           style={{
             transform: `scale(${zoom})`,
-            width: format === "thermal80" ? "80mm" : "min(100%, 210mm)",
+            width: format === "thermal80" ? "80mm" : "210mm",
             maxWidth: format === "thermal80" ? "80mm" : "210mm",
+            marginBottom: `${Math.max(0, (zoom - 1) * (format === "thermal80" ? 200 : 900))}px`,
           }}
         >
           <div
@@ -1750,7 +1843,7 @@ export function DepartmentPrintModal({
   if (isPage) {
     if (!open) return null;
     return (
-      <div className="mx-auto flex h-[calc(100dvh-var(--hos-topbar-h,3.5rem)-1rem)] max-w-6xl flex-col gap-2 p-2 sm:p-3 lg:h-[calc(100dvh-4.5rem)]">
+      <div className="flex h-full min-h-0 w-full flex-1 flex-col">
         {studioBody}
       </div>
     );
@@ -1775,7 +1868,7 @@ export function DepartmentPrintModal({
             exit={reduce ? undefined : { opacity: 0, y: 12 }}
             transition={{ type: "spring", stiffness: 380, damping: 28 }}
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl border border-[var(--hos-line)] bg-[var(--hos-cell)] shadow-[0_24px_64px_-16px_rgba(15,23,42,0.55)] sm:max-h-[94vh] sm:rounded-2xl"
+            className="flex h-[min(96dvh,100%)] max-h-[96dvh] w-full max-w-5xl flex-col overflow-hidden rounded-t-3xl border border-[var(--hos-line)] bg-[var(--hos-cell)] shadow-[0_24px_64px_-16px_rgba(15,23,42,0.55)] sm:h-auto sm:max-h-[94vh] sm:rounded-2xl"
           >
             {studioBody}
           </motion.div>

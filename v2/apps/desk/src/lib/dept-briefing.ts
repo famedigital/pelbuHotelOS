@@ -9,6 +9,7 @@ import {
   type DeptSop,
 } from "./dept-sop";
 import { readDeskStaff } from "./desk-session";
+import { escapePrintHtml, printHtmlDocument } from "./print-html";
 
 export const BriefingFileSchema = z.object({
   id: z.string().uuid(),
@@ -33,8 +34,15 @@ function loadFiles(): BriefingFile[] {
   try {
     const raw = localStorage.getItem(FILES_KEY);
     if (!raw) return [];
-    const parsed = z.array(BriefingFileSchema).safeParse(JSON.parse(raw));
-    return parsed.success ? parsed.data : [];
+    const data = JSON.parse(raw) as unknown;
+    if (!Array.isArray(data)) return [];
+    // Keep valid rows — one corrupt entry must not wipe the whole archive.
+    const out: BriefingFile[] = [];
+    for (const row of data) {
+      const parsed = BriefingFileSchema.safeParse(row);
+      if (parsed.success) out.push(parsed.data);
+    }
+    return out;
   } catch (err) {
     console.error("[briefing] load failed", err);
     return [];
@@ -134,36 +142,24 @@ export function listBriefings(propertySlug: string, businessDate?: string): Brie
 }
 
 export function printBriefingHtml(row: BriefingFile): void {
-  const win = window.open("", "_blank", "noopener,noreferrer,width=720,height=900");
-  if (!win) {
-    throw new Error("Pop-up blocked — allow print window");
-  }
-  const items = row.checklist.map((c) => `<li>${escapeHtml(c)}</li>`).join("");
-  win.document.write(`<!doctype html><html><head><title>Shift briefing · ${escapeHtml(row.dept)}</title>
+  const items = row.checklist.map((c) => `<li>${escapePrintHtml(c)}</li>`).join("");
+  printHtmlDocument(
+    `<!doctype html><html><head><title>Shift briefing · ${escapePrintHtml(row.dept)}</title>
 <style>
   body{font-family:Georgia,serif;padding:28px;color:#111;max-width:640px;margin:0 auto}
   h1{font-size:20px;margin:0 0 4px} .meta{color:#555;font-size:13px;margin-bottom:18px}
   ul{padding-left:1.2em;line-height:1.55} .sign{margin-top:36px;border-top:1px solid #ccc;padding-top:16px}
-  @media print{button{display:none}}
 </style></head><body>
-<h1>${escapeHtml(row.shiftLabel)} · ${escapeHtml(row.dept.toUpperCase())}</h1>
-<div class="meta">${escapeHtml(row.propertySlug)} · ${escapeHtml(row.businessDate)} · ${escapeHtml(row.staffName)}${row.deskRole ? ` · ${escapeHtml(row.deskRole)}` : ""}</div>
+<h1>${escapePrintHtml(row.shiftLabel)} · ${escapePrintHtml(row.dept.toUpperCase())}</h1>
+<div class="meta">${escapePrintHtml(row.propertySlug)} · ${escapePrintHtml(row.businessDate)} · ${escapePrintHtml(row.staffName)}${row.deskRole ? ` · ${escapePrintHtml(row.deskRole)}` : ""}</div>
 <p><strong>Handover checklist</strong></p>
 <ul>${items}</ul>
-${row.notes ? `<p><strong>Notes</strong><br/>${escapeHtml(row.notes)}</p>` : ""}
+${row.notes ? `<p><strong>Notes</strong><br/>${escapePrintHtml(row.notes)}</p>` : ""}
 <div class="sign">
-  <p>Outgoing signature: ______________________ &nbsp; Time: ${escapeHtml(row.signedAt.slice(11, 16))}</p>
+  <p>Outgoing signature: ______________________ &nbsp; Time: ${escapePrintHtml(row.signedAt.slice(11, 16))}</p>
   <p>Incoming signature: ______________________</p>
 </div>
-<button onclick="window.print()">Print</button>
-</body></html>`);
-  win.document.close();
-}
-
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+</body></html>`,
+    `Shift briefing · ${row.dept}`,
+  );
 }

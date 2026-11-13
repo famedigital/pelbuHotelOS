@@ -1,5 +1,6 @@
 import { motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
+import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
   Badge,
@@ -19,6 +20,9 @@ import { useFiscalStore } from "../lib/fiscal-store";
 import { useExtrasStore } from "../lib/extras-store";
 import { useOpsStore } from "../lib/ops-store";
 import { useCommercialStore } from "../lib/commercial-store";
+import { defaultPeriod } from "../lib/finance-reports";
+import { buildAgentIntelligence } from "../lib/intelligence/agent-intelligence";
+import { buildOpsHrIntelligence } from "../lib/intelligence/ops-hr-intelligence";
 
 const MTD_TARGET = 2_500_000;
 
@@ -36,6 +40,30 @@ export function OwnerPage() {
   const pulse = useMemo(
     () => useExtrasStore.getState().ownerPulse(),
     [stays, rooms, orders, tillShifts, tillBalance],
+  );
+
+  const period = defaultPeriod();
+  const topAgents = useMemo(
+    () =>
+      buildAgentIntelligence({
+        agents,
+        stays,
+        from: period.from,
+        to: period.to,
+        topN: 3,
+      }).top,
+    [agents, stays, period.from, period.to],
+  );
+  const opsGlance = useMemo(
+    () =>
+      buildOpsHrIntelligence({
+        stays,
+        roomsCount: rooms.filter((r) => r.hkStatus !== "ooo").length || rooms.length,
+        from: period.from,
+        to: period.to,
+        staff: [],
+      }),
+    [stays, rooms, period.from, period.to],
   );
 
   const inHouse = stays.filter((s) => s.status === "checked_in");
@@ -145,6 +173,61 @@ export function OwnerPage() {
         <KpiCard label="ADR" value={formatNu(pulse.adr)} delta="Net room" />
         <KpiCard label="RevPAR" value={formatNu(pulse.revpar)} delta="Per key" />
         <KpiCard label="Gross today" value={formatNu(gross)} delta="All depts" />
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        <Link to="/reports?intel=agents" className="no-underline" data-testid="owner-tile-top-agents">
+          <GlassPanel className="p-3.5 transition hover:border-[var(--hos-brass)]/40">
+            <strong className="text-sm text-[var(--hos-ink)]">Top agents</strong>
+            <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
+              Period room-nights · tap for Intelligence
+            </p>
+            <ul className="m-0 mt-2 list-none space-y-1.5 p-0">
+              {topAgents.length === 0 ? (
+                <li className="text-[12px] text-[var(--hos-ink-3)]">No agent production yet</li>
+              ) : (
+                topAgents.map((a, i) => (
+                  <li
+                    key={a.agentId}
+                    className="flex items-center justify-between gap-2 text-[12px]"
+                  >
+                    <span>
+                      #{i + 1} {a.agentCode}
+                    </span>
+                    <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
+                      {a.roomNights}n · {formatNu(a.revenue)}
+                    </span>
+                  </li>
+                ))
+              )}
+            </ul>
+          </GlassPanel>
+        </Link>
+        <Link to="/reports?intel=ops" className="no-underline" data-testid="owner-tile-season-staffing">
+          <GlassPanel className="p-3.5 transition hover:border-[var(--hos-brass)]/40">
+            <strong className="text-sm text-[var(--hos-ink)]">Season staffing</strong>
+            <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
+              Occ {opsGlance.occPct}% · peak {opsGlance.peakOccPct}% / lean{" "}
+              {opsGlance.leanOccPct}%
+            </p>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[11px]">
+              {opsGlance.byDept.slice(0, 3).map((d) => (
+                <div
+                  key={d.dept}
+                  className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-2"
+                >
+                  <div className="text-[9px] uppercase text-[var(--hos-ink-3)]">{d.dept}</div>
+                  <div className="font-mono font-bold tabular-nums">
+                    {d.recommendedPeak}
+                    <span className="font-normal text-[var(--hos-ink-3)]">
+                      /{d.recommendedLean}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </GlassPanel>
+        </Link>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">

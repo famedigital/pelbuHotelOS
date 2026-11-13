@@ -483,31 +483,49 @@ export type PinAuthResult =
     }
   | { ok: false; status: number; error: string; resetRequired?: boolean };
 
-function verifyLocalDemoPin(input: {
+async function verifyLocalDemoPin(input: {
   propertySlug: string;
   staffId?: string;
   pin: string;
-}): PinAuthResult {
+}): Promise<PinAuthResult> {
   const hit = input.staffId
     ? LOCAL_DEMO_PINS.find((s) => s.staffId === input.staffId && s.pin === input.pin)
     : LOCAL_DEMO_PINS.find((s) => s.pin === input.pin);
   if (!hit) {
     return { ok: false, status: 401, error: "Incorrect PIN" };
   }
+  /* Prefer HMAC tokens from API e2e routes when available (money commands need verifyDeskToken). */
+  try {
+    const res = await fetch(`${API_BASE}/v1/auth/e2e/staff-pin`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ staffKey: hit.staffId, pin: input.pin }),
+    });
+    const data = await readJson(res);
+    if (res.ok && data.ok !== false && data.token) {
+      return {
+        ok: true,
+        token: String(data.token),
+        homeRoute: String(data.homeRoute ?? hit.homeRoute),
+        staff: (data.staff as PinAuthResult extends { ok: true; staff: infer S } ? S : never) ?? {
+          id: hit.staffId,
+          fullName: hit.fullName,
+          deskRole: hit.deskRole,
+          employeeCode: hit.employeeCode,
+        },
+        property: (data.property as AuthProperty) ?? {
+          ...LOCAL_DEMO_PROPERTY,
+          slug: input.propertySlug || LOCAL_DEMO_PROPERTY.slug,
+        },
+      };
+    }
+  } catch {
+    /* fall through — e2e route not running */
+  }
   return {
-    ok: true,
-    token: `local-demo-staff:${hit.staffId}`,
-    homeRoute: hit.homeRoute,
-    staff: {
-      id: hit.staffId,
-      fullName: hit.fullName,
-      deskRole: hit.deskRole,
-      employeeCode: hit.employeeCode,
-    },
-    property: {
-      ...LOCAL_DEMO_PROPERTY,
-      slug: input.propertySlug || LOCAL_DEMO_PROPERTY.slug,
-    },
+    ok: false,
+    status: 503,
+    error: "E2E demo auth unavailable — start API with ALLOW_E2E_DEMO_AUTH=1",
   };
 }
 

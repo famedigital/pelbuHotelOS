@@ -509,6 +509,9 @@ class MemoryStore {
   }): { bookings: number; folios: number; lines: number; blocks: number; groups: number } {
     for (const p of snap.properties) {
       const existing = this.properties.get(p.id);
+      const hydratedForProp = snap.bookings.filter((b) => b.propertyId === p.id).length;
+      /* Avoid confirmation_no collisions with rows already in Postgres. */
+      const seqFloor = hydratedForProp + 10_000;
       this.properties.set(p.id, {
         id: p.id,
         name: p.name,
@@ -519,7 +522,7 @@ class MemoryStore {
         currentBusinessDate: p.currentBusinessDate,
         checkInTime: existing?.checkInTime ?? "14:00",
         checkOutTime: existing?.checkOutTime ?? "12:00",
-        bookingSeq: existing?.bookingSeq ?? 0,
+        bookingSeq: Math.max(existing?.bookingSeq ?? 0, seqFloor),
       });
     }
     for (const t of snap.roomTypes) {

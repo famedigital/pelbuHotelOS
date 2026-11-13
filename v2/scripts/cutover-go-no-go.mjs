@@ -97,7 +97,7 @@ checklist.find((c) => c.id === "journeys_green").status =
 
 const cutoverDoc = join(repoRoot, "docs", "v2", "CUTOVER.md");
 const opsDoc = join(repoRoot, "docs", "v2", "OPERATIONS-FLOW.md");
-const e2eSpec = join(root, "apps", "desk", "e2e", "fo-fit-journey.spec.ts");
+const e2eSpec = join(root, "apps", "desk", "e2e", "fo-01-fit-journey.spec.ts");
 
 console.log("\nAutomated checks");
 console.log(`  domain FO FIT journey …… ${domain.ok ? "PASS" : "FAIL"}`);

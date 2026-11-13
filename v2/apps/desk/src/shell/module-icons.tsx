@@ -6,7 +6,6 @@ import {
   CalendarDays,
   CalendarRange,
   ChefHat,
-  CircuitBoard,
   ClipboardList,
   Compass,
   ConciergeBell,
@@ -14,6 +13,7 @@ import {
   Car,
   Gem,
   Handshake,
+  KeyRound,
   LayoutDashboard,
   Map,
   Megaphone,
@@ -79,7 +79,7 @@ export const MODULE_ICON: Record<string, LucideIcon> = {
   events: PartyPopper,
   website: PanelsTopLeft,
   print: ClipboardList,
-  pin: CircuitBoard,
+  pin: KeyRound,
   package: Package,
 };
 

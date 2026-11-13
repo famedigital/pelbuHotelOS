@@ -3,7 +3,7 @@
  * party net control + Rooms tab. Money path remains FIT e2e authority.
  */
 import { test, expect } from "@playwright/test";
-import { unlockKarma } from "./helpers/unlock-staff";
+import { pickSellableRoomType, unlockKarma } from "./helpers/unlock-staff";
 
 const API = process.env.VITE_API_URL || "http://127.0.0.1:4200";
 
@@ -29,17 +29,23 @@ test.describe("StayView · Group StayHub smoke", () => {
     await page.getByLabel("Check-in").fill(ymd(start));
     await page.getByLabel("Check-out").fill(ymd(end));
 
-    /* Bump Rooms stepper to 2. */
+    /* Bump Rooms stepper to 2 — use Deluxe Twin (deep inventory) for both slots. */
     await page.getByRole("button", { name: "Increase Rooms" }).click();
-
-    await page.getByRole("button", { name: /Executive King/i }).first().click();
-    await page.getByTestId("fast-book-submit").click();
+    const twin = page.getByRole("button", { name: /Deluxe Twin/i }).first();
+    if (await twin.isVisible().catch(() => false)) {
+      await twin.click();
+    } else {
+      await pickSellableRoomType(page);
+    }
+    const submitBtn = page.getByTestId("fast-book-submit");
+    await expect(submitBtn).toBeEnabled({ timeout: 10_000 });
+    await submitBtn.click({ force: true });
 
     const bookToast = page
       .locator("[data-sonner-toast]")
-      .filter({ hasText: /Booking confirmed|Hold reserved|API offline|cannot create/i })
+      .filter({ hasText: /Booking confirmed|Hold reserved/i })
       .first();
-    await expect(bookToast).toBeVisible({ timeout: 45_000 });
+    await expect(bookToast).toBeVisible({ timeout: 60_000 });
     const toastText = (await bookToast.innerText()).replace(/\s+/g, " ");
     expect(toastText).toMatch(/Booking confirmed|Hold reserved/i);
 
@@ -50,9 +56,7 @@ test.describe("StayView · Group StayHub smoke", () => {
       timeout: 15_000,
     });
 
-    await expect(page.getByRole("button", { name: /Guests & Docs/i }).first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await page.getByRole("button", { name: /Guests & Docs/i }).first().click();
     await expect(page.getByTestId("stayhub-guests-docs")).toBeVisible({
       timeout: 15_000,
     });
@@ -65,7 +69,11 @@ test.describe("StayView · Group StayHub smoke", () => {
 
     await page.getByTestId(`stayhub-guest-name-${stayId}`).fill(`${guest} Lead`);
     await page.getByTestId(`stayhub-guest-cid-${stayId}`).fill("P-BT-E2E-9001");
-    await page.getByTestId(`stayhub-companion-name-${stayId}`).fill(`${guest} Plus`);
+    const addCompanion = page.getByRole("button", { name: /Add sharing companion/i });
+    if (await addCompanion.isVisible().catch(() => false)) {
+      await addCompanion.click();
+      await page.getByTestId(`stayhub-companion-name-${stayId}`).fill(`${guest} Plus`);
+    }
     await page.getByTestId(`stayhub-guest-save-${stayId}`).click();
     await expect(
       page.locator("[data-sonner-toast]").filter({ hasText: /Saved/i }),

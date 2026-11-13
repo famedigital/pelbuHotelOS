@@ -46,6 +46,22 @@ export function readDeskStaff(): DeskSessionStaff | null {
   }
 }
 
+export function readDeskProperty(): DeskSessionProperty | null {
+  const raw = sessionStorage.getItem(PROPERTY_KEY);
+  if (raw) {
+    try {
+      return JSON.parse(raw) as DeskSessionProperty;
+    } catch {
+      /* fall through */
+    }
+  }
+  const slug = localStorage.getItem("hos.v2.propertySlug")?.trim();
+  const id = localStorage.getItem("hos.v2.propertyId")?.trim();
+  if (slug && id) return { id, slug, name: slug };
+  if (slug) return { id: slug, slug, name: slug };
+  return null;
+}
+
 export function clearDeskSession(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(STAFF_KEY);

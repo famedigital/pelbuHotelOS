@@ -98,6 +98,16 @@ export async function createReservationPersist(
           fullName: input.guestName,
         })
         .onConflictDoNothing();
+      if (input.groupId) {
+        await tx
+          .insert(groups)
+          .values({
+            id: input.groupId,
+            propertyId: input.propertyId,
+            name: input.guestName,
+          })
+          .onConflictDoNothing();
+      }
       await tx.insert(bookings).values({
         id: input.bookingId,
         propertyId: input.propertyId,
@@ -139,7 +149,7 @@ export async function createReservationPersist(
     return { ok: true };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    if (/unique|duplicate/i.test(msg)) return { ok: true };
+    /* Unique collision is not success — caller must retry with a fresh confirmation. */
     console.error("[fo-persist] createReservationPersist failed", { err: msg });
     return { ok: false, error: "FO_CREATE_PERSIST_FAILED" };
   }

@@ -1,5 +1,5 @@
 /**
- * Bilateral Hotel ↔ Agent MoU lifecycle (v2 desk + Hermes gate).
+ * Bilateral Hotel ↔ Agent MoU lifecycle (v2 desk + Innora Bot gate).
  * Either party may propose; inventory/book/edit require status === "active".
  */
 import { create } from "zustand";

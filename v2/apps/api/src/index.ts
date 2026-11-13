@@ -1,3 +1,6 @@
+import { loadApiEnvFile } from "./platform/load-env.js";
+loadApiEnvFile();
+
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import { z } from "zod";
@@ -47,6 +50,7 @@ import { registerAuthPinRoutes } from "./modules/auth-pin.js";
 import { registerAuthPortalRoutes } from "./modules/auth-portals.js";
 import { registerAuthHotelEmailRoutes } from "./modules/auth-hotel-email.js";
 import { registerAuthPortalEmailRoutes } from "./modules/auth-portal-email.js";
+import { registerAuthE2eDemoRoutes } from "./modules/auth-e2e-demo.js";
 import { bearerToken, verifyDeskToken } from "./platform/desk-token.js";
 
 const auditBuffer: unknown[] = [];
@@ -86,6 +90,7 @@ await registerAuthPinRoutes(app);
 await registerAuthPortalRoutes(app);
 await registerAuthHotelEmailRoutes(app);
 await registerAuthPortalEmailRoutes(app);
+registerAuthE2eDemoRoutes(app);
 
 app.addContentTypeParser(
   "text/plain",
