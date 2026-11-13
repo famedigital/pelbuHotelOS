@@ -152,6 +152,7 @@ export function DeskPage() {
   const [query, setQuery] = useState("");
   const [vipOnly, setVipOnly] = useState(false);
   const [advanceOpen, setAdvanceOpen] = useState(false);
+  const [shiftBriefingOpen, setShiftBriefingOpen] = useState(false);
   const [advAmount, setAdvAmount] = useState("3000");
   const [advName, setAdvName] = useState("CFM runner");
   const [focusIdx, setFocusIdx] = useState(0);
@@ -475,30 +476,35 @@ export function DeskPage() {
             {datePretty}
           </span>
         </h1>
-        <button
-          type="button"
-          onClick={() => navigate("/night-audit")}
-          title={
-            auditReady.blockers === 0
-              ? "Night audit ready"
-              : `${auditReady.blockers} blocker(s) before close`
-          }
-          className={[
-            "hos-btn-tactile ml-auto inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-[var(--hos-line)] bg-[var(--hos-cell)] px-2.5 text-[12px] font-medium tracking-tight text-[var(--hos-ink-2)]",
-            auditReady.blockers > 0 && auditReady.score < 50
-              ? "!border-[color-mix(in_srgb,var(--hos-ruby)_40%,transparent)] !text-[var(--hos-ruby)]"
-              : "",
-          ].join(" ")}
-        >
-          <MoonStar className="size-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
-          <span>Audit</span>
-          <span className="font-mono text-[12px] font-semibold tabular-nums tracking-tight text-[var(--hos-ink)]">
-            {auditReady.score}%
-          </span>
-        </button>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <EndOfShiftBriefing
+            open={shiftBriefingOpen}
+            onOpenChange={setShiftBriefingOpen}
+            triggerLabel="Shift"
+          />
+          <button
+            type="button"
+            onClick={() => navigate("/night-audit")}
+            title={
+              auditReady.blockers === 0
+                ? "Night audit ready"
+                : `${auditReady.blockers} blocker(s) before close`
+            }
+            className={[
+              "hos-btn-tactile inline-flex h-8 shrink-0 items-center gap-2 rounded-md border border-[var(--hos-line)] bg-[var(--hos-cell)] px-2.5 text-[12px] font-medium tracking-tight text-[var(--hos-ink-2)]",
+              auditReady.blockers > 0 && auditReady.score < 50
+                ? "!border-[color-mix(in_srgb,var(--hos-ruby)_40%,transparent)] !text-[var(--hos-ruby)]"
+                : "",
+            ].join(" ")}
+          >
+            <MoonStar className="size-3.5 shrink-0 opacity-70" strokeWidth={2} aria-hidden />
+            <span>Audit</span>
+            <span className="font-mono text-[12px] font-semibold tabular-nums tracking-tight text-[var(--hos-ink)]">
+              {auditReady.score}%
+            </span>
+          </button>
+        </div>
       </div>
-
-      <EndOfShiftBriefing className="shrink-0" />
 
       <motion.div
         data-tour="kpis"
@@ -1291,21 +1297,20 @@ export function DeskPage() {
           <section className="shrink-0 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-3">
             <strong className="hos-section-label !m-0 flex items-center gap-1.5">
               <ListChecks className="size-3 text-[var(--hos-ink-3)]" strokeWidth={1.75} />
-              Shift checklist
+              Shift
             </strong>
-            <ul className="m-0 mt-2 list-none space-y-2 p-0 text-[12px] text-[var(--hos-ink-2)]">
-              {[
-                "Arrivals assigned",
-                "VIP keycards",
-                "Till float counted",
-                "Immigration manifest",
-              ].map((item) => (
-                <li key={item} className="flex items-center gap-2">
-                  <span className="size-3.5 rounded border border-[var(--hos-line)]" />
-                  {item}
-                </li>
-              ))}
-            </ul>
+            <p className="m-0 mt-2 text-[12px] text-[var(--hos-ink-2)]">
+              Handover print / sign / file opens as a modal — keeps Desk clear for arrivals.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              className="hos-btn-spring mt-2.5 !h-8 w-full"
+              onClick={() => setShiftBriefingOpen(true)}
+            >
+              End of shift…
+            </Button>
           </section>
         </div>
       </div>

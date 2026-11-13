@@ -814,7 +814,9 @@ export function PosPage() {
           </Dialog.Content>
         </Dialog.Portal>
       </Dialog.Root>
-      <EndOfShiftBriefing className="mt-3 shrink-0" />
+      <div className="mt-3 flex shrink-0 justify-end">
+        <EndOfShiftBriefing triggerLabel="End of shift" />
+      </div>
     </ModuleFrame>
   );
 }
