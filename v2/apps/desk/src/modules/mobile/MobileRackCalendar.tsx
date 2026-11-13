@@ -12,7 +12,13 @@ const LABEL_W = 44;
 /** Day cell width — enough for a truncated guest name. */
 const CELL_W = 76;
 const ROW_H = 34;
-const HEAD_H = 32;
+const HEAD_H = 40;
+
+function occTone(pct: number): string {
+  if (pct >= 90) return "text-[var(--hos-ruby)]";
+  if (pct >= 70) return "text-[var(--hos-brass-ink)]";
+  return "text-[var(--hos-emerald)]";
+}
 
 function shortName(name: string): string {
   const parts = name.trim().split(/\s+/);
@@ -71,6 +77,18 @@ export function MobileRackCalendar({
     () => Array.from({ length: days }, (_, i) => addDays(anchor, i)),
     [anchor, days],
   );
+
+  const dayStats = useMemo(() => {
+    const sellable = rooms.filter((r) => r.hkStatus !== "ooo").length;
+    return dates.map((d) => {
+      const sold = rooms.filter((r) =>
+        stays.some((s) => s.roomId === r.id && stayOnDate(s, d)),
+      ).length;
+      const pct = sellable ? Math.round((sold / sellable) * 100) : 0;
+      const vacant = Math.max(0, sellable - sold);
+      return { date: d, pct, vacant, sold, sellable };
+    });
+  }, [dates, rooms, stays]);
 
   const byFloor = useMemo(() => {
     const floors = [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b);
@@ -138,7 +156,7 @@ export function MobileRackCalendar({
         style={{
           /* Bounded pane so sticky date header freezes while rooms scroll */
           maxHeight:
-            "calc(100dvh - var(--mobile-dock-height) - env(safe-area-inset-bottom, 0px) - 7.5rem)",
+            "calc(100dvh - var(--mobile-dock-height) - env(safe-area-inset-bottom, 0px) - 5.5rem)",
           minHeight: "18rem",
         }}
       >
@@ -154,20 +172,36 @@ export function MobileRackCalendar({
             >
               Rm
             </div>
-            {dates.map((d) => {
+            {dates.map((d, di) => {
               const isToday = d === today;
+              const stat = dayStats[di];
               return (
                 <div
                   key={d}
                   className={[
-                    "flex flex-col items-center justify-center border-r border-[var(--hos-line)] font-mono text-[10px] font-bold tabular-nums",
+                    "flex flex-col items-center justify-center gap-px border-r border-[var(--hos-line)] font-mono tabular-nums",
                     isToday
                       ? "bg-[rgba(59,130,246,0.14)] text-[var(--hos-primary)]"
                       : "text-[var(--hos-ink-3)]",
                   ].join(" ")}
                   style={{ width: CELL_W, minWidth: CELL_W }}
+                  title={
+                    stat
+                      ? `${d} · ${stat.sold}/${stat.sellable} sold · ${stat.vacant} left`
+                      : d
+                  }
                 >
-                  {d.slice(5)}
+                  <span className="text-[10px] font-bold">{d.slice(5)}</span>
+                  {stat ? (
+                    <span
+                      className={`text-[8px] font-semibold leading-none ${occTone(stat.pct)}`}
+                    >
+                      {stat.pct}%
+                      <span className="ml-0.5 font-medium text-[var(--hos-ink-3)]">
+                        {stat.vacant === 0 ? "Full" : `${stat.vacant}L`}
+                      </span>
+                    </span>
+                  ) : null}
                 </div>
               );
             })}

@@ -68,8 +68,7 @@ const GROUP_MEALS: MealPlan[] = ["EP", "CP", "MAP", "AP"];
 
 const CELL_W = 104;
 const LABEL_W = 148;
-const OCC_ROW_H = 36;
-const ROW_H = 40;
+const ROW_H = 36;
 
 type DragPayload =
   | { kind: "unassigned"; stayId: string; label: string }
@@ -594,6 +593,7 @@ export function StayViewPage() {
   const [query, setQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
+  const [statsOpen, setStatsOpen] = useState(false);
   const [calYear, setCalYear] = useState(() => new Date().getFullYear());
   const [syncBusy, setSyncBusy] = useState(false);
   const [paint, setPaint] = useState<{
@@ -822,6 +822,7 @@ export function StayViewPage() {
     setRackAnchorDate(firstOfMonth(year, month));
     if (horizonDays < 30) setHorizonDays(30);
     setCalOpen(false);
+    setStatsOpen(false);
     setAttention("all");
   };
 
@@ -1117,28 +1118,105 @@ export function StayViewPage() {
           if (paint) finishPaint();
         }}
       >
-        {/* Command chrome — LivePanel-grade frost; opaque rack below */}
+        {/* Dense command chrome — ~40px row + thin Do-next; opaque rack below */}
         {/* z-30 above rack sticky date headers (z-4/5) so month jump isn’t buried */}
-        <div className="hos-module-chrome relative z-30 flex shrink-0 flex-col gap-1.5 rounded-none border-x-0 border-t-0 px-2 py-2 md:rounded-2xl md:px-3">
-          <div className="flex min-h-9 flex-wrap items-center gap-2">
-            <div className="flex shrink-0 items-center gap-2">
-              <h1 className="m-0 whitespace-nowrap text-sm font-medium tracking-normal text-[var(--hos-ink)]">
+        <div className="hos-module-chrome relative z-30 flex shrink-0 flex-col gap-1 rounded-none border-x-0 border-t-0 px-2 py-1.5 md:rounded-2xl md:px-3">
+          <div className="flex min-h-8 flex-nowrap items-center gap-1.5">
+            <div className="flex shrink-0 items-center gap-1.5">
+              <h1 className="m-0 whitespace-nowrap text-[13px] font-semibold tracking-tight text-[var(--hos-ink)]">
                 StayView
               </h1>
-              <button
-                type="button"
-                onClick={() => {
-                  setAttention("all");
-                  setHkFilter("all");
-                  setRackAnchorDate(today);
-                }}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--hos-line)] bg-[color-mix(in_srgb,var(--hos-emerald)_12%,transparent)] px-2 py-0.5 text-[10px] font-medium text-[var(--hos-emerald)] hover:border-[var(--hos-emerald)]"
-                title="Jump to today · clear attention"
-              >
-                <span className="size-1.5 rounded-full bg-[var(--hos-emerald)]" />
-                Occ{" "}
-                <span className="font-mono tabular-nums tracking-tight">{occPct}%</span>
-              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStatsOpen((v) => !v);
+                    setCalOpen(false);
+                  }}
+                  onDoubleClick={() => {
+                    setAttention("all");
+                    setHkFilter("all");
+                    setRackAnchorDate(today);
+                    setStatsOpen(false);
+                  }}
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--hos-line)] bg-[color-mix(in_srgb,var(--hos-emerald)_12%,transparent)] px-2 py-0.5 text-[10px] font-medium text-[var(--hos-emerald)] hover:border-[var(--hos-emerald)]"
+                  title="Month stats · double-click jumps to today"
+                  aria-expanded={statsOpen}
+                  aria-haspopup="dialog"
+                >
+                  <span className="size-1.5 rounded-full bg-[var(--hos-emerald)]" />
+                  Occ{" "}
+                  <span className="font-mono tabular-nums tracking-tight">{occPct}%</span>
+                </button>
+                <AnimatePresence>
+                  {statsOpen ? (
+                    <motion.div
+                      role="dialog"
+                      aria-label="Month inventory stats"
+                      initial={reduce ? false : { opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={reduce ? undefined : { opacity: 0, y: 2 }}
+                      className="absolute left-0 top-[calc(100%+6px)] z-[80] w-[min(260px,90vw)] rounded-2xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-3 shadow-[0_20px_48px_-16px_rgba(15,23,42,0.55)]"
+                    >
+                      <div className="mb-2 text-[11px] font-semibold text-[var(--hos-ink)]">
+                        {monthStats.label}
+                      </div>
+                      <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[11px]">
+                        <dt className="text-[var(--hos-ink-3)]">Rooms</dt>
+                        <dd className="m-0 text-right font-mono tabular-nums font-semibold text-[var(--hos-ink)]">
+                          {monthStats.totalRooms}
+                        </dd>
+                        <dt className="text-[var(--hos-ink-3)]">Occ</dt>
+                        <dd
+                          className={`m-0 text-right font-mono tabular-nums font-semibold ${
+                            monthStats.occPct >= 90
+                              ? "text-[var(--hos-ruby)]"
+                              : monthStats.occPct >= 70
+                                ? "text-[var(--hos-brass-ink)]"
+                                : "text-[var(--hos-emerald)]"
+                          }`}
+                        >
+                          {monthStats.occPct}%
+                          <span className="ml-1 text-[10px] font-medium text-[var(--hos-ink-3)]">
+                            ({monthStats.roomNightsSold}/{monthStats.roomNightsAvailable} RN)
+                          </span>
+                        </dd>
+                        <dt className="text-[var(--hos-ink-3)]">Rev</dt>
+                        <dd className="m-0 text-right font-mono tabular-nums font-semibold text-[var(--hos-primary)]">
+                          {formatNu(monthStats.projectedRevenue)}
+                        </dd>
+                        <dt className="text-[var(--hos-ink-3)]">Bookings</dt>
+                        <dd className="m-0 text-right font-mono tabular-nums font-semibold text-[var(--hos-ink)]">
+                          {monthStats.bookings}
+                        </dd>
+                      </dl>
+                      <div className="mt-2 flex gap-1">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          className="!h-7 flex-1 !min-h-7 text-[10px]"
+                          onClick={() => {
+                            setAttention("all");
+                            setHkFilter("all");
+                            setRackAnchorDate(today);
+                            setStatsOpen(false);
+                          }}
+                        >
+                          Today
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="!h-7 !min-h-7 !px-2 text-[10px]"
+                          onClick={() => setStatsOpen(false)}
+                        >
+                          Close
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
+              </div>
             </div>
 
             <label className="hos-search-field relative min-w-0 flex-1">
@@ -1186,6 +1264,7 @@ export function StayViewPage() {
                   onClick={() => {
                     setCalYear(viewedMonth.year);
                     setCalOpen((v) => !v);
+                    setStatsOpen(false);
                   }}
                   title="Jump to any month"
                 >
@@ -1347,44 +1426,6 @@ export function StayViewPage() {
             </div>
           </div>
 
-          {/* Monthly inventory · occ · revenue for the rack month */}
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-[var(--hos-line)] bg-[color-mix(in_srgb,var(--hos-primary)_6%,var(--hos-cell))] px-2.5 py-1.5 text-[11px]">
-            <span className="font-semibold text-[var(--hos-ink)]">
-              {monthStats.label}
-            </span>
-            <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
-              <span className="text-[var(--hos-ink-3)]">Rooms</span>{" "}
-              <strong className="text-[var(--hos-ink)]">{monthStats.totalRooms}</strong>
-            </span>
-            <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
-              <span className="text-[var(--hos-ink-3)]">Occ</span>{" "}
-              <strong
-                className={
-                  monthStats.occPct >= 90
-                    ? "text-[var(--hos-ruby)]"
-                    : monthStats.occPct >= 70
-                      ? "text-[var(--hos-brass-ink)]"
-                      : "text-[var(--hos-emerald)]"
-                }
-              >
-                {monthStats.occPct}%
-              </strong>
-              <span className="ml-1 text-[10px] text-[var(--hos-ink-3)]">
-                ({monthStats.roomNightsSold}/{monthStats.roomNightsAvailable} RN)
-              </span>
-            </span>
-            <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
-              <span className="text-[var(--hos-ink-3)]">Rev</span>{" "}
-              <strong className="text-[var(--hos-primary)]">
-                {formatNu(monthStats.projectedRevenue)}
-              </strong>
-            </span>
-            <span className="font-mono tabular-nums text-[var(--hos-ink-3)]">
-              {monthStats.bookings} booking
-              {monthStats.bookings === 1 ? "" : "s"}
-            </span>
-          </div>
-
           {apiOffline ? (
             <div className="flex items-center gap-2 rounded-xl border border-[color-mix(in_srgb,var(--hos-ruby)_40%,transparent)] bg-[color-mix(in_srgb,var(--hos-ruby)_10%,transparent)] px-3 py-2 text-[11px] text-[var(--hos-ruby)]">
               API offline — money / assign mutations are blocked until hydrate succeeds
@@ -1427,11 +1468,11 @@ export function StayViewPage() {
             </div>
           ) : null}
 
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-            <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-[var(--hos-ink-3)]">
+          <div className="flex h-7 min-h-7 items-center gap-1 overflow-x-auto">
+            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
               Do next
             </span>
-            <StatusLegend items={rackLegend} dense className="mr-1 hidden lg:flex" />
+            <StatusLegend items={rackLegend} dense className="mr-1 hidden xl:flex" />
             {attentionChips.map((chip) => {
               if (chip.count === 0 && attention !== chip.id) return null;
               const active = attention === chip.id;
@@ -1477,6 +1518,7 @@ export function StayViewPage() {
 
           {filtersOpen ? (
             <div className="flex flex-wrap items-center gap-1.5 border-t border-[var(--hos-line)] pt-1.5">
+              <StatusLegend items={rackLegend} dense className="xl:hidden" />
               <select
                 value={groupFilter}
                 onChange={(e) =>
@@ -1649,77 +1691,56 @@ export function StayViewPage() {
           }`}
         >
           <div style={{ width: LABEL_W + dates.length * CELL_W, minWidth: "100%" }}>
-            {/* Date headers */}
+            {/* Date headers + inline daily yield (no separate sticky yield row) */}
             <div className="sticky top-0 z-[4] flex border-b border-[var(--hos-line)] bg-[var(--hos-cell)]">
               <div
-                className="sticky left-0 z-[5] border-r border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]"
+                className="sticky left-0 z-[5] flex items-center border-r border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]"
                 style={{ width: LABEL_W }}
               >
                 Room
               </div>
-              {dates.map((d) => {
+              {dates.map((d, di) => {
                 const isToday = d === today;
                 const weekend = isWeekend(d);
+                const stat = dayStats[di];
                 return (
-                  <div
+                  <button
                     key={d}
+                    type="button"
+                    title={
+                      stat
+                        ? `${d} · ${stat.sold}/${stat.sellable} sold · jump rack here`
+                        : `${d} · jump rack here`
+                    }
+                    onClick={() => setRackAnchorDate(d)}
                     className={[
-                      "border-r border-[var(--hos-line)] px-1 py-2 text-center text-[10px] font-semibold uppercase tracking-wide transition-colors duration-150",
+                      "flex flex-col items-center justify-center gap-0 border-r border-[var(--hos-line)] px-0.5 py-1 text-center transition-colors duration-150",
                       "hover:bg-[rgba(37,99,235,0.1)] hover:text-[var(--hos-primary)]",
                       weekend ? "bg-[rgba(15,23,42,0.05)] dark:bg-[rgba(255,255,255,0.04)]" : "",
                       isToday
-                        ? "bg-[rgba(59,130,246,0.14)] text-[var(--hos-primary)]"
+                        ? "bg-[rgba(59,130,246,0.14)] text-[var(--hos-primary)] shadow-[inset_0_0_18px_-6px_rgba(59,130,246,0.5)]"
                         : "text-[var(--hos-ink-3)]",
                     ].join(" ")}
                     style={{ width: CELL_W }}
                   >
-                    {d.slice(5)}
-                    {weekend ? (
-                      <div className="text-[8px] font-bold opacity-70">WE</div>
+                    <span className="text-[10px] font-semibold uppercase tracking-wide">
+                      {d.slice(5)}
+                      {weekend ? (
+                        <span className="ml-0.5 text-[8px] font-bold opacity-70">WE</span>
+                      ) : null}
+                    </span>
+                    {stat ? (
+                      <>
+                        <span
+                          className={`mt-0.5 rounded-full px-1 py-px font-mono text-[9px] tabular-nums tracking-tight ${occTone(stat.pct)}`}
+                        >
+                          {stat.pct >= 90 ? `${stat.pct}% SO` : `${stat.pct}%`}
+                        </span>
+                        <span className="font-mono text-[8px] font-semibold tabular-nums text-[var(--hos-ink-3)]">
+                          {stat.vacant === 0 ? "Full" : `${stat.vacant} left`}
+                        </span>
+                      </>
                     ) : null}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Sticky daily occupancy / yield strip */}
-            <div
-              className="sticky z-[3] flex border-b border-[var(--hos-line)] bg-[var(--hos-cell)]"
-              style={{ top: 36, height: OCC_ROW_H }}
-            >
-              <div
-                className="sticky left-0 z-[5] flex items-center border-r border-[var(--hos-line)] bg-[var(--hos-cell)] px-2 text-[9px] font-bold uppercase tracking-wide text-[var(--hos-ink-3)]"
-                style={{ width: LABEL_W }}
-              >
-                Daily yield
-              </div>
-              {dayStats.map((stat) => {
-                const isToday = stat.date === today;
-                const weekend = isWeekend(stat.date);
-                return (
-                  <button
-                    key={stat.date}
-                    type="button"
-                    title={`${stat.date} · ${stat.sold}/${stat.sellable} sold · jump rack here`}
-                    onClick={() => setRackAnchorDate(stat.date)}
-                    className={[
-                      "flex flex-col items-center justify-center gap-0.5 border-r border-[var(--hos-line)] px-0.5 transition-colors",
-                      "hover:bg-[rgba(37,99,235,0.1)]",
-                      weekend ? "bg-[rgba(15,23,42,0.04)] dark:bg-[rgba(255,255,255,0.03)]" : "",
-                      isToday
-                        ? "bg-[rgba(59,130,246,0.12)] shadow-[inset_0_0_18px_-6px_rgba(59,130,246,0.5)]"
-                        : "",
-                    ].join(" ")}
-                    style={{ width: CELL_W }}
-                  >
-                    <span
-                      className={`rounded-full px-1.5 py-0.5 font-mono text-[9px] tabular-nums tracking-tight ${occTone(stat.pct)}`}
-                    >
-                      {stat.pct >= 90 ? `${stat.pct}% SO` : `${stat.pct}%`}
-                    </span>
-                    <span className="font-mono text-[8px] font-semibold tabular-nums text-[var(--hos-ink-3)]">
-                      {stat.vacant === 0 ? "Full" : `${stat.vacant} left`}
-                    </span>
                   </button>
                 );
               })}

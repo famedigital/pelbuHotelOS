@@ -12,7 +12,6 @@ import { toast } from "sonner";
 import { CalendarDays, ChevronRight, Search, Wand2, Zap } from "lucide-react";
 import {
   addDays,
-  computeMonthStayviewStats,
   firstOfMonth,
   formatNu,
   folioBalance,
@@ -99,7 +98,7 @@ export function StayViewMobileView() {
   };
   const [selected, setSelected] = useState(today);
   const [rackAnchor, setRackAnchor] = useState(today);
-  const [viewMode, setViewMode] = useState<ViewMode>("rooms");
+  const [viewMode, setViewMode] = useState<ViewMode>("rack");
   const [floor, setFloor] = useState<number | "all">("all");
   const [filter, setFilter] = useState<FilterId>("all");
   const [groupFilter, setGroupFilter] = useState<string | "all">("all");
@@ -122,11 +121,6 @@ export function StayViewMobileView() {
     () => [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b),
     [rooms],
   );
-
-  const monthStats = useMemo(() => {
-    const { year, month } = parseYearMonth(selected);
-    return computeMonthStayviewStats(rooms, stays, year, month);
-  }, [rooms, stays, selected]);
 
   const dayStats = useMemo(() => {
     const occupied = rooms.filter((r) =>
@@ -206,19 +200,43 @@ export function StayViewMobileView() {
       ].join(" ")}
     >
       <motion.div
-        className="hos-mobile-hero"
+        className="hos-mobile-hero !min-h-0 !items-center !gap-1.5 !py-1.5"
         initial={reduce ? false : { opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
         transition={springSoft}
       >
-        <div className="min-w-0">
-          <h1 className="hos-mobile-hero-title">StayView</h1>
-          <p className="hos-mobile-hero-meta">
-            Occ {dayStats.occPct}% · {dayStats.occupied} in · {dayStats.vacant} vac ·{" "}
-            {dayStats.arrivals} arr
-          </p>
+        <div className="flex min-w-0 items-center gap-1.5">
+          <h1 className="hos-mobile-hero-title !text-[15px] !leading-none">StayView</h1>
+          <span
+            className={`inline-flex items-center rounded-full border border-[var(--hos-line)] bg-[color-mix(in_srgb,var(--hos-emerald)_12%,transparent)] px-1.5 py-0.5 font-mono text-[10px] font-semibold tabular-nums ${
+              dayStats.occPct >= 90
+                ? "text-[var(--hos-ruby)]"
+                : "text-[var(--hos-emerald)]"
+            }`}
+            title={`Occ ${dayStats.occPct}% · ${dayStats.occupied} in · ${dayStats.vacant} vac`}
+          >
+            Occ {dayStats.occPct}%
+          </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <label className="inline-flex h-8 items-center rounded-full border border-[var(--hos-line)] bg-[var(--hos-cell)] px-1.5">
+            <CalendarDays className="size-3 text-[var(--hos-primary)]" aria-hidden />
+            <input
+              type="month"
+              className="hos-input !min-h-0 !w-[7.25rem] !border-0 !bg-transparent !px-1 !py-0 !text-[11px] !shadow-none"
+              aria-label="Jump to month"
+              value={`${parseYearMonth(viewMode === "rack" ? rackAnchor : selected).year}-${String(parseYearMonth(viewMode === "rack" ? rackAnchor : selected).month).padStart(2, "0")}`}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (!/^\d{4}-\d{2}$/.test(v)) return;
+                const [y, m] = v.split("-").map(Number);
+                if (!y || !m) return;
+                const start = firstOfMonth(y, m);
+                setSelected(start);
+                setRackAnchor(start);
+              }}
+            />
+          </label>
           <Button
             size="sm"
             className={[
@@ -275,52 +293,10 @@ export function StayViewMobileView() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Guest, room, PS-, group…"
-          className="hos-search-input !h-9 !min-h-9 w-full !rounded-full !text-[13px]"
+          className="hos-search-input !h-8 !min-h-8 w-full !rounded-full !text-[12px]"
           aria-label="Search rooms and guests"
         />
       </label>
-
-      <div className="flex shrink-0 flex-wrap items-center gap-x-2.5 gap-y-1 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-2.5 py-1.5 text-[11px]">
-        <label className="inline-flex items-center gap-1.5 font-semibold text-[var(--hos-ink)]">
-          <CalendarDays className="size-3.5 text-[var(--hos-primary)]" />
-          <input
-            type="month"
-            className="hos-input !min-h-7 !w-auto !rounded-lg !px-1.5 !py-0.5 !text-[11px]"
-            aria-label="Jump to month"
-            value={`${parseYearMonth(selected).year}-${String(parseYearMonth(selected).month).padStart(2, "0")}`}
-            onChange={(e) => {
-              const v = e.target.value;
-              if (!/^\d{4}-\d{2}$/.test(v)) return;
-              const [y, m] = v.split("-").map(Number);
-              if (!y || !m) return;
-              const start = firstOfMonth(y, m);
-              setSelected(start);
-              setRackAnchor(start);
-            }}
-          />
-        </label>
-        <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
-          Rooms <strong className="text-[var(--hos-ink)]">{monthStats.totalRooms}</strong>
-        </span>
-        <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
-          Occ{" "}
-          <strong
-            className={
-              monthStats.occPct >= 90
-                ? "text-[var(--hos-ruby)]"
-                : "text-[var(--hos-emerald)]"
-            }
-          >
-            {monthStats.occPct}%
-          </strong>
-        </span>
-        <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
-          Rev{" "}
-          <strong className="text-[var(--hos-primary)]">
-            {formatNu(monthStats.projectedRevenue)}
-          </strong>
-        </span>
-      </div>
 
       {viewMode === "rack" ? (
         <MobileRackCalendar
