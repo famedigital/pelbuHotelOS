@@ -709,6 +709,8 @@ export type FoHydrateSnapshot = {
     companionName?: string | null;
     companionPassportOrCid?: string | null;
     companionNationality?: string | null;
+    adults?: number | null;
+    children?: number | null;
     lines: {
       id: string;
       bookingId: string;
@@ -875,6 +877,8 @@ export async function loadFrontOfficeSnapshot(
           companionName: b.companionName,
           companionPassportOrCid: b.companionPassportOrCid,
           companionNationality: b.companionNationality,
+          adults: b.adults ?? null,
+          children: b.children ?? null,
           lines: linesByBooking.get(b.id) ?? [],
         })),
         assignments: assignRows.map((a) => ({

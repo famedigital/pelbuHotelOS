@@ -8,6 +8,7 @@ export const LOCAL_DEMO_PROPERTY: AuthProperty = {
   name: "Demo Hotel",
 };
 
+/** Local Vite UAT — same department defaults as live hotels. */
 const LOCAL_DEMO_PINS: ReadonlyArray<{
   staffId: string;
   pin: string;
@@ -17,44 +18,52 @@ const LOCAL_DEMO_PINS: ReadonlyArray<{
   employeeCode: string;
 }> = [
   {
-    staffId: "karma",
-    pin: "1234",
-    fullName: "Karma Dorji",
-    deskRole: "fo_manager",
+    staffId: "dept-res",
+    pin: "9999",
+    fullName: "Reservation",
+    deskRole: "reservations",
+    homeRoute: "/reservations",
+    employeeCode: "DEPT-RES",
+  },
+  {
+    staffId: "dept-fo",
+    pin: "1111",
+    fullName: "Front Office",
+    deskRole: "fo",
     homeRoute: "/desk",
-    employeeCode: "101",
+    employeeCode: "DEPT-FO",
   },
   {
-    staffId: "deki",
-    pin: "2345",
-    fullName: "Deki Yangzom",
-    deskRole: "cashier",
+    staffId: "dept-fnb",
+    pin: "2222",
+    fullName: "F&B",
+    deskRole: "fnb",
     homeRoute: "/pos",
-    employeeCode: "201",
+    employeeCode: "DEPT-FNB",
   },
   {
-    staffId: "tshering",
-    pin: "3456",
-    fullName: "Tshering Tobgay",
+    staffId: "dept-hk",
+    pin: "3333",
+    fullName: "Housekeeping",
     deskRole: "hk",
     homeRoute: "/housekeeping",
-    employeeCode: "301",
+    employeeCode: "DEPT-HK",
   },
   {
-    staffId: "ugyen",
-    pin: "4567",
-    fullName: "Ugyen Penjor",
-    deskRole: "night_auditor",
-    homeRoute: "/night-audit",
-    employeeCode: "401",
+    staffId: "dept-kit",
+    pin: "4444",
+    fullName: "Kitchen",
+    deskRole: "kitchen",
+    homeRoute: "/kds",
+    employeeCode: "DEPT-KIT",
   },
   {
-    staffId: "tenzin",
-    pin: "9999",
-    fullName: "Tenzin Norbu",
-    deskRole: "gm",
+    staffId: "dept-own",
+    pin: "0000",
+    fullName: "Owner",
+    deskRole: "owner",
     homeRoute: "/owner",
-    employeeCode: "001",
+    employeeCode: "DEPT-OWN",
   },
 ];
 

@@ -28,6 +28,7 @@ import { useFiscalStore } from "../lib/fiscal-store";
 import { useOpsStore } from "../lib/ops-store";
 import { useSettingsStore } from "../lib/settings-store";
 import { useExtrasStore } from "../lib/extras-store";
+import { stayPax } from "../lib/stay-pax";
 
 type StayLogistics = {
   nationality: string;
@@ -155,12 +156,6 @@ function loadPrintJobs(): DeptPrintJob[] {
     console.error("[print-studio] load jobs failed", err);
     return [];
   }
-}
-
-function stayPax(stay: Stay): number {
-  const adults = stay.adults ?? 2;
-  const children = stay.children ?? 0;
-  return Math.max(1, adults + children);
 }
 
 function dietForStay(stay: Stay): string | null {

@@ -60,6 +60,11 @@ import {
   type Stay,
   ymd,
 } from "../lib/front-office-store";
+import {
+  agencyInitialsForStay,
+  stayDisplayGuest,
+  stayGroupColor,
+} from "../lib/agency-initials";
 import { deskCan } from "../lib/desk-auth";
 import { isApiUuid } from "../lib/fo-remote";
 import { rateCardById, useCommercialStore } from "../lib/commercial-store";
@@ -344,6 +349,10 @@ function StayHoverDossier({
   const canCheckIn =
     ["confirmed", "held"].includes(stay.status) && stay.checkIn === today;
   const [noteDraft, setNoteDraft] = useState(stay.notes ?? "");
+  const agents = useCommercialStore((s) => s.agents);
+  const agentCode = agencyInitialsForStay(stay, agents);
+  const displayGuest = stayDisplayGuest(stay);
+  const agencyLabel = stay.agencyName?.trim() || stay.groupName?.trim() || "";
 
   return (
     <div
@@ -355,11 +364,17 @@ function StayHoverDossier({
       onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex items-start justify-between gap-2">
-        <strong className="text-sm text-[var(--hos-ink)]">{stay.guestName}</strong>
+        <strong className="text-sm text-[var(--hos-ink)]">{displayGuest}</strong>
         {stay.vip ? <Badge tone="vip">VIP</Badge> : null}
       </div>
       <p className="m-0 mt-1 text-[11px] text-[var(--hos-ink-3)]">
-        {stay.passportOrCid} · {stay.nationality}
+        {[agentCode, agencyLabel && agencyLabel !== agentCode ? agencyLabel : null]
+          .filter(Boolean)
+          .join(" · ") || "Direct"}
+        {stay.confirmationNo ? ` · ${stay.confirmationNo}` : ""}
+      </p>
+      <p className="m-0 mt-1 text-[11px] text-[var(--hos-ink-3)]">
+        {[stay.passportOrCid, stay.nationality].filter(Boolean).join(" · ") || "—"}
       </p>
       <p className="m-0 mt-1 text-[11px] text-[var(--hos-ink-2)]">
         {stay.checkIn} → {stay.checkOut} · {nights} night{nights === 1 ? "" : "s"}
@@ -413,7 +428,6 @@ function StayRibbon({
   startIdx,
   span,
   groupPax,
-  today,
   highlight,
   dimmed,
   onOpen,
@@ -424,7 +438,8 @@ function StayRibbon({
   startIdx: number;
   span: number;
   groupPax: number;
-  today: string;
+  /** @deprecated kept for call-site compat — color is by booking ref now */
+  today?: string;
   highlight?: boolean;
   dimmed?: boolean;
   onOpen: () => void;
@@ -433,50 +448,46 @@ function StayRibbon({
 }) {
   const reduce = useReducedMotion();
   const bal = folioBalance(stay);
+  const agents = useCommercialStore((s) => s.agents);
+  const agentCode = agencyInitialsForStay(stay, agents);
+  const displayGuest = stayDisplayGuest(stay);
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `ribbon:${stay.id}`,
     data: {
       kind: "ribbon",
       stayId: stay.id,
-      label: stay.guestName,
+      label: agentCode ? `${agentCode} · ${displayGuest}` : displayGuest,
     } satisfies DragPayload,
   });
 
-  const arrivingToday =
-    ["confirmed", "held"].includes(stay.status) && stay.checkIn === today;
-
-  const groupColor = useFrontOfficeStore((s) =>
+  const metaColor = useFrontOfficeStore((s) =>
     stay.groupId ? s.groupMeta[stay.groupId]?.color : undefined,
   );
+  /* Same agent, different booking refs → different colors (e.g. ST 02111 vs 02076). */
+  const groupColor = stayGroupColor(stay, metaColor);
 
-  /* Solid enterprise bars — group tint when linked; departed = muted slate */
+  /* Departed stays stay muted; active ribbons use per-group color. */
   let tone =
-    "border-[color-mix(in_srgb,var(--hos-emerald)_45%,transparent)] bg-[var(--hos-emerald)]";
+    "border-transparent bg-[var(--hos-emerald)]";
   if (stay.status === "checked_out") {
     tone =
       "border-[color-mix(in_srgb,var(--hos-ink-3)_40%,transparent)] bg-[color-mix(in_srgb,var(--hos-ink-2)_72%,#64748b)] opacity-90";
-  } else if (stay.vip) {
-    tone =
-      "border-[color-mix(in_srgb,var(--hos-brass)_50%,transparent)] bg-[var(--hos-brass)]";
-  } else if (stay.status === "checked_in") {
-    tone =
-      "border-[color-mix(in_srgb,var(--hos-primary)_45%,transparent)] bg-[var(--hos-primary)]";
   } else if (stay.status === "held") {
-    tone =
-      "border-[color-mix(in_srgb,var(--hos-brass)_50%,transparent)] bg-[var(--hos-brass)]";
-  } else if (arrivingToday) {
-    tone =
-      "border-[color-mix(in_srgb,var(--hos-emerald)_50%,transparent)] bg-[var(--hos-emerald)]";
+    tone = "border-[color-mix(in_srgb,var(--hos-brass)_40%,transparent)]";
   }
 
-  const shortGroup = stay.groupName
-    ? stay.groupName.split(/[-–—]/)[0]?.trim().slice(0, 18) ?? stay.groupName.slice(0, 18)
-    : null;
+  const agencyLabel = stay.agencyName?.trim() || stay.groupName?.trim() || "";
+  /* Keep tooltip short — full import dump lives in Notes, not the title. */
+  const title = [agentCode, agencyLabel && agencyLabel !== agentCode ? agencyLabel : null, displayGuest]
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i)
+    .join(" · ");
 
   return (
     <motion.button
       ref={setNodeRef}
       type="button"
+      title={title}
       {...listeners}
       {...attributes}
       onClick={onOpen}
@@ -499,31 +510,30 @@ function StayRibbon({
         left: LABEL_W + startIdx * CELL_W + 3,
         width: span * CELL_W - 6,
         textShadow: "0 1px 2px rgba(0,0,0,0.55)",
-        ...(groupColor
+        ...(stay.status !== "checked_out"
           ? { backgroundColor: groupColor, borderColor: groupColor }
           : {}),
       }}
     >
-      <span className="truncate text-[11px] font-semibold tracking-tight">
-        {stay.guestName}
+      {agentCode ? (
+        <span
+          className="shrink-0 rounded bg-black/35 px-1 font-mono text-[10px] font-bold tracking-wide"
+          aria-label={`Agent ${agentCode}`}
+        >
+          {agentCode}
+        </span>
+      ) : null}
+      <span className="min-w-0 truncate text-[11px] font-semibold tracking-tight">
+        {displayGuest}
       </span>
       {stay.vip ? (
         <span className="shrink-0 rounded bg-black/25 px-1 text-[9px] font-bold">
           VIP
         </span>
       ) : null}
-      {stay.notes ? (
-        <span
-          title={stay.notes}
-          className="hidden max-w-[72px] truncate rounded bg-black/25 px-1 text-[9px] font-semibold sm:inline"
-        >
-          {stay.notes}
-        </span>
-      ) : null}
-      {shortGroup ? (
-        <span className="hidden max-w-[90px] truncate rounded bg-black/20 px-1 text-[9px] font-semibold lg:inline">
-          {shortGroup}
-          {groupPax > 0 ? ` ${groupPax}P` : ""}
+      {groupPax > 1 ? (
+        <span className="hidden shrink-0 rounded bg-black/20 px-1 text-[9px] font-semibold sm:inline">
+          {groupPax}P
         </span>
       ) : null}
       {bal > 0.5 ? (

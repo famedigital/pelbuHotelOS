@@ -1070,6 +1070,174 @@
   padding-inline: 0.625rem;
 }
 
+/* Desk check-in rail — high contrast for old FO monitors */
+.hos-desk-room-rail {
+  position: relative;
+  z-index: 45;
+  display: flex;
+  min-height: 44px;
+  height: auto;
+  max-height: 52px;
+  align-items: center;
+  gap: 0.625rem;
+  overflow: visible;
+  padding-inline: 0.625rem;
+  padding-block: 0.25rem;
+  background: var(--hos-cell);
+}
+
+.hos-desk-room-rail-label,
+.hos-desk-room-rail-summary {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--hos-ink-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+button.hos-desk-room-rail-summary {
+  appearance: none;
+  font: inherit;
+  line-height: 1.2;
+}
+
+.hos-desk-room-rail-checkin {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.hos-desk-room-rail-scroll {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 0.375rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+
+.hos-desk-room-chip {
+  display: inline-flex !important;
+  height: 2rem !important;
+  min-height: 2rem !important;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.5rem !important;
+  border: 1.5px solid var(--hos-ink) !important;
+  padding: 0 0.55rem !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  white-space: nowrap;
+  background: var(--hos-cell) !important;
+  color: var(--hos-ink) !important;
+  transform: translateZ(0);
+}
+
+.hos-desk-room-chip--checkin {
+  border-color: var(--hos-emerald) !important;
+  background: color-mix(in srgb, var(--hos-emerald) 18%, var(--hos-cell)) !important;
+  color: var(--hos-ink) !important;
+}
+
+.hos-desk-room-chip-num {
+  font-family: "Roboto Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.hos-desk-room-chip-guest {
+  max-width: 7.5rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--hos-ink-2);
+}
+
+.hos-desk-room-rail-details {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.hos-desk-room-rail-summary--assigned {
+  border: 1.5px solid var(--hos-occupied-fg, var(--hos-primary));
+  border-radius: 0.5rem;
+  background: var(--hos-occupied-bg, color-mix(in srgb, var(--hos-primary) 16%, var(--hos-cell)));
+  color: var(--hos-occupied-fg, var(--hos-ink));
+  padding: 0.35rem 0.55rem;
+}
+
+.hos-desk-room-rail-summary--empty {
+  border: 1.5px solid var(--hos-ink);
+  border-radius: 0.5rem;
+  background: var(--hos-canvas-2);
+  color: var(--hos-ink);
+  padding: 0.35rem 0.55rem;
+}
+
+.hos-desk-room-rail-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  max-height: 16rem;
+  min-width: 12rem;
+  max-width: 18rem;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  border: 1.5px solid var(--hos-ink);
+  border-radius: 0.5rem;
+  background: var(--hos-cell);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--hos-ink) 18%, transparent);
+  padding: 0.25rem;
+}
+
+/* Body portal — above desk grid / glass panels (overflow stacking). */
+.hos-desk-room-rail-menu--portal {
+  position: fixed;
+  z-index: 220;
+  top: auto;
+  right: auto;
+}
+
+.hos-desk-room-rail-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 0.35rem;
+  border: none;
+  background: transparent;
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--hos-ink);
+  cursor: pointer;
+}
+
+.hos-desk-room-rail-menu-item:hover,
+.hos-desk-room-rail-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--hos-primary) 12%, var(--hos-cell));
+  outline: none;
+}
+
+[data-theme="light"] .hos-desk-room-rail-summary--empty,
+[data-theme="ivory"] .hos-desk-room-rail-summary--empty {
+  color: #2c1810;
+  border-color: #2c1810;
+}
+
 /* —— Desk bento KPI ribbon (74px locked) —— */
 
 .hos-desk-kpi-strip {

@@ -105,6 +105,9 @@ export type BookingRow = {
   companionName?: string | null;
   companionPassportOrCid?: string | null;
   companionNationality?: string | null;
+  /** Occupancy — hydrate from v2.bookings; never invent double occupancy. */
+  adults?: number | null;
+  children?: number | null;
   lines: BookingLineRow[];
 };
 

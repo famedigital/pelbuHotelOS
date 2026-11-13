@@ -962,12 +962,12 @@ export function App() {
               </button>
               <div className="relative" data-hos-profile-menu>
                 <button
-                  ref={profileAnchorRef}
+                  ref={isPhone ? profileAnchorRef : undefined}
                   type="button"
                   onClick={() => setProfileOpen((v) => !v)}
                   className="hos-btn-tactile flex size-9 min-h-[44px] min-w-[44px] items-center justify-center rounded-full border border-[var(--hos-glass-border)] bg-[var(--hos-surface)]"
                   title="Staff menu"
-                  aria-label="Cashier"
+                  aria-label="Staff menu"
                   aria-expanded={profileOpen}
                   aria-haspopup="menu"
                 >
@@ -1181,11 +1181,12 @@ export function App() {
 
               <div className="relative" data-hos-profile-menu>
                 <button
-                  ref={profileAnchorRef}
+                  ref={!isPhone ? profileAnchorRef : undefined}
                   type="button"
                   onClick={() => setProfileOpen((v) => !v)}
                   className="hos-btn-tactile flex items-center gap-1 rounded-full border border-[var(--hos-glass-border)] bg-[var(--hos-surface)] py-0.5 pl-0.5 pr-1.5 text-[10px] font-semibold text-[var(--hos-ink-2)]"
                   title="Staff menu"
+                  aria-label="Staff menu"
                   aria-expanded={profileOpen}
                   aria-haspopup="menu"
                 >

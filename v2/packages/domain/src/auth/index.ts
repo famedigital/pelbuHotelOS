@@ -4,6 +4,11 @@
  */
 
 export { homeRouteForDeskRole, simpleRailItems } from "./desk-homes.js";
+export {
+  DEFAULT_DEPT_PINS,
+  defaultPinForDeskRole,
+  type DefaultDeptPin,
+} from "./default-dept-pins.js";
 
 export type DeskRole =
   | "owner"

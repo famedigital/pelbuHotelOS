@@ -31,6 +31,12 @@ import {
   SmartAssignSheet,
   type SmartAssignMode,
 } from "../SmartAssignSheet";
+import {
+  agencyInitialsForStay,
+  stayDisplayGuest,
+  stayGroupColor,
+} from "../../lib/agency-initials";
+import { useCommercialStore } from "../../lib/commercial-store";
 import { deskCan } from "../../lib/desk-auth";
 
 type FilterId = "all" | "occupied" | "vacant" | "dirty" | "due" | "need";
@@ -64,10 +70,8 @@ function dayLabel(ymdStr: string, today: string): string {
   });
 }
 
-function roomAccent(stay: Stay | undefined, hk: HkStatus, groupColor?: string): string {
-  if (stay?.groupId && groupColor) return groupColor;
-  if (stay?.status === "checked_in") return "var(--hos-emerald)";
-  if (stay && ["confirmed", "held"].includes(stay.status)) return "var(--hos-primary)";
+function roomAccent(stay: Stay | undefined, hk: HkStatus, metaColor?: string): string {
+  if (stay) return stayGroupColor(stay, metaColor);
   if (hk === "dirty") return "var(--hos-brass)";
   if (hk === "ooo") return "var(--hos-ruby)";
   return "var(--hos-line)";
@@ -86,6 +90,7 @@ export function StayViewMobileView() {
   const smartAutoAssign = useFrontOfficeStore((s) => s.smartAutoAssign);
   const applyGroupMealPlan = useFrontOfficeStore((s) => s.applyGroupMealPlan);
   const apiOffline = useFrontOfficeStore((s) => s.apiOffline);
+  const agents = useCommercialStore((s) => s.agents);
   const canWriteStayview = deskCan("stayview", "write");
 
   const today = businessDate || ymd(new Date());
@@ -560,6 +565,9 @@ export function StayViewMobileView() {
                       const gColor = stay?.groupId
                         ? groupMeta[stay.groupId]?.color
                         : undefined;
+                      const agentCode = stay
+                        ? agencyInitialsForStay(stay, agents)
+                        : null;
                       return (
                         <button
                           key={room.id}
@@ -608,8 +616,13 @@ export function StayViewMobileView() {
                             {stay ? (
                               <>
                                 <span className="flex items-center gap-1">
+                                  {agentCode ? (
+                                    <span className="shrink-0 rounded bg-[var(--hos-ink)] px-1 font-mono text-[9px] font-bold text-white">
+                                      {agentCode}
+                                    </span>
+                                  ) : null}
                                   <strong className="truncate text-[13px] font-medium text-[var(--hos-ink)]">
-                                    {stay.guestName}
+                                    {stayDisplayGuest(stay)}
                                   </strong>
                                   {stay.vip ? (
                                     <span className="text-[10px] text-[var(--hos-brass)]">VIP</span>

@@ -779,6 +779,8 @@ type ApiBooking = {
   agentId?: string | null;
   agencyName?: string | null;
   groupId?: string | null;
+  adults?: number | null;
+  children?: number | null;
   lines: {
     id: string;
     roomTypeId: string;
@@ -951,6 +953,8 @@ export function mapApiBookingToStay(
     holdExpiresAt: b.status === "held" ? `${b.checkIn}T18:00:00` : null,
     depositPaid: 0,
     notes: b.notes?.trim() || undefined,
+    adults: b.adults ?? undefined,
+    children: b.children ?? undefined,
     companions,
     apiBookingId: b.id,
     apiBookingLineId: line?.id,

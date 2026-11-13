@@ -214,6 +214,9 @@ export const bookings = v2.table("bookings", {
   companionName: text("companion_name"),
   companionPassportOrCid: text("companion_passport_or_cid"),
   companionNationality: text("companion_nationality"),
+  /** Adult / child pax — nullable until desk or booking capture. */
+  adults: integer("adults"),
+  children: integer("children"),
   version: integer("version").notNull().default(1),
   createdAt: ts("created_at"),
 });

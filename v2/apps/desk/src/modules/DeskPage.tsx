@@ -18,7 +18,6 @@ import {
   LedBeacon,
   MorphTabs,
   Odometer,
-  StatusLegend,
   fadeSlide,
   staggerChildren,
   useIsPhone,
@@ -44,15 +43,16 @@ import {
   stayOnDate,
   useFrontOfficeStore,
   ymd,
-  type Room,
   type Stay,
 } from "../lib/front-office-store";
 import { nightAuditReadiness } from "../lib/action-dispatcher";
+import { DeskRoomRail } from "../components/DeskRoomRail";
 import { EndOfShiftBriefing } from "../components/EndOfShiftBriefing";
 import { useFiscalStore } from "../lib/fiscal-store";
 import { useExtrasStore } from "../lib/extras-store";
 import { useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
 import { playSfx } from "../lib/sfx";
+import { stayPax } from "../lib/stay-pax";
 import { MealBoardMissionCard } from "./MealBoardMissionCard";
 import { DeskMobileView } from "./mobile/DeskMobileView";
 import { DeskTabletView } from "./mobile/DeskTabletView";
@@ -121,27 +121,6 @@ function vipPreferences(name: string): string[] {
   return ["VIP Welcome Amenity", "Daily Pressing", "Quiet Wing"];
 }
 
-/** Quiet floor chips — occupied uses --hos-occupied-* (safe in light + midnight). */
-function roomChipTone(
-  room: Room,
-  stay: Stay | undefined,
-  today: string,
-): string {
-  if (room.hkStatus === "ooo")
-    return "border-[var(--hos-line)] bg-[var(--hos-canvas-2)] text-[var(--hos-ruby)]";
-  if (stay?.status === "checked_in")
-    return "border-transparent bg-[var(--hos-occupied-bg)] text-[var(--hos-occupied-fg)]";
-  if (
-    stay &&
-    ["confirmed", "held"].includes(stay.status) &&
-    stay.checkIn === today
-  )
-    return "border-[var(--hos-primary)] bg-[color-mix(in_srgb,var(--hos-primary)_16%,var(--hos-cell))] text-[var(--hos-ink)]";
-  if (room.hkStatus === "dirty")
-    return "border-[color-mix(in_srgb,var(--hos-brass)_40%,var(--hos-line))] bg-[color-mix(in_srgb,var(--hos-brass)_12%,var(--hos-cell))] text-[var(--hos-brass-ink)]";
-  return "border-[var(--hos-line)] bg-[var(--hos-canvas-2)] text-[var(--hos-ink-2)]";
-}
-
 export function DeskPage() {
   const isPhone = useIsPhone();
   const isTablet = useIsTablet();
@@ -158,6 +137,9 @@ export function DeskPage() {
   const [focusIdx, setFocusIdx] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [queueModal, setQueueModal] = useState<"holds" | "checkin" | null>(
+    null,
+  );
   const lastUndoStayId = useRef<string | null>(null);
   const [, start] = useTransition();
   const staysRaw = useFrontOfficeStore((s) => s.stays);
@@ -169,6 +151,7 @@ export function DeskPage() {
   const openFastBook = useFrontOfficeStore((s) => s.openFastBook);
   const smartAutoAssign = useFrontOfficeStore((s) => s.smartAutoAssign);
   const checkIn = useFrontOfficeStore((s) => s.checkIn);
+  const confirmHold = useFrontOfficeStore((s) => s.confirmHold);
   const revertCheckIn = useFrontOfficeStore((s) => s.revertCheckIn);
   const checkOut = useFrontOfficeStore((s) => s.checkOut);
   const tillBalance = useFiscalStore((s) => s.tillBalance);
@@ -260,18 +243,31 @@ export function DeskPage() {
   const pendingSettle = departures.filter(
     (s) => s.status === "checked_in" && folioBalance(s, "personal") > PERSONAL_CHECKOUT_GATE_BTN,
   ).length;
+  const holdsQueue = useMemo(
+    () =>
+      stays
+        .filter((s) => s.status === "held")
+        .sort((a, b) => a.checkIn.localeCompare(b.checkIn) || a.guestName.localeCompare(b.guestName)),
+    [stays],
+  );
+  const checkInQueue = useMemo(
+    () =>
+      stays
+        .filter(
+          (s) =>
+            s.checkIn === today &&
+            ["confirmed", "held"].includes(s.status) &&
+            Boolean(s.roomId),
+        )
+        .sort(
+          (a, b) =>
+            (a.roomNumber ?? "").localeCompare(b.roomNumber ?? "") ||
+            a.guestName.localeCompare(b.guestName),
+        ),
+    [stays, today],
+  );
   const vips = inHouse.filter((s) => s.vip);
   const openShift = tillShifts.find((t) => !t.closedAt);
-
-  const floors = useMemo(() => {
-    const fs = [...new Set(rooms.map((r) => r.floor))].sort((a, b) => a - b);
-    return fs.map((f) => ({
-      floor: f,
-      rooms: rooms
-        .filter((r) => r.floor === f)
-        .sort((a, b) => a.number.localeCompare(b.number)),
-    }));
-  }, [rooms]);
 
   const groups = useMemo(() => {
     const map = new Map<string, { name: string; rooms: number; pax: number }>();
@@ -283,7 +279,7 @@ export function DeskPage() {
         pax: 0,
       };
       cur.rooms += 1;
-      cur.pax += 2;
+      cur.pax += stayPax(s);
       map.set(s.groupName, cur);
     }
     return [...map.values()];
@@ -508,7 +504,7 @@ export function DeskPage() {
 
       <motion.div
         data-tour="kpis"
-        className="hos-desk-kpi-strip grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--hos-line)] bg-[var(--hos-line)] sm:grid-cols-3 lg:grid-cols-5"
+        className="hos-desk-kpi-strip grid shrink-0 grid-cols-2 gap-px overflow-hidden rounded-xl border border-[var(--hos-line)] bg-[var(--hos-line)] sm:grid-cols-3 lg:grid-cols-7"
         variants={staggerChildren}
         initial={reduce ? false : "hidden"}
         animate="show"
@@ -611,6 +607,48 @@ export function DeskPage() {
           </div>
         </motion.div>
 
+        <motion.button
+          type="button"
+          variants={fadeSlide}
+          className="hos-desk-kpi hos-btn-tactile cursor-pointer text-left"
+          data-jewel="brass"
+          onClick={() => setQueueModal("holds")}
+          aria-label={`Holds queue, ${holdsQueue.length} stays`}
+        >
+          <span className="hos-desk-kpi-label">Holds</span>
+          <div className="relative flex items-baseline gap-2">
+            <Odometer
+              value={holdsQueue.length}
+              className="font-mono text-[1.375rem] font-semibold tabular-nums tracking-tight text-[var(--hos-ink)]"
+            />
+            <span className="text-[11px] text-[var(--hos-brass-ink)]">
+              {holdsQueue.length === 0 ? "clear" : "tap to act"}
+            </span>
+          </div>
+        </motion.button>
+
+        <motion.button
+          type="button"
+          variants={fadeSlide}
+          className="hos-desk-kpi hos-btn-tactile cursor-pointer text-left"
+          data-jewel="emerald"
+          onClick={() => setQueueModal("checkin")}
+          aria-label={`Check-in queue, ${checkInQueue.length} rooms`}
+        >
+          <span className="hos-desk-kpi-label">Check-in</span>
+          <div className="relative flex items-baseline gap-2">
+            <Odometer
+              value={checkInQueue.length}
+              className="font-mono text-[1.375rem] font-semibold tabular-nums tracking-tight text-[var(--hos-ink)]"
+            />
+            <span className="text-[11px] text-[var(--hos-ink-3)]">
+              {checkInQueue.length === 0
+                ? "none due"
+                : `${checkInQueue.filter((s) => s.status === "held").length} on hold`}
+            </span>
+          </div>
+        </motion.button>
+
         <motion.div
           variants={fadeSlide}
           className="hos-desk-kpi col-span-2 sm:col-span-1"
@@ -636,92 +674,12 @@ export function DeskPage() {
         </motion.div>
       </motion.div>
 
-      {(() => {
-        const holds = stays.filter((s) => s.status === "held");
-        if (holds.length === 0) return null;
-        return (
-          <div className="hos-board-chrome hos-scrollbar-slim flex shrink-0 gap-2 overflow-x-auto border-[color-mix(in_srgb,var(--hos-brass)_35%,var(--hos-line))] bg-[color-mix(in_srgb,var(--hos-brass)_10%,var(--hos-cell))] px-2 py-1.5">
-            <span className="hos-section-label shrink-0 !m-0 self-center text-[var(--hos-brass-ink)]">
-              Holds
-            </span>
-            {holds.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => openStay(s.id)}
-                className="hos-btn-tactile hos-cell shrink-0 rounded-lg px-2.5 py-1 text-left text-[11px]"
-              >
-                <span className="font-semibold text-[var(--hos-ink)]">{s.guestName}</span>
-                <span className="ml-2 font-mono tabular-nums text-[var(--hos-ink-3)]">
-                  {s.confirmationNo} · {s.checkIn.slice(5)}
-                </span>
-              </button>
-            ))}
-          </div>
-        );
-      })()}
-
-      <div
-        data-tour="floormap"
-        className="hos-floor-rail hos-board-chrome shrink-0"
-      >
-        <span className="hos-section-label shrink-0 !m-0">
-          Floors
-        </span>
-        <StatusLegend
-          dense
-          className="mr-1 hidden sm:flex"
-          items={[
-            { id: "vac", label: "Vacant", swatch: "var(--hos-canvas-2)" },
-            { id: "occ", label: "In-house", swatch: "var(--hos-primary)" },
-            { id: "arr", label: "Arrival", swatch: "var(--hos-emerald)" },
-            { id: "dep", label: "Due out", swatch: "var(--hos-brass)" },
-            { id: "dirty", label: "Dirty", swatch: "var(--hos-ruby)" },
-          ]}
-        />
-        <div className="hos-floor-rail-scroll">
-          {floors.map((f) => (
-            <div key={f.floor} className="hos-floor-group">
-              <span className="hos-floor-label">F{f.floor}</span>
-              {f.rooms.map((room) => {
-                const stay =
-                  stays.find(
-                    (s) =>
-                      s.roomId === room.id &&
-                      !["cancelled", "no_show", "checked_out"].includes(
-                        s.status,
-                      ) &&
-                      s.checkIn <= today &&
-                      today < s.checkOut,
-                  ) ??
-                  stays.find(
-                    (s) =>
-                      s.roomId === room.id &&
-                      ["confirmed", "held"].includes(s.status) &&
-                      s.checkIn === today,
-                  );
-                return (
-                  <button
-                    key={room.id}
-                    type="button"
-                    onClick={() => {
-                      if (stay) openStay(stay.id);
-                      else
-                        toast.message(`Room ${room.number}`, {
-                          description: room.hkStatus,
-                        });
-                    }}
-                    className={`hos-btn-tactile hos-floor-chip border ${roomChipTone(room, stay, today)}`}
-                    title={stay?.guestName ?? room.hkStatus}
-                  >
-                    {room.number}
-                  </button>
-                );
-              })}
-            </div>
-          ))}
-        </div>
-      </div>
+      <DeskRoomRail
+        rooms={rooms}
+        stays={stays}
+        today={today}
+        onOpenStay={openStay}
+      />
 
       <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden md:grid-cols-[60%_40%] xl:grid-cols-[65%_35%]">
         <GlassPanel className="flex min-h-0 flex-col gap-3 overflow-hidden p-3">
@@ -1314,6 +1272,109 @@ export function DeskPage() {
           </section>
         </div>
       </div>
+
+      {queueModal ? (
+        <div
+          className="fixed inset-0 z-[120] flex items-center justify-center bg-[rgba(15,23,42,0.55)] p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-label={queueModal === "holds" ? "Holds queue" : "Check-in queue"}
+          onClick={() => setQueueModal(null)}
+        >
+          <div
+            className="hos-surface-glass flex max-h-[min(80vh,560px)] w-full max-w-lg flex-col rounded-2xl border border-[var(--hos-glass-border)] shadow-[0_24px_64px_-16px_rgba(15,23,42,0.55)]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2 border-b border-[var(--hos-line)] px-4 py-3">
+              <div>
+                <strong className="text-sm text-[var(--hos-ink)]">
+                  {queueModal === "holds" ? "Holds" : "Check-in today"}
+                </strong>
+                <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
+                  {queueModal === "holds"
+                    ? `${holdsQueue.length} held · confirm or open StayHub`
+                    : `${checkInQueue.length} roomed arrivals · check in or open`}
+                </p>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => setQueueModal(null)}>
+                Close
+              </Button>
+            </div>
+            <div className="hos-scrollbar-slim min-h-0 flex-1 overflow-y-auto p-3">
+              {(queueModal === "holds" ? holdsQueue : checkInQueue).length === 0 ? (
+                <EmptyState
+                  title={queueModal === "holds" ? "No holds" : "No check-ins due"}
+                  description={
+                    queueModal === "holds"
+                      ? "Held bookings will appear here."
+                      : "Roomed arrivals for today will appear here."
+                  }
+                />
+              ) : (
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                  {(queueModal === "holds" ? holdsQueue : checkInQueue).map((s) => (
+                    <li
+                      key={s.id}
+                      className="flex flex-wrap items-center gap-2 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2.5"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="m-0 truncate text-[13px] font-semibold text-[var(--hos-ink)]">
+                          {s.roomNumber ? `${s.roomNumber} · ` : ""}
+                          {s.guestName}
+                        </p>
+                        <p className="m-0 truncate font-mono text-[10px] text-[var(--hos-ink-3)]">
+                          {s.confirmationNo} · {s.checkIn.slice(5)}→{s.checkOut.slice(5)}
+                          {s.status === "held" ? " · HOLD" : ""}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => {
+                          setQueueModal(null);
+                          openStay(s.id);
+                        }}
+                      >
+                        Open
+                      </Button>
+                      {queueModal === "holds" ? (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            start(() => {
+                              void confirmHold(s.id).then((res) => {
+                                if (!res.ok) {
+                                  toast.error(res.error);
+                                  return;
+                                }
+                                toast.success("Hold confirmed", {
+                                  description: s.guestName,
+                                });
+                              });
+                            });
+                          }}
+                        >
+                          Confirm
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            start(() => {
+                              void runCheckIn(s);
+                            });
+                          }}
+                        >
+                          Check-in
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {shortcutsOpen ? (
         <div
