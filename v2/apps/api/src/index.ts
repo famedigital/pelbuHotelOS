@@ -52,7 +52,15 @@ import { registerAuthPortalRoutes } from "./modules/auth-portals.js";
 import { registerAuthHotelEmailRoutes } from "./modules/auth-hotel-email.js";
 import { registerAuthPortalEmailRoutes } from "./modules/auth-portal-email.js";
 import { registerAuthE2eDemoRoutes } from "./modules/auth-e2e-demo.js";
-import { bearerToken, verifyDeskToken } from "./platform/desk-token.js";
+import { registerAuthUnifiedLoginRoutes } from "./modules/auth-unified-login.js";
+import {
+  assertDeskJwtSecretConfigured,
+  bearerToken,
+  verifyDeskToken,
+} from "./platform/desk-token.js";
+import "./modules/agency-org.js";
+
+assertDeskJwtSecretConfigured();
 
 const auditBuffer: unknown[] = [];
 
@@ -91,6 +99,7 @@ await registerAuthPinRoutes(app);
 await registerAuthPortalRoutes(app);
 await registerAuthHotelEmailRoutes(app);
 await registerAuthPortalEmailRoutes(app);
+await registerAuthUnifiedLoginRoutes(app);
 registerAuthE2eDemoRoutes(app);
 
 app.addContentTypeParser(
@@ -158,6 +167,8 @@ app.post<{
       claims.deskRole || claims.role || bodyActor?.role || "fo_agent",
     ),
     staffId: claims.staffId ?? claims.sub,
+    agencyOrgId: claims.agencyOrgId,
+    subjectId: claims.subjectId,
   };
   if (bodyActor?.propertyId && bodyActor.propertyId !== claims.propertyId) {
     return reply.code(403).send({ ok: false, error: "Actor property does not match session" });

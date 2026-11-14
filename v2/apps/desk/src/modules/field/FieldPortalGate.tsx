@@ -1,9 +1,16 @@
 /**
- * PIN unlock for partner / guide / driver — standalone, no desk chrome.
+ * Portal shell for partner / guide / driver.
+ * Email sign-in (`/login`) skips the legacy code+PIN pad.
  */
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useNavigate } from "react-router-dom";
 import { Lock, ShieldCheck } from "lucide-react";
 import { Badge, Button } from "@hos-v2/ui";
+import {
+  clearPortalSession,
+  readPortalMeta,
+  readPortalToken,
+} from "../../lib/auth-session";
 import {
   FIELD_DEMO_HINTS,
   useFieldPortalAuth,
@@ -17,17 +24,46 @@ type Props = {
   children: React.ReactNode;
 };
 
+const FIELD_TO_PORTAL_ROLE: Record<FieldPortalRole, "agent" | "guide" | "driver"> = {
+  partner: "agent",
+  guide: "guide",
+  driver: "driver",
+};
+
 export function FieldPortalGate({ role, title, blurb, children }: Props) {
-  const session = useFieldPortalAuth((s) => s.sessions[role]);
+  const navigate = useNavigate();
+  const pinSession = useFieldPortalAuth((s) => s.sessions[role]);
   const unlock = useFieldPortalAuth((s) => s.unlock);
-  const lock = useFieldPortalAuth((s) => s.lock);
+  const lockPin = useFieldPortalAuth((s) => s.lock);
   const hint = FIELD_DEMO_HINTS[role];
   const [code, setCode] = useState(hint.code);
   const [pin, setPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
 
-  if (session) {
+  const emailSession = useMemo(() => {
+    const token = readPortalToken();
+    const meta = readPortalMeta();
+    if (!token || !meta) return null;
+    if (meta.role !== FIELD_TO_PORTAL_ROLE[role]) return null;
+    return meta;
+  }, [role, pinSession]);
+
+  const active = pinSession
+    ? {
+        displayName: pinSession.displayName,
+        code: pinSession.code,
+        via: "pin" as const,
+      }
+    : emailSession
+      ? {
+          displayName: emailSession.displayName,
+          code: emailSession.loginCode,
+          via: "email" as const,
+        }
+      : null;
+
+  if (active) {
     return (
       <div className="flex min-h-dvh flex-col bg-[var(--hos-canvas)]">
         <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-[var(--hos-line)] bg-[color-mix(in_srgb,var(--hos-surface)_92%,transparent)] px-3 py-2.5 backdrop-blur-md pt-[max(0.5rem,env(safe-area-inset-top))]">
@@ -36,7 +72,7 @@ export function FieldPortalGate({ role, title, blurb, children }: Props) {
               {title}
             </div>
             <div className="truncate text-[10px] text-[var(--hos-ink-3)]">
-              {session.displayName} · {session.code}
+              {active.displayName} · {active.code}
             </div>
           </div>
           <Badge tone="teal">{role}</Badge>
@@ -44,9 +80,16 @@ export function FieldPortalGate({ role, title, blurb, children }: Props) {
             size="sm"
             variant="ghost"
             className="!rounded-full"
-            onClick={() => lock(role)}
+            onClick={() => {
+              if (active.via === "email") {
+                clearPortalSession();
+                navigate("/login", { replace: true });
+                return;
+              }
+              lockPin(role);
+            }}
           >
-            Lock
+            {active.via === "email" ? "Sign out" : "Lock"}
           </Button>
         </header>
         <div className="min-h-0 flex-1 overflow-auto pb-[max(1rem,env(safe-area-inset-bottom))]">
@@ -74,6 +117,16 @@ export function FieldPortalGate({ role, title, blurb, children }: Props) {
         </div>
         <p className="m-0 mb-4 text-[12px] leading-relaxed text-[var(--hos-ink-3)]">
           {blurb}
+        </p>
+        <p className="m-0 mb-3 text-[11px] text-[var(--hos-ink-3)]">
+          Prefer email?{" "}
+          <button
+            type="button"
+            className="font-bold text-[var(--hos-primary)] underline-offset-2 hover:underline"
+            onClick={() => navigate("/login")}
+          >
+            Sign in with email
+          </button>
         </p>
         <label className="mb-3 grid gap-1 text-[10px] font-bold uppercase tracking-wider text-[var(--hos-ink-3)]">
           Portal code

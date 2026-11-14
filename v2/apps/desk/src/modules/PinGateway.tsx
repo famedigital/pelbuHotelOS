@@ -728,7 +728,7 @@ export function PinGateway() {
       /* ignore */
     }
     toast.message("Signed out of hotel");
-    navigate("/login/hotel", { replace: true });
+    navigate("/login", { replace: true });
   }, [navigate]);
 
   const onPropertyChange = useCallback(
@@ -766,7 +766,7 @@ export function PinGateway() {
 
   useEffect(() => {
     if (!readHotelToken()) {
-      navigate("/login/hotel", { replace: true });
+      navigate("/login", { replace: true });
       return;
     }
     const gated = readHotelProperty();
@@ -817,6 +817,13 @@ export function PinGateway() {
       .then(({ property, staff }) => {
         if (ctrl.signal.aborted) return;
         updateProfile({ hotelName: property.name });
+        void import("../lib/hotel-identity")
+          .then(({ applyPropertyHotelIdentity }) =>
+            applyPropertyHotelIdentity(property.name),
+          )
+          .catch((err) => {
+            console.warn("[pin-gateway] hotel identity sync skipped", err);
+          });
         localStorage.setItem("hos.v2.propertySlug", property.slug);
         localStorage.setItem("hos.v2.propertyId", property.id);
         window.dispatchEvent(new Event("hos:v2:property-changed"));
@@ -965,6 +972,7 @@ export function PinGateway() {
             fullName: result.staff.fullName,
             deskRole: result.staff.deskRole,
             employeeCode: result.staff.employeeCode,
+            homeRoute: result.homeRoute,
           },
           {
             id: padProperty.id,

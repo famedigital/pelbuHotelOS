@@ -6,6 +6,9 @@ export type Actor = {
   role: string;
   propertyId: string;
   tenantId: string;
+  /** Travel Agent OS org (portal agent). */
+  agencyOrgId?: string;
+  subjectId?: string;
 };
 
 export type CommandResult<T> =

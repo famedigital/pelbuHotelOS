@@ -1,6 +1,12 @@
 import { useState, useTransition } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { humanizeAuthError, portalEmailLogin, type AuthProperty } from "../lib/pin-auth-api";
+import {
+  filterDeskProperties,
+  humanizeAuthError,
+  portalEmailLogin,
+  preferLiveProperty,
+  type AuthProperty,
+} from "../lib/pin-auth-api";
 import { writePortalSession } from "../lib/auth-session";
 import { AuthGateShell } from "./AuthGateShell";
 
@@ -38,7 +44,10 @@ const ROLE_META: Record<
   },
 };
 
-/** Email + password portal login — multi-hotel after auth. */
+/**
+ * Email + password portal login.
+ * Never ask which hotel after sign-in — partner app picks hotel on book / check.
+ */
 export function PortalLoginPage() {
   const { role: roleParam } = useParams();
   const role: PortalRole = isRole(roleParam) ? roleParam : "agent";
@@ -46,15 +55,6 @@ export function PortalLoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [properties, setProperties] = useState<AuthProperty[] | null>(null);
-  const [propertyId, setPropertyId] = useState("");
-  const [pendingToken, setPendingToken] = useState<string | null>(null);
-  const [accountMeta, setAccountMeta] = useState<{
-    loginCode: string;
-    displayName: string;
-    subjectId: string;
-    homeRoute: string;
-  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -62,6 +62,7 @@ export function PortalLoginPage() {
     token: string,
     property: AuthProperty,
     account: { loginCode: string; displayName: string; subjectId: string; homeRoute: string },
+    properties: AuthProperty[],
   ) {
     writePortalSession(
       token,
@@ -72,6 +73,11 @@ export function PortalLoginPage() {
         displayName: account.displayName,
         subjectId: account.subjectId,
         homeRoute: account.homeRoute,
+        properties: properties.map((p) => ({
+          id: p.id,
+          slug: p.slug,
+          name: p.name,
+        })),
       },
     );
     navigate(account.homeRoute || "/partner", { replace: true });
@@ -80,13 +86,11 @@ export function PortalLoginPage() {
   return (
     <AuthGateShell
       kicker={meta.kicker}
-      title={properties ? "Choose hotel" : meta.title}
+      title={meta.title}
       lead={
-        properties
-          ? "This account is linked to more than one hotel."
-          : role === "agent"
-            ? "Tour-operator email only. Hotel owners: use Hotel desk — not this Partner screen."
-            : meta.lead
+        role === "agent"
+          ? "Tour-operator email only. Hotel owners: use Hotel desk — not this Partner screen."
+          : meta.lead
       }
       photoSrc={meta.photo}
       footer={
@@ -100,91 +104,44 @@ export function PortalLoginPage() {
         </div>
       }
     >
-      {!properties ? (
-        <>
-          <label className="auth-gate-label" htmlFor={`${role}-email`}>
-            Email
-          </label>
-          <input
-            id={`${role}-email`}
-            type="email"
-            autoComplete="username"
-            className="auth-gate-input"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={meta.placeholder}
-          />
-          <label className="auth-gate-label" htmlFor={`${role}-password`}>
-            Password
-          </label>
-          <input
-            id={`${role}-password`}
-            type="password"
-            autoComplete="current-password"
-            className="auth-gate-input"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </>
-      ) : (
-        <>
-          <label className="auth-gate-label" htmlFor={`${role}-property`}>
-            Hotel
-          </label>
-          <select
-            id={`${role}-property`}
-            className="auth-gate-select"
-            value={propertyId}
-            onChange={(e) => setPropertyId(e.target.value)}
-          >
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </>
-      )}
+      <label className="auth-gate-label" htmlFor={`${role}-email`}>
+        Email
+      </label>
+      <input
+        id={`${role}-email`}
+        type="email"
+        autoComplete="username"
+        className="auth-gate-input"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder={meta.placeholder}
+      />
+      <label className="auth-gate-label" htmlFor={`${role}-password`}>
+        Password
+      </label>
+      <input
+        id={`${role}-password`}
+        type="password"
+        autoComplete="current-password"
+        className="auth-gate-input"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
+      />
 
       {error ? <p className="auth-gate-error">{error}</p> : null}
 
       <button
         type="button"
         className="auth-gate-btn"
-        disabled={
-          pending ||
-          (!properties && (!email.trim() || password.length < 4)) ||
-          (Boolean(properties) && !propertyId)
-        }
+        disabled={pending || !email.trim() || password.length < 4}
         onClick={() => {
           setError(null);
           startTransition(() => {
-            if (properties && pendingToken && accountMeta) {
-              void portalEmailLogin({
-                role,
-                email,
-                password,
-                propertyId,
-              }).then((r) => {
-                if (!r.ok) {
-                  setError(humanizeAuthError(r.error));
-                  return;
-                }
-                enter(r.token, r.property, {
-                  loginCode: r.account.loginCode,
-                  displayName: r.account.displayName,
-                  subjectId: r.account.subjectId,
-                  homeRoute: r.homeRoute,
-                });
-              });
-              return;
-            }
-
-            void portalEmailLogin({ role, email, password }).then((r) => {
+            void (async () => {
+              const r = await portalEmailLogin({ role, email, password });
               if (!r.ok) {
                 const msg = humanizeAuthError(r.error);
                 setError(msg);
-                // Hotel owner emails (e.g. Pelbu Suites) are not tour-operator portals.
                 if (/hotel desk/i.test(r.error) || /hotel desk/i.test(msg)) {
                   navigate("/login/hotel", { replace: true, state: { email } });
                 }
@@ -196,19 +153,35 @@ export function PortalLoginPage() {
                 subjectId: r.account.subjectId,
                 homeRoute: r.homeRoute,
               };
-              if (r.properties.length > 1) {
-                setProperties(r.properties);
-                setPropertyId(r.property.id);
-                setPendingToken(r.token);
-                setAccountMeta(account);
-                return;
+              const ranked = filterDeskProperties(r.properties);
+              const preferred = preferLiveProperty(
+                ranked.length > 0 ? ranked : r.properties,
+                r.property,
+              );
+              /* Re-bind JWT to live hotel when API still scoped to a seed/demo shell. */
+              if (preferred.id !== r.property.id) {
+                const again = await portalEmailLogin({
+                  role,
+                  email,
+                  password,
+                  propertyId: preferred.id,
+                });
+                if (again.ok) {
+                  enter(again.token, again.property, {
+                    loginCode: again.account.loginCode,
+                    displayName: again.account.displayName,
+                    subjectId: again.account.subjectId,
+                    homeRoute: again.homeRoute,
+                  }, again.properties);
+                  return;
+                }
               }
-              enter(r.token, r.property, account);
-            });
+              enter(r.token, preferred, account, r.properties);
+            })();
           });
         }}
       >
-        {pending ? "Signing in…" : properties ? "Enter portal" : "Sign in"}
+        {pending ? "Signing in…" : "Sign in"}
       </button>
     </AuthGateShell>
   );

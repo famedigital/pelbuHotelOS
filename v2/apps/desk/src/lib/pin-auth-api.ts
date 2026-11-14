@@ -58,12 +58,28 @@ const LOCAL_DEMO_PINS: ReadonlyArray<{
     employeeCode: "DEPT-KIT",
   },
   {
+    staffId: "dept-acc",
+    pin: "5555",
+    fullName: "Accounts",
+    deskRole: "accountant",
+    homeRoute: "/finance",
+    employeeCode: "DEPT-ACC",
+  },
+  {
     staffId: "dept-own",
     pin: "0000",
     fullName: "Owner",
     deskRole: "owner",
     homeRoute: "/owner",
     employeeCode: "DEPT-OWN",
+  },
+  {
+    staffId: "dept-adm",
+    pin: "8888",
+    fullName: "Property Admin",
+    deskRole: "admin",
+    homeRoute: "/desk",
+    employeeCode: "DEPT-ADM",
   },
 ];
 
@@ -198,9 +214,140 @@ export function humanizeAuthError(error: string): string {
     return "Cannot reach the desk API. Check your connection and retry.";
   }
   if (/incorrect email or password/i.test(e)) {
-    return "Incorrect email or password. Hotel staff use Hotel desk — Partner is for tour operators only.";
+    return "Incorrect email or password.";
+  }
+  if (/no hotel os access/i.test(e)) {
+    return "No Hotel OS access for this account. Ask your hotel or agency admin to grant access.";
   }
   return e;
+}
+
+export type UnifiedLoginResult =
+  | {
+      ok: true;
+      kind: "hotel";
+      token: string;
+      homeRoute: string;
+      property: AuthProperty;
+      properties: AuthProperty[];
+    }
+  | {
+      ok: true;
+      kind: "portal";
+      role: "agent" | "guide" | "driver";
+      token: string;
+      homeRoute: string;
+      account: {
+        id: string;
+        role: string;
+        loginCode: string;
+        displayName: string;
+        subjectId: string;
+        homeRoute: string;
+      };
+      property: AuthProperty;
+      properties: AuthProperty[];
+    }
+  | { ok: false; error: string };
+
+/** Single sign-in — server resolves hotel vs agent/guide/driver. */
+export async function unifiedLogin(input: {
+  email: string;
+  password: string;
+  propertyId?: string;
+}): Promise<UnifiedLoginResult> {
+  try {
+    const res = await fetch(`${API_BASE}/v1/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    });
+    const data = await readJson(res);
+    if (!res.ok || data.ok === false) {
+      const err = String(data.error ?? data.message ?? "Sign-in failed");
+      if (
+        isLocalDemoAuthEnabled() &&
+        input.password.length >= 6 &&
+        (err === "DATABASE_REQUIRED" || res.status >= 500)
+      ) {
+        return {
+          ok: true,
+          kind: "hotel",
+          token: "local-demo-hotel",
+          homeRoute: "/pin",
+          property: LOCAL_DEMO_PROPERTY,
+          properties: [LOCAL_DEMO_PROPERTY],
+        };
+      }
+      return { ok: false, error: humanizeAuthError(err) };
+    }
+
+    if (data.kind === "portal") {
+      const roleRaw = String(
+        (data.account as { role?: string } | undefined)?.role ?? data.role ?? "agent",
+      );
+      const role =
+        roleRaw === "guide" || roleRaw === "driver" || roleRaw === "agent"
+          ? roleRaw
+          : "agent";
+      const account = data.account as {
+        id: string;
+        role: string;
+        loginCode: string;
+        displayName: string;
+        subjectId: string;
+        homeRoute?: string;
+      };
+      return {
+        ok: true,
+        kind: "portal",
+        role,
+        token: String(data.token),
+        homeRoute: String(data.homeRoute ?? account.homeRoute ?? "/partner"),
+        account: {
+          id: account.id,
+          role: account.role,
+          loginCode: account.loginCode,
+          displayName: account.displayName,
+          subjectId: account.subjectId,
+          homeRoute: String(data.homeRoute ?? account.homeRoute ?? "/partner"),
+        },
+        property: data.property as AuthProperty,
+        properties: (data.properties as AuthProperty[] | undefined) ?? [
+          data.property as AuthProperty,
+        ],
+      };
+    }
+
+    const rawList =
+      (data.properties as AuthProperty[] | undefined) ??
+      ([data.property].filter(Boolean) as AuthProperty[]);
+    const properties = filterDeskProperties(rawList);
+    const property = preferLiveProperty(properties, data.property as AuthProperty);
+    return {
+      ok: true,
+      kind: "hotel",
+      token: String(data.token),
+      homeRoute: String(data.homeRoute ?? "/pin"),
+      property,
+      properties,
+    };
+  } catch (err) {
+    if (isLocalDemoAuthEnabled() && input.password.length >= 6) {
+      return {
+        ok: true,
+        kind: "hotel",
+        token: "local-demo-hotel",
+        homeRoute: "/pin",
+        property: LOCAL_DEMO_PROPERTY,
+        properties: [LOCAL_DEMO_PROPERTY],
+      };
+    }
+    return {
+      ok: false,
+      error: humanizeAuthError(err instanceof Error ? err.message : "Sign-in failed"),
+    };
+  }
 }
 
 /** Org member email/password → owner JWT for staff PIN pad. */

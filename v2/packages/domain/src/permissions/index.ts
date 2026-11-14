@@ -51,7 +51,13 @@ export function normalizeActorRole(raw: string | null | undefined): string {
     marketing: "marketing",
     platform_admin: "platform_admin",
     superadmin: "platform_admin",
-    admin: "owner",
+    /* Property admin — full property grants (not SaaS platform_admin). */
+    admin: "admin",
+    property_admin: "admin",
+    agent: "agent",
+    partner: "agent",
+    guide: "guide",
+    driver: "driver",
   };
 
   return aliases[role] ?? role;
@@ -61,6 +67,7 @@ export function normalizeActorRole(raw: string | null | undefined): string {
 export const ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> = {
   owner: ["*.*"],
   gm: ["*.*"],
+  admin: ["*.*"],
   fo_manager: [
     "desk.*",
     "reservations.*",
@@ -106,6 +113,16 @@ export const ROLE_PERMISSIONS: Record<string, readonly PermissionKey[]> = {
   sales: ["agents.*", "rates.view", "groups.*"],
   marketing: ["cms.*", "marketing.*"],
   platform_admin: ["*.*", "superadmin.*"],
+  /* Travel Agent OS / field portals (M01) */
+  agent: [
+    "agency.org.read",
+    "agency.members.read",
+    "agency.hotelLinks.read",
+    "agents.read",
+    "partner.*",
+  ],
+  guide: ["guide.assignment.read"],
+  driver: ["driver.assignment.read"],
 };
 
 export function roleAllows(

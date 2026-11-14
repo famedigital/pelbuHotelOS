@@ -6,4 +6,5 @@ export * from "./permissions/index.js";
 export * from "./ops-laws/index.js";
 export * from "./pos/index.js";
 export * from "./crm/index.js";
+export * from "./agency/index.js";
 

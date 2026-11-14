@@ -1,7 +1,7 @@
 /**
  * Upsert department desk PINs on every v2 property (Pelbu + defaults for others).
  *
- * 9999 Reservation · 1111 FO · 2222 FNB · 3333 HK · 4444 Kitchen · 0000 OWNER
+ * 9999 Reservation · 1111 FO · 2222 FNB · 3333 HK · 4444 Kitchen · 5555 ACC · 0000 OWNER · 8888 ADMIN
  *
  * Usage (droplet, with DATABASE_URL or via docker exec node against supabase):
  *   node scripts/cutover/apply-default-dept-pins.mjs
@@ -61,12 +61,28 @@ const DEPTS = [
     role: "kitchen",
   },
   {
+    code: "DEPT-ACC",
+    name: "Accounts",
+    deskRole: "accountant",
+    home: "/finance",
+    pin: "5555",
+    role: "accountant",
+  },
+  {
     code: "DEPT-OWN",
     name: "Owner",
     deskRole: "owner",
     home: "/owner",
     pin: "0000",
     role: "owner",
+  },
+  {
+    code: "DEPT-ADM",
+    name: "Property Admin",
+    deskRole: "admin",
+    home: "/desk",
+    pin: "8888",
+    role: "admin",
   },
 ];
 
@@ -172,7 +188,8 @@ function buildSql() {
       "hk",
     ],
     [["kitchen", "chef", "cook"], "4444", "/kds", "kitchen"],
-    [["owner", "gm", "admin"], "0000", "/owner", null],
+    [["owner", "gm"], "0000", "/owner", null],
+    [["admin", "property_admin"], "8888", "/desk", "admin"],
   ];
 
   for (const [roles, pin, home, forceDesk] of rolePinCases) {

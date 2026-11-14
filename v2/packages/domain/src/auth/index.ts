@@ -3,16 +3,27 @@
  * Framework-free: env verifier injected by host (API).
  */
 
-export { homeRouteForDeskRole, simpleRailItems } from "./desk-homes.js";
+export {
+  homeRouteForDeskRole,
+  resolveDeskHomeRoute,
+  simpleRailItems,
+} from "./desk-homes.js";
 export {
   DEFAULT_DEPT_PINS,
   defaultPinForDeskRole,
   type DefaultDeptPin,
 } from "./default-dept-pins.js";
+export {
+  defaultPortalHomeRoute,
+  resolveUnifiedLoginKind,
+  type UnifiedLoginKind,
+  type UnifiedLoginSignals,
+} from "./unified-login.js";
 
 export type DeskRole =
   | "owner"
   | "gm"
+  | "admin"
   | "fo_manager"
   | "fo_agent"
   | "night_auditor"
@@ -31,6 +42,7 @@ export type DeskRole =
 const MANAGER_ROLES: ReadonlySet<DeskRole> = new Set([
   "owner",
   "gm",
+  "admin",
   "fo_manager",
   "platform_admin",
 ]);

@@ -15,6 +15,7 @@ You are building a mission-critical, multi-tenant Hotel Operating System & ERP (
   1. **Autonomous Zero-Admin Desk:** Sub-20s check-ins, automated night audit, gapless fiscal invoicing.
   2. **Bhutan & Himalayan Compliance:** Native DRC e-invoicing, SDF handling, Tour Operator (TCB) vouchers, RMA QR.
   3. **Dual-Layer UI:** Immersive 3D glassmorphism on public booking (`/book`, `/`) + high-contrast, zero-lag 60fps "Cold Glass" on operational ERP (`/erp`, `/staff`).
+  4. **Innora Bot (Hermes) — one Telegram ops channel, not a second bot:** Desk console `/telegram`; code module `v2/apps/api/src/modules/hermes`. Pair FO / HK / kitchen / GM / tour-agent chats; passport/SDF photo → OCR draft → apply to stay; CI/CO and ops alerts to the right role (agent MoU-scoped). Extend this stack only — never greenfield a parallel Telegram bot. Bot may notify, pair, OCR, and ack proofs; money/folio/inventory mutations stay on Fastify commands with atomic SQL + idempotency (never a Telegram-side ledger).
 
 ---
 

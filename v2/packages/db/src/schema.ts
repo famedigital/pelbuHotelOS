@@ -71,6 +71,7 @@ export const portalAccounts = v2.table(
   (t) => [uniqueIndex("portal_accounts_property_role_code").on(t.propertyId, t.role, t.loginCode)],
 );
 
+/** Travel Agent OS tenant (M01). */
 export const roomTypes = v2.table("room_types", {
   id: uuid("id").defaultRandom().primaryKey(),
   propertyId: uuid("property_id")
@@ -185,6 +186,65 @@ export const agents = v2.table("agents", {
   creditHold: boolean("credit_hold").notNull().default(false),
   version: integer("version").notNull().default(1),
 });
+
+/** Travel Agent OS tenant (M01). */
+export const agencyOrgs = v2.table(
+  "agency_orgs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    brandJson: jsonb("brand_json").notNull().default({}),
+    status: text("status").notNull().default("active"),
+    createdAt: ts("created_at"),
+    updatedAt: ts("updated_at"),
+  },
+  (t) => [uniqueIndex("agency_orgs_slug_uidx").on(t.slug)],
+);
+
+export const agencyMembers = v2.table(
+  "agency_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    agencyOrgId: uuid("agency_org_id")
+      .notNull()
+      .references(() => agencyOrgs.id, { onDelete: "cascade" }),
+    authUserId: uuid("auth_user_id").notNull(),
+    role: text("role").notNull(),
+    displayName: text("display_name").notNull(),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    status: text("status").notNull().default("active"),
+    createdAt: ts("created_at"),
+    updatedAt: ts("updated_at"),
+  },
+  (t) => [
+    uniqueIndex("agency_members_org_user_uidx").on(t.agencyOrgId, t.authUserId),
+    index("agency_members_org_idx").on(t.agencyOrgId),
+    index("agency_members_auth_user_idx").on(t.authUserId),
+  ],
+);
+
+export const agencyOrgHotelLinks = v2.table(
+  "agency_org_hotel_links",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    agencyOrgId: uuid("agency_org_id")
+      .notNull()
+      .references(() => agencyOrgs.id, { onDelete: "cascade" }),
+    propertyId: uuid("property_id")
+      .notNull()
+      .references(() => properties.id),
+    agentId: uuid("agent_id")
+      .notNull()
+      .references(() => agents.id),
+    status: text("status").notNull().default("active"),
+    createdAt: ts("created_at"),
+  },
+  (t) => [
+    index("agency_org_hotel_links_org_idx").on(t.agencyOrgId),
+    index("agency_org_hotel_links_property_idx").on(t.propertyId),
+  ],
+);
 
 export const groups = v2.table("groups", {
   id: uuid("id").defaultRandom().primaryKey(),

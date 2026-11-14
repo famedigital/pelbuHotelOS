@@ -1,5 +1,28 @@
 import { create } from "zustand";
 
+/** Live Pelbu slug must not inherit Demo Hotel DH prefixes. */
+function bootHotelInitial(): string {
+  if (typeof window === "undefined") return "DH";
+  try {
+    const slug = localStorage.getItem("hos.v2.propertySlug") ?? "";
+    if (/pelbu/i.test(slug)) return "PS";
+  } catch {
+    /* ignore */
+  }
+  return "DH";
+}
+
+function bootHotelName(): string {
+  if (typeof window === "undefined") return "Demo Hotel";
+  try {
+    const slug = localStorage.getItem("hos.v2.propertySlug") ?? "";
+    if (/pelbu/i.test(slug)) return "Pelbu Suites Olakha";
+  } catch {
+    /* ignore */
+  }
+  return "Demo Hotel";
+}
+
 export type Dzongkhag =
   | "Paro"
   | "Thimphu"
@@ -110,8 +133,11 @@ type SettingsState = {
   addRoom: (number: string, floorId: string, categoryId: string) => void;
 };
 
+const BOOT_INITIAL = bootHotelInitial();
+const BOOT_NAME = bootHotelName();
+
 export const useSettingsStore = create<SettingsState>((set) => ({
-  hotelName: "Demo Hotel",
+  hotelName: BOOT_NAME,
   dzongkhag: "Thimphu",
   tpn: "",
   dotStars: 4,
@@ -123,13 +149,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   tipPoolSharePct: 100,
   bstEnabled: false,
   bstRate: 0.1,
-  hotelInitial: "DH",
-  psbnPrefix: "DHPSBN",
-  invPrefix: "DHINV",
+  hotelInitial: BOOT_INITIAL,
+  psbnPrefix: `${BOOT_INITIAL}PSBN`,
+  invPrefix: `${BOOT_INITIAL}INV`,
   drcEinvoiceStatus: "staged",
   mbobMerchantId: "",
   mbobQrNote: "",
-  bnbAccountName: "Demo Hotel",
+  bnbAccountName: BOOT_NAME,
   bnbAccountNo: "",
   tillFloatLimit: 10000,
   tillMaxCash: 100000,

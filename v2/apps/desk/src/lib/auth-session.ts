@@ -15,6 +15,8 @@ export type PortalMeta = {
   displayName: string;
   subjectId: string;
   homeRoute: string;
+  /** Linked hotels — pick at book/check time, not at sign-in. */
+  properties?: SessionProperty[];
 };
 
 export function writeHotelGate(token: string, property: SessionProperty): void {

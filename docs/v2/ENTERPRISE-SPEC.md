@@ -14,8 +14,9 @@
 | Build doctrine | **[`SOURCE-MAP.md`](./SOURCE-MAP.md)** — Merge / Copy / Reinvent / Leave out / Migrate |
 | UX + visual | [`UX-GUARDRAILS.md`](./UX-GUARDRAILS.md) · [`DESIGN-SYSTEM.md`](./DESIGN-SYSTEM.md) Glacier Glass v2.1 |
 | Journeys | [`OPERATIONS-FLOW.md`](./OPERATIONS-FLOW.md) |
-| Agent portal | [`AGENT-PORTAL.md`](./AGENT-PORTAL.md) |
-| Schema ADR | [`adr/001-separate-v2-schema.md`](./adr/001-separate-v2-schema.md) |
+| Agent portal (legacy) | [`AGENT-PORTAL.md`](./AGENT-PORTAL.md) — prefer Travel Agent OS docs |
+| Travel Agent OS | [`travel-agent-os/README.md`](./travel-agent-os/README.md) · [`CATALOG.md`](./travel-agent-os/CATALOG.md) |
+| Schema ADR | [`adr/001-separate-v2-schema.md`](./adr/001-separate-v2-schema.md) · [`adr/002-travel-agent-os.md`](./adr/002-travel-agent-os.md) |
 | Status | [`IMPLEMENTATION.md`](./IMPLEMENTATION.md) |
 | Cutover | [`CUTOVER.md`](./CUTOVER.md) — `V2_DESK_CUTOVER` stays false until shadow |
 | Live FO | Innora `web/` — **not** root Wave `apps/*` |
@@ -32,6 +33,7 @@ This file is the **executive index**. Do not implement from the old Wave "17 sur
 - Tax: SC 10% then GST 5% on (base+SC), per property
 - Invoices: `PSBN-YYYY-NNNNN` room/stay; `INV-YYYY-NNNN` F&B; `PS-` confirmation only; gapless
 - Commands within a module; events between modules; Realtime fan-out; folio **per payer**; net-only rates
+- **Innora Bot (Hermes):** canonical Telegram ops surface (`/telegram` desk + `hermes.*` API). One bot per product — pairing, OCR drafts, role/agent alerts, department topics. Extend Hermes; do not invent a second bot. Notify/ack only for money; ledger stays on atomic desk/API commands.
 
 ## Competitive bar
 

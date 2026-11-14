@@ -73,6 +73,15 @@ export const useFieldPortalAuth = create<FieldAuthState>()(
       sessions: {},
 
       unlock: (role, code, pin) => {
+        const allowDemo =
+          import.meta.env.DEV === true ||
+          String(import.meta.env.VITE_ALLOW_E2E_DEMO_AUTH ?? "") === "1";
+        if (!allowDemo) {
+          return {
+            ok: false,
+            error: "Demo field PIN disabled — use email sign-in at /login",
+          };
+        }
         const c = code.trim().toUpperCase();
         const p = pin.trim();
         if (!c || p.length < 4) {

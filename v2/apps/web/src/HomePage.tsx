@@ -1,19 +1,15 @@
 import { motion, useReducedMotion } from "motion/react";
 import { InnorahotelLogo } from "@hos-v2/ui";
 import {
-  Bed,
   Building2,
-  CalendarDays,
   CheckCircle2,
   Compass,
   FileCheck2,
   KeyRound,
   LayoutGrid,
-  Lock,
   Receipt,
   Scale,
   ShieldCheck,
-  Sparkles,
   Truck,
   Users,
   UtensilsCrossed,
@@ -27,42 +23,44 @@ const DESK = (
   import.meta.env.VITE_DESK_ORIGIN as string | undefined
 )?.replace(/\/$/, "") ?? "https://desk.innorahotel.com";
 
+const SIGN_IN = `${DESK}/login`;
+
 const PORTALS = [
   {
     role: "Hotelier & GM",
     icon: Building2,
     badge: "Front Office Cockpit",
-    title: "Hotel Staff & Management",
-    body: "Single sign-on for your property domain. Each front office clerk, cashier, and housekeeper unlocks their station with a zero-friction PIN.",
-    href: `${DESK}/login/hotel`,
-    cta: "Launch Hotel Desk",
+    title: "Hotels & property teams",
+    body: "One sign-in opens your property. Front office, cashiers, and housekeepers unlock their station with a desk PIN — Bhutan tax, dual folio, night audit.",
+    href: SIGN_IN,
+    cta: "Sign in",
   },
   {
     role: "Tour Operator",
     icon: Users,
-    badge: "B2B Allotment Portal",
-    title: "Travel Agencies & Wholesalers",
-    body: "One unified email across every partner hotel in Bhutan. Live competitor-masked allotments, 48-hr MoU holds, and instant voucher settlement.",
-    href: `${DESK}/login/agent`,
-    cta: "Tour Operator Sign In",
+    badge: "B2B Partner Portal",
+    title: "Travel agencies & wholesalers",
+    body: "Same sign-in routes you to Partner. Masked sellable rooms at contracted hotels, MoU holds, vouchers, and guide/fleet request board.",
+    href: SIGN_IN,
+    cta: "Sign in",
   },
   {
     role: "Licensed Guide",
     icon: Compass,
-    badge: "Guide Companion PWA",
-    title: "Field Guides & Tour Escorts",
-    body: "Mobile companion that works on mountain passes. Group digital check-in, 6:00 AM Tiger's Nest box breakfast dispatch, and dietary matrix sync.",
-    href: `${DESK}/login/guide`,
-    cta: "Open Guide Companion",
+    badge: "Guide Companion",
+    title: "Licensed guides & escorts",
+    body: "Field companion for group check-in, dietary matrices, and early box breakfasts — plus presence on the Innora guide request board.",
+    href: SIGN_IN,
+    cta: "Sign in",
   },
   {
     role: "Fleet Driver",
     icon: Truck,
-    badge: "Driver Fleet Hub",
-    title: "Coaster & HiAce Chauffeurs",
-    body: "Guaranteed driver dorm bunk, designated bus parking bay, and 1-tap Dochula pass fuel cash advances billed straight to the corporate ledger.",
-    href: `${DESK}/login/driver`,
-    cta: "Driver Hub Access",
+    badge: "Fleet Driver Hub",
+    title: "Coaster & HiAce chauffeurs",
+    body: "Dorm bunk, parking bay, and fuel advances on the ledger — with fleet request board so hotels and agents can find free cars.",
+    href: SIGN_IN,
+    cta: "Sign in",
   },
 ] as const;
 
@@ -88,11 +86,11 @@ export function HomePage() {
           </nav>
 
           <div className="nav-actions">
-            <a className="nav-cta btn-ghost" href={`${DESK}/login/agent`}>
-              Partner Portal
+            <a className="nav-cta btn-ghost" href="#ecosystem">
+              Explore ecosystem
             </a>
-            <a className="nav-cta btn-gold" href={`${DESK}/login/hotel`}>
-              Hotel Sign In
+            <a className="nav-cta btn-gold" href={SIGN_IN}>
+              Sign in
             </a>
           </div>
         </div>
@@ -127,38 +125,39 @@ export function HomePage() {
               </div>
 
               <h1 className="hero-brand" id="brand">
-                The Sovereign Operating System for Himalayan Hospitality.
+                Innora
               </h1>
 
               <p className="hero-line">
-                Unifying the front desk cockpit, licensed tour guides, coaster fleet drivers, B2B travel agents, and kitchen pass onto one atomic Bhutanese ledger.
+                The sovereign operating system for Himalayan hospitality — hotels, tour agents, licensed guides, and fleet drivers on one network and one atomic Bhutanese ledger.
               </p>
 
               <div className="hero-actions">
-                <a className="btn-solid" href="#desk-section">
+                <a className="btn-solid" href={SIGN_IN}>
+                  <KeyRound className="size-4" />
+                  <span>Sign in</span>
+                </a>
+                <a className="btn-line" href="#desk-section">
                   <Zap className="size-4" />
-                  <span>Test-Drive Live Cockpit</span>
+                  <span>Test-drive desk</span>
                 </a>
-                <a className="btn-line" href={`${DESK}/login/hotel`}>
-                  <span>Hotel Sign In</span>
-                </a>
-                <a className="btn-ghost-hero" href="#broken-relay">
-                  <span>See The Broken Relay →</span>
+                <a className="btn-ghost-hero" href="#ecosystem">
+                  <span>Who Innora is for →</span>
                 </a>
               </div>
 
               <div className="hero-highlights">
                 <div className="highlight-item">
                   <CheckCircle2 className="size-4 text-amber-400" />
-                  <span>DRC BST-3 Tax Certified</span>
+                  <span>One login · role-aware portals</span>
                 </div>
                 <div className="highlight-item">
                   <CheckCircle2 className="size-4 text-emerald-400" />
-                  <span>Nu. 0.50 Dual-Folio Gate</span>
+                  <span>Agents: masked free rooms</span>
                 </div>
                 <div className="highlight-item">
                   <CheckCircle2 className="size-4 text-cyan-400" />
-                  <span>Driver Dorm & Bay Allocation</span>
+                  <span>Innora Bot on Telegram</span>
                 </div>
               </div>
             </motion.div>
@@ -172,7 +171,7 @@ export function HomePage() {
               <span className="band-kicker">Interactive Product Cockpit</span>
               <h2 className="band-title">The Front Office, Composed.</h2>
               <p className="band-body mx-auto max-w-2xl">
-                Sign in with your hotel email, choose the property, then each staff member unlocks with their desk PIN. Explore the real live v2 interface below.
+                Hotel teams sign in once, choose the property, then unlock with a desk PIN. Agents, guides, and drivers use the same Sign in — we route them to Partner, Guide, or Fleet.
               </p>
             </div>
 
@@ -207,10 +206,10 @@ export function HomePage() {
         <section id="ecosystem" className="band">
           <div className="wrap">
             <div className="section-head">
-              <span className="band-kicker">Architecture</span>
-              <h2 className="band-title">Five Nodes. One Atomic Ledger.</h2>
+              <span className="band-kicker">What Innora is</span>
+              <h2 className="band-title">One network for Himalayan hospitality.</h2>
               <p className="band-body max-w-2xl">
-                Unlike Western hotel systems that stop at the lobby door, Innora coordinates the entire Himalayan travel loop in real time.
+                Innora is not hotel software alone. It is the operating system that links property desks, tour operators, licensed guides, and fleet drivers — so rooms, field capacity, and ops alerts stay on one ledger.
               </p>
             </div>
 
@@ -221,7 +220,7 @@ export function HomePage() {
                 </div>
                 <h3 className="node-title">1. Hotelier Desk Cockpit</h3>
                 <p className="node-desc">
-                  100vh zero-scroll front office control. Live room rack, till cash vault, instant FastBook (⌘B), and 1-tap automated night audit close.
+                  Live room rack, till vault, Fast Book, and night audit. Free rooms at your property — plus posting need-a-guide / need-a-car requests to the network board.
                 </p>
                 <div className="node-tags">
                   <span>Till Vault</span>
@@ -236,12 +235,12 @@ export function HomePage() {
                 </div>
                 <h3 className="node-title">2. Tour Guide Companion</h3>
                 <p className="node-desc">
-                  Offline-first mobile PWA for licensed Bhutanese guides. Group check-in, 6:00 AM Tiger's Nest packed breakfasts, and guest dietary matrices.
+                  Group check-in, Tiger&apos;s Nest box breakfasts, dietary matrices — and guide presence so hotels and agents can request licensed capacity.
                 </p>
                 <div className="node-tags">
                   <span>Group Check-In</span>
                   <span>Box Breakfasts</span>
-                  <span>Dietary Matrix</span>
+                  <span>Request board</span>
                 </div>
               </div>
 
@@ -251,12 +250,12 @@ export function HomePage() {
                 </div>
                 <h3 className="node-title">3. Fleet Driver Hub</h3>
                 <p className="node-desc">
-                  Dignified driver logistics. Dedicated dorm bed allocation (Bed B-02), coaster bus bay assignment, and Dochula pass fuel advances linked to agency ledger.
+                  Dorm bunk, bus bay, fuel advances — and fleet presence so agencies and hotels can find free coasters when the mountain road fills.
                 </p>
                 <div className="node-tags">
-                  <span>Dorm Bed Allocation</span>
-                  <span>Bus Bay</span>
-                  <span>Fuel Cash Advance</span>
+                  <span>Dorm & Bay</span>
+                  <span>Fuel Advance</span>
+                  <span>Request board</span>
                 </div>
               </div>
 
@@ -266,12 +265,12 @@ export function HomePage() {
                 </div>
                 <h3 className="node-title">4. B2B Travel Agent Portal</h3>
                 <p className="node-desc">
-                  Real-time contracted rates, allotment balances, 48-hr MoU release holds, and competitor-masked occupancy for agencies like Yangphel and Druk Asia.
+                  Live masked sellable rooms at contracted hotels, MoU holds, vouchers — plus Guides &amp; cars when you need field capacity for a group.
                 </p>
                 <div className="node-tags">
-                  <span>Competitor Masking</span>
+                  <span>Masked inventory</span>
                   <span>MoU Holds</span>
-                  <span>Instant Vouchers</span>
+                  <span>Guides &amp; cars</span>
                 </div>
               </div>
 
@@ -279,14 +278,14 @@ export function HomePage() {
                 <div className="node-icon-box text-rose-400">
                   <UtensilsCrossed className="size-6" />
                 </div>
-                <h3 className="node-title">5. Kitchen Display (KDS)</h3>
+                <h3 className="node-title">5. Kitchen + Innora Bot</h3>
                 <p className="node-desc">
-                  Instant ticket pass chime (&lt;14ms). Packed breakfast countdowns, allergen tags, and instant room-charge posting with zero paper chits.
+                  KDS tickets and allergen tags on the property ledger. Innora Bot on Telegram keeps FO, HK, kitchen, and agents in the ops loop (guide/driver pairing expanding).
                 </p>
                 <div className="node-tags">
-                  <span>Sub-14ms Chime</span>
-                  <span>Allergen Safety</span>
                   <span>Paperless KOT</span>
+                  <span>Innora Bot</span>
+                  <span>Agent alerts</span>
                 </div>
               </div>
             </div>
@@ -377,14 +376,14 @@ export function HomePage() {
           </div>
         </section>
 
-        {/* SECTION 6: FOUR SOVEREIGN DOORS (PORTALS) */}
+        {/* SECTION 6: WHO IT IS FOR */}
         <section id="portals" className="band band-darker">
           <div className="wrap">
             <div className="section-head text-center">
-              <span className="band-kicker">Unified Access</span>
-              <h2 className="band-title">Four Doors. One Stack.</h2>
+              <span className="band-kicker">For whom</span>
+              <h2 className="band-title">Four audiences. One Sign in.</h2>
               <p className="band-body mx-auto max-w-2xl">
-                Hotel email unlocks the property. Partners sign in with their own email across every hotel they are contracted with.
+                Hotels, tour agents, guides, and drivers each get a purpose-built portal. You sign in once — Innora routes you by role.
               </p>
             </div>
 
@@ -460,16 +459,16 @@ export function HomePage() {
         <section className="finale wrap">
           <div className="finale-box">
             <span className="band-kicker">Immediate Deployment</span>
-            <h2 className="band-title">Ready When the Lobby Is.</h2>
+            <h2 className="band-title">Ready when the lobby — and the mountain road — are.</h2>
             <p className="band-body max-w-xl">
-              Zero upfront hardware. Self-hosted sovereign data. Experience the front office operating system built specifically for Bhutan.
+              Self-hosted sovereign data for Bhutan. One Sign in for hotels, agents, guides, and drivers.
             </p>
             <div className="flex flex-wrap gap-4 items-center">
-              <a className="btn-solid" href={`${DESK}/login/hotel`}>
-                Hotel Sign In
+              <a className="btn-solid" href={SIGN_IN}>
+                Sign in
               </a>
-              <a className="btn-line" href={`${DESK}/login/agent`}>
-                Tour Operator Portal
+              <a className="btn-line" href="#ecosystem">
+                Explore the network
               </a>
             </div>
           </div>
@@ -482,18 +481,17 @@ export function HomePage() {
           <div className="footer-brand">
             <InnorahotelLogo size="sm" variant="gold" />
             <p className="footer-tagline">
-              The Sovereign Operating System for Himalayan Hospitality.
+              Innora — hotels, agents, guides, and drivers on one Himalayan ledger.
             </p>
           </div>
 
           <div className="footer-nav">
             <a href="#desk-section">Desk Cockpit</a>
             <a href="#broken-relay">The Broken Relay</a>
-            <a href="#ecosystem">5-Way Ecosystem</a>
+            <a href="#ecosystem">Network</a>
             <a href="#compliance">DRC Tax & Legal</a>
             <a href="#roi-calc">ROI Calculator</a>
-            <a href={`${DESK}/login/hotel`}>Hotel Login</a>
-            <a href={`${DESK}/login/agent`}>Agent Portal</a>
+            <a href={SIGN_IN}>Sign in</a>
           </div>
 
           <div className="footer-bottom">
@@ -506,11 +504,11 @@ export function HomePage() {
 
       {/* Mobile Sticky Quick Action Bar */}
       <div className="mobile-bar" aria-label="Quick actions">
-        <a className="btn-line" href={`${DESK}/login/agent`} style={{ justifyContent: "center" }}>
-          Partner Login
+        <a className="btn-line" href="#ecosystem" style={{ justifyContent: "center" }}>
+          Network
         </a>
-        <a className="btn-solid" href={`${DESK}/login/hotel`} style={{ justifyContent: "center" }}>
-          Hotel Sign In
+        <a className="btn-solid" href={SIGN_IN} style={{ justifyContent: "center" }}>
+          Sign in
         </a>
       </div>
     </div>

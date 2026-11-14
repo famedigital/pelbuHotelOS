@@ -18,12 +18,14 @@ import {
   type Dzongkhag,
 } from "../lib/settings-store";
 import {
+  canonicalHotelInitial,
   hotelInitialFromName,
   peekNextFolioNo,
   peekNextInvoiceNo,
   peekNextPsbnNo,
   resolveHotelInitial,
 } from "../lib/doc-numbers";
+import { rewriteDeskDocInitials } from "../lib/hotel-identity";
 import { loadDeptSop, saveDeptSop, type DeptSop } from "../lib/dept-sop";
 
 type Tab = "property" | "rooms" | "fiscal" | "payments" | "sop";
@@ -288,21 +290,29 @@ export function SettingsPage() {
                   .replace(/[^A-Za-z]/g, "")
                   .toUpperCase()
                   .slice(0, 4);
+                const prev = resolveHotelInitial();
                 const initial =
                   hotelInitial.length >= 2
                     ? hotelInitial
-                    : hotelInitialFromName(s.hotelName);
+                    : canonicalHotelInitial(s.hotelName);
                 s.updateFiscal({
                   hotelInitial,
                   psbnPrefix: `${initial}PSBN`,
                   invPrefix: `${initial}INV`,
                 });
+                if (hotelInitial.length >= 2 && hotelInitial !== prev) {
+                  void rewriteDeskDocInitials(prev, hotelInitial).then((n) => {
+                    if (n > 0) {
+                      toast.message(`Rewrote ${n} doc no(s) ${prev} → ${hotelInitial}`);
+                    }
+                  });
+                }
               }}
-              placeholder={hotelInitialFromName(s.hotelName)}
+              placeholder={canonicalHotelInitial(s.hotelName)}
               className="rounded-lg border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2 font-mono text-sm uppercase tracking-widest"
             />
             <span className="font-normal text-[var(--hos-ink-3)]">
-              Empty or short → derive from hotel name ({hotelInitialFromName(s.hotelName)}).
+              Empty or short → derive from hotel name ({canonicalHotelInitial(s.hotelName)}).
               Numbers: {resolveHotelInitial()}FN##### · {resolveHotelInitial()}INV##### ·{" "}
               {resolveHotelInitial()}PSBN#####
             </span>

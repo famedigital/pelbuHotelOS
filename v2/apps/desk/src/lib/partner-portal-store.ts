@@ -374,7 +374,8 @@ export const usePartnerPortalStore = create<PartnerPortalState>((set, get) => ({
 
   canPortal: (facility) => {
     const user = get().currentPortalUser();
-    if (!user) return false;
+    /* Email partner sessions have no demo portal-user row — allow all facilities. */
+    if (!user) return true;
     return user.facilities.includes(facility);
   },
 

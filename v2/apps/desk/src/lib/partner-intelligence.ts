@@ -2,19 +2,42 @@
  * Partner Portal intelligence — allotment heat, MoU quote advisor, SLA pressure.
  */
 
-import {
-  folioBalance,
-  folioTotals,
-  formatNu,
-  nightsBetween,
-  type Stay,
-} from "./front-office-store";
+import { nightsBetween } from "@hos-v2/domain";
+import type { Stay } from "./front-office-store";
 import type { Agent } from "./commercial-store";
 import type { FiscalDoc } from "./extras-store";
 import type { PartnerChangeRequest } from "./partner-portal-store";
-import { exportCsv } from "./finance-reports";
+
+/** Local Nu. format — avoids loading front-office-store (Vite env) in unit tests. */
+function formatNu(n: number): string {
+  return `Nu. ${Math.round(n).toLocaleString("en-BT")}`;
+}
+
+function masterOpenLines(stay: Stay) {
+  return stay.folioLines.filter((l) => !l.voided && l.stream === "master");
+}
+
+function masterFolioBalance(stay: Stay): number {
+  return masterOpenLines(stay).reduce((sum, l) => sum + l.totalAmount, 0);
+}
+
+function masterFolioTotals(stay: Stay) {
+  const open = masterOpenLines(stay);
+  const charges = open.filter((l) => l.kind !== "payment");
+  const payments = open.filter((l) => l.kind === "payment");
+  return {
+    charged: charges.reduce((s, l) => s + l.totalAmount, 0),
+    paid: Math.abs(payments.reduce((s, l) => s + l.totalAmount, 0)),
+  };
+}
 
 export type PartnerPayFilter = "all" | "unpaid" | "paid";
+
+/** Orthogonal to pay status — fiscal city-ledger docs vs working stay folios. */
+export type PartnerLedgerSource = "all" | "fiscal" | "working";
+
+/** Open AR / paid history threshold for working folios (Nu.). */
+const WORKING_FOLIO_GATE_BTN = 0.5;
 
 export type PartnerInvoiceRow = {
   id: string;
@@ -83,33 +106,44 @@ export function buildPartnerInvoices(input: {
     fromFiscal.map((r) => r.stayRef).filter((x): x is string => Boolean(x)),
   );
 
-  const fromStays: PartnerInvoiceRow[] = input.stays
-    .filter((s) => ["checked_in", "checked_out", "confirmed"].includes(s.status))
-    .filter((s) => !coveredRefs.has(s.confirmationNo))
-    .map((s) => {
-      const totals = folioTotals(s, "master");
-      const bal = folioBalance(s, "master");
-      const charged =
-        totals.charged > 0
-          ? totals.charged
-          : Math.round(
-              nightsBetween(s.checkIn, s.checkOut) * s.nightlyNet * 1.21,
-            );
-      const paid = bal <= 0.5 && (s.status === "checked_out" || totals.paid > 0);
-      return {
-        id: `stay-${s.id}`,
-        kind: "FOLIO" as const,
-        docNo: `FOL-${s.confirmationNo.replace(/^PS-?/i, "")}`,
-        guest: s.guestName,
-        stayRef: s.confirmationNo,
-        stayId: s.id,
-        amount: charged,
-        balance: Math.max(0, bal > 0.5 ? bal : paid ? 0 : charged),
-        status: paid ? ("paid" as const) : ("unpaid" as const),
-        at: `${s.checkOut}T12:00:00.000Z`,
-        source: "stay" as const,
-      };
+  const fromStays: PartnerInvoiceRow[] = [];
+  for (const s of input.stays) {
+    if (!["checked_in", "checked_out", "confirmed"].includes(s.status)) continue;
+    if (coveredRefs.has(s.confirmationNo)) continue;
+
+    const totals = masterFolioTotals(s);
+    const bal = Math.max(0, masterFolioBalance(s));
+    const paid =
+      bal <= WORKING_FOLIO_GATE_BTN &&
+      (s.status === "checked_out" || totals.paid > WORKING_FOLIO_GATE_BTN);
+
+    // Hygiene: never invent AR from nightly estimates. Empty holds stay off the ledger.
+    if (!paid && bal <= WORKING_FOLIO_GATE_BTN) continue;
+    if (paid && totals.charged <= WORKING_FOLIO_GATE_BTN && totals.paid <= WORKING_FOLIO_GATE_BTN) {
+      continue;
+    }
+
+    const amount =
+      totals.charged > WORKING_FOLIO_GATE_BTN
+        ? totals.charged
+        : paid
+          ? totals.paid
+          : bal;
+
+    fromStays.push({
+      id: `stay-${s.id}`,
+      kind: "FOLIO",
+      docNo: `FOL-${s.confirmationNo.replace(/^PS-?/i, "")}`,
+      guest: s.guestName,
+      stayRef: s.confirmationNo,
+      stayId: s.id,
+      amount,
+      balance: paid ? 0 : bal,
+      status: paid ? "paid" : "unpaid",
+      at: `${s.checkOut}T12:00:00.000Z`,
+      source: "stay",
     });
+  }
 
   return [...fromFiscal, ...fromStays].sort(
     (a, b) => new Date(b.at).getTime() - new Date(a.at).getTime(),
@@ -123,31 +157,42 @@ export function exportPartnerInvoicesExcel(
 ): { filename: string; rows: number } {
   const stamp = new Date().toISOString().slice(0, 10);
   const filename = `partner-invoices-${agencyCode}-${stamp}.csv`;
-  return exportCsv(
-    filename,
-    [
-      "DocNo",
-      "Kind",
-      "Guest",
-      "StayRef",
-      "Date",
-      "Amount",
-      "Balance",
-      "Status",
-      "Source",
-    ],
-    rows.map((r) => [
-      r.docNo,
-      r.kind,
-      r.guest,
-      r.stayRef ?? "",
-      r.at.slice(0, 10),
-      String(r.amount),
-      String(r.balance),
-      r.status,
-      r.source,
-    ]),
+  const headers = [
+    "DocNo",
+    "Kind",
+    "Guest",
+    "StayRef",
+    "Date",
+    "Amount",
+    "Balance",
+    "Status",
+    "Source",
+  ];
+  const body = rows.map((r) => [
+    r.docNo,
+    r.kind,
+    r.guest,
+    r.stayRef ?? "",
+    r.at.slice(0, 10),
+    String(r.amount),
+    String(r.balance),
+    r.status,
+    r.source,
+  ]);
+  const esc = (c: string) => (/[",\n]/.test(c) ? `"${c.replace(/"/g, '""')}"` : c);
+  const csv = [headers.map(esc).join(","), ...body.map((r) => r.map(esc).join(","))].join(
+    "\n",
   );
+  if (typeof document !== "undefined") {
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  return { filename, rows: rows.length };
 }
 
 export function filterPartnerInvoices(
@@ -157,6 +202,15 @@ export function filterPartnerInvoices(
   if (filter === "paid") return rows.filter((r) => r.status === "paid");
   if (filter === "unpaid") return rows.filter((r) => r.status === "unpaid");
   return rows.filter((r) => r.status !== "void");
+}
+
+export function filterPartnerInvoicesBySource(
+  rows: PartnerInvoiceRow[],
+  source: PartnerLedgerSource,
+): PartnerInvoiceRow[] {
+  if (source === "fiscal") return rows.filter((r) => r.source === "fiscal");
+  if (source === "working") return rows.filter((r) => r.source === "stay");
+  return rows;
 }
 
 export type PartnerInsightTone = "emerald" | "brass" | "ruby" | "lapis";

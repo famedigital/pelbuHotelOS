@@ -54,12 +54,28 @@ export const DEFAULT_DEPT_PINS: readonly DefaultDeptPin[] = [
     roleLabel: "Kitchen",
   },
   {
+    employeeCode: "DEPT-ACC",
+    displayName: "Accounts",
+    deskRole: "accountant",
+    homeRoute: "/finance",
+    pin: "5555",
+    roleLabel: "ACC",
+  },
+  {
     employeeCode: "DEPT-OWN",
     displayName: "Owner",
     deskRole: "owner",
     homeRoute: "/owner",
     pin: "0000",
     roleLabel: "OWNER",
+  },
+  {
+    employeeCode: "DEPT-ADM",
+    displayName: "Property Admin",
+    deskRole: "admin",
+    homeRoute: "/desk",
+    pin: "8888",
+    roleLabel: "ADMIN",
   },
 ] as const;
 
@@ -101,6 +117,13 @@ export function defaultPinForDeskRole(
   )
     return "3333";
   if (role === "kitchen" || role === "chef" || role === "cook") return "4444";
-  if (role === "owner" || role === "gm" || role === "admin") return "0000";
+  if (
+    role === "accountant" ||
+    role === "finance" ||
+    role === "accounts"
+  )
+    return "5555";
+  if (role === "owner" || role === "gm") return "0000";
+  if (role === "admin" || role === "property_admin") return "8888";
   return null;
 }

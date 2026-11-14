@@ -11,6 +11,8 @@ export type DeskSessionStaff = {
   fullName: string;
   deskRole: string | null;
   employeeCode: string | null;
+  /** Module home from PIN unlock — used by AuthEntry instead of hardcoding /desk. */
+  homeRoute?: string | null;
 };
 
 export type DeskSessionProperty = {
@@ -29,6 +31,9 @@ export function writeDeskSession(
   sessionStorage.setItem(PROPERTY_KEY, JSON.stringify(property));
   localStorage.setItem("hos.v2.propertyId", property.id);
   localStorage.setItem("hos.v2.propertySlug", property.slug);
+  if (staff.homeRoute) {
+    sessionStorage.setItem("hos.v2.desk.homeRoute", staff.homeRoute);
+  }
   notifyPropertyChanged();
 }
 
@@ -62,8 +67,17 @@ export function readDeskProperty(): DeskSessionProperty | null {
   return null;
 }
 
+export function readDeskHomeRoute(): string {
+  const staff = readDeskStaff();
+  if (staff?.homeRoute && staff.homeRoute.startsWith("/")) return staff.homeRoute;
+  const stored = sessionStorage.getItem("hos.v2.desk.homeRoute")?.trim();
+  if (stored && stored.startsWith("/")) return stored;
+  return "/desk";
+}
+
 export function clearDeskSession(): void {
   sessionStorage.removeItem(TOKEN_KEY);
   sessionStorage.removeItem(STAFF_KEY);
   sessionStorage.removeItem(PROPERTY_KEY);
+  sessionStorage.removeItem("hos.v2.desk.homeRoute");
 }

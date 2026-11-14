@@ -6,7 +6,7 @@ import type { FastifyInstance } from "fastify";
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 import { queryRaw, requireDb } from "@hos-v2/db";
-import { homeRouteForDeskRole } from "@hos-v2/domain";
+import { resolveDeskHomeRoute } from "@hos-v2/domain";
 import { bearerToken, issueDeskToken, verifyDeskToken } from "../platform/desk-token.js";
 
 const PIN_PREFIX = "scrypt$";
@@ -32,22 +32,16 @@ export function verifyPin(pin: string, stored: string | null | undefined): boole
   }
 }
 
-function homeRouteForRole(deskRole: string | null | undefined, fallback: string): string {
-  const routed = homeRouteForDeskRole(deskRole);
-  if (routed !== "/desk") return routed;
-  /* Unknown roles keep DB home_route when FO-shaped default would hide a custom landing. */
-  if (!deskRole) return fallback || "/desk";
-  const role = String(deskRole).toLowerCase().replace(/\s+/g, "_");
-  if (
-    role === "fo" ||
-    role === "front_desk" ||
-    role === "fo_agent" ||
-    role === "fo_manager" ||
-    role === "front_office"
-  ) {
-    return "/desk";
-  }
-  return fallback || routed;
+function homeRouteForStaff(input: {
+  deskRole: string | null | undefined;
+  homeRoute: string | null | undefined;
+  employeeCode: string | null | undefined;
+}): string {
+  return resolveDeskHomeRoute({
+    deskRole: input.deskRole,
+    homeRoute: input.homeRoute,
+    employeeCode: input.employeeCode,
+  });
 }
 
 function assertDb() {
@@ -210,16 +204,25 @@ export async function registerAuthPinRoutes(app: FastifyInstance) {
         return {
           ok: true,
           property,
-          staff: (staff ?? []).map((s) => ({
-            id: s.id,
-            fullName: s.display_name,
-            employeeCode: s.employee_code,
-            deskRole: s.desk_role ?? s.role,
-            homeRoute: s.home_route ?? "/desk",
-            pinSet: Boolean(s.pin_set),
-            pinResetRequired: Boolean(s.pin_reset_required),
-            canAccessDesk: true,
-          })),
+          staff: (staff ?? []).map((s) => {
+            const deskRole = (s.desk_role ?? s.role) as string | null;
+            const employeeCode = s.employee_code as string | null;
+            const homeRoute = homeRouteForStaff({
+              deskRole,
+              homeRoute: s.home_route as string | null,
+              employeeCode,
+            });
+            return {
+              id: s.id,
+              fullName: s.display_name,
+              employeeCode,
+              deskRole,
+              homeRoute,
+              pinSet: Boolean(s.pin_set),
+              pinResetRequired: Boolean(s.pin_reset_required),
+              canAccessDesk: true,
+            };
+          }),
         };
       } catch (err) {
         const status = (err as { statusCode?: number }).statusCode ?? 500;
@@ -323,14 +326,19 @@ export async function registerAuthPinRoutes(app: FastifyInstance) {
         return reply.code(401).send({ ok: false, error: "Incorrect PIN" });
       }
 
-      const homeRoute = homeRouteForRole(staff.desk_role ?? staff.role, staff.home_route);
+      const deskRole = staff.desk_role ?? staff.role;
+      const homeRoute = homeRouteForStaff({
+        deskRole,
+        homeRoute: staff.home_route,
+        employeeCode: staff.employee_code,
+      });
       const token = issueDeskToken({
         sub: staff.id,
         role: "staff",
         propertyId: property.id,
         staffId: staff.id,
         staffName: staff.display_name,
-        deskRole: staff.desk_role ?? staff.role,
+        deskRole,
         employeeCode: staff.employee_code,
         organizationId: property.organization_id,
         homeRoute,
@@ -344,7 +352,7 @@ export async function registerAuthPinRoutes(app: FastifyInstance) {
         staff: {
           id: staff.id,
           fullName: staff.display_name,
-          deskRole: staff.desk_role ?? staff.role,
+          deskRole,
           employeeCode: staff.employee_code,
         },
         property,

@@ -5,6 +5,7 @@ import { assertManagerPin, isManagerDeskRole, verifyEnvManagerPin } from "./inde
 describe("manager pin", () => {
   it("recognises manager roles", () => {
     assert.equal(isManagerDeskRole("gm"), true);
+    assert.equal(isManagerDeskRole("admin"), true);
     assert.equal(isManagerDeskRole("fo_agent"), false);
   });
 

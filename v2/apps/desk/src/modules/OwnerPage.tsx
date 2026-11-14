@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -8,7 +8,6 @@ import {
   GlassPanel,
   KpiCard,
   ModuleFrame,
-  StatusLegend,
 } from "@hos-v2/ui";
 import {
   formatNu,
@@ -17,303 +16,442 @@ import {
 } from "../lib/front-office-store";
 import { useFnbStore } from "../lib/fnb-store";
 import { useFiscalStore } from "../lib/fiscal-store";
+import {
+  purchaseCategoryLabel,
+  type PurchaseCategoryId,
+} from "../lib/fiscal-store";
 import { useExtrasStore } from "../lib/extras-store";
-import { useOpsStore } from "../lib/ops-store";
 import { useCommercialStore } from "../lib/commercial-store";
-import { defaultPeriod } from "../lib/finance-reports";
-import { buildAgentIntelligence } from "../lib/intelligence/agent-intelligence";
-import { buildOpsHrIntelligence } from "../lib/intelligence/ops-hr-intelligence";
-
-const MTD_TARGET = 2_500_000;
+import { useEnterpriseOpsStore } from "../lib/enterprise-ops-store";
+import {
+  buildOwnerGlance,
+  type OwnerPeriodKind,
+} from "../lib/owner-glance";
 
 export function OwnerPage() {
   const reduce = useReducedMotion();
+  const [periodKind, setPeriodKind] = useState<OwnerPeriodKind>("ytd");
+  const [alertsOpen, setAlertsOpen] = useState(false);
+
   const businessDate = useFrontOfficeStore((s) => s.businessDate);
   const stays = useFrontOfficeStore((s) => s.stays);
   const rooms = useFrontOfficeStore((s) => s.rooms);
   const orders = useFnbStore((s) => s.orders);
   const kots = useFnbStore((s) => s.kots);
   const tillBalance = useFiscalStore((s) => s.tillBalance);
+  const purchases = useFiscalStore((s) => s.purchases);
+  const fiscalDocs = useExtrasStore((s) => s.fiscalDocs);
   const tillShifts = useExtrasStore((s) => s.tillShifts);
-  const bags = useOpsStore((s) => s.bags);
   const agents = useCommercialStore((s) => s.agents);
+  const season = useCommercialStore((s) => s.season);
+  const hrStaff = useEnterpriseOpsStore((s) => s.hrStaff);
+
   const pulse = useMemo(
     () => useExtrasStore.getState().ownerPulse(),
     [stays, rooms, orders, tillShifts, tillBalance],
   );
 
-  const period = defaultPeriod();
-  const topAgents = useMemo(
+  const roomsCount =
+    rooms.filter((r) => r.hkStatus !== "ooo").length || rooms.length || 1;
+
+  const glance = useMemo(
     () =>
-      buildAgentIntelligence({
+      buildOwnerGlance({
+        kind: periodKind,
+        asOf: businessDate,
+        season,
+        stays,
+        roomsCount,
+        purchases,
+        fiscalDocs,
         agents,
-        stays,
-        from: period.from,
-        to: period.to,
-        topN: 3,
-      }).top,
-    [agents, stays, period.from, period.to],
-  );
-  const opsGlance = useMemo(
-    () =>
-      buildOpsHrIntelligence({
-        stays,
-        roomsCount: rooms.filter((r) => r.hkStatus !== "ooo").length || rooms.length,
-        from: period.from,
-        to: period.to,
-        staff: [],
+        staff: hrStaff,
       }),
-    [stays, rooms, period.from, period.to],
+    [
+      periodKind,
+      businessDate,
+      season,
+      stays,
+      roomsCount,
+      purchases,
+      fiscalDocs,
+      agents,
+      hrStaff,
+    ],
   );
 
   const inHouse = stays.filter((s) => s.status === "checked_in");
-  const roomRev = inHouse.reduce((sum, s) => sum + s.nightlyNet, 0);
-  const fbRev = orders.reduce((sum, o) => sum + o.total, 0);
-  const laundryRev = bags
-    .filter((b) => b.status === "posted")
-    .reduce((sum, b) => sum + b.netAmount, 0);
-  const gross = roomRev + fbRev + laundryRev;
-
-  const spark = useMemo(
-    () => [42, 48, 51, 55, 58, 61, pulse.occPct],
-    [pulse.occPct],
-  );
-
-  const mtdActual = Math.round(gross * 18 + 420000);
-  const mtdPct = Math.min(100, Math.round((mtdActual / MTD_TARGET) * 100));
-  const projected = Math.round(mtdActual / Math.max(1, new Date().getDate()) * 30);
-
   const radar: { severity: "high" | "med"; text: string }[] = [];
   const openShift = tillShifts.find((t) => !t.closedAt);
   if (openShift && openShift.counted == null) {
-    radar.push({ severity: "med", text: "Till shift still open — unreconciled float" });
+    radar.push({ severity: "med", text: "Cash drawer still open — count before night close" });
   }
   if (tillBalance > 80000) {
-    radar.push({ severity: "high", text: `Till cash ${formatNu(tillBalance)} exceeds bank-drop comfort` });
-  }
-  const cancelledKots = kots.filter((k) => k.status === "cancelled");
-  for (const k of cancelledKots) {
-    radar.push({ severity: "high", text: `Voided POS/KOT ${k.ticketNo} · manager PIN audit required` });
-  }
-  // Demo void flag if none
-  if (cancelledKots.length === 0 && orders.length === 0) {
-    radar.push({ severity: "med", text: "No voided tickets today — radar clear for F&B voids" });
-  }
-  const keyDup = stays.filter(
-    (s) => ["confirmed", "held"].includes(s.status) && s.roomId && s.checkIn === businessDate,
-  );
-  // Key without check-in: assigned but not checked in past arrival day start
-  for (const s of keyDup) {
     radar.push({
-      severity: "med",
-      text: `Key/room ${s.roomNumber} assigned without check-in · ${s.guestName}`,
+      severity: "high",
+      text: `Cash in drawer ${formatNu(tillBalance)} — bank drop recommended`,
+    });
+  }
+  for (const k of kots.filter((x) => x.status === "cancelled")) {
+    radar.push({
+      severity: "high",
+      text: `Cancelled kitchen ticket ${k.ticketNo}`,
     });
   }
   for (const a of agents) {
-    if (a.usedCredit / a.creditLimit > 0.9) {
+    if (a.creditLimit > 0 && a.usedCredit / a.creditLimit > 0.9) {
       radar.push({
         severity: "high",
-        text: `${a.name} credit ${Math.round((a.usedCredit / a.creditLimit) * 100)}% of MoU limit`,
+        text: `${a.name} has used ${Math.round((a.usedCredit / a.creditLimit) * 100)}% of credit`,
       });
     }
   }
-  const heavyFolios = inHouse.filter((s) => folioBalance(s) > 25000);
-  for (const s of heavyFolios) {
+  for (const s of inHouse.filter((x) => folioBalance(x) > 25000)) {
     radar.push({
       severity: "med",
-      text: `Folio Rm ${s.roomNumber} ${formatNu(folioBalance(s))} — watch settlement`,
+      text: `Room ${s.roomNumber} still owes ${formatNu(folioBalance(s))}`,
     });
   }
 
-  const dirty = rooms.filter((r) => r.hkStatus === "dirty").length;
-  const openBal = inHouse.filter((s) => folioBalance(s) > 0).length;
-
-  const waPreview = [
-    `🏨 ${businessDate} Night Audit Preview`,
-    `Occ ${pulse.occPct}% · ADR ${formatNu(pulse.adr)} · RevPAR ${formatNu(pulse.revpar)}`,
-    `Gross ${formatNu(gross)} = Rooms ${formatNu(roomRev)} + F&B ${formatNu(fbRev)} + Laundry ${formatNu(laundryRev)}`,
-    `In-house ${inHouse.length} · Dirty ${dirty} · Open folios ${openBal}`,
-    `Till ${formatNu(tillBalance)} · Radar flags ${radar.filter((r) => r.severity === "high").length} high`,
-    `MTD ${formatNu(mtdActual)} / target ${formatNu(MTD_TARGET)} (${mtdPct}%)`,
-  ].join("\n");
+  const maxMonthOcc = Math.max(1, ...glance.monthBars.map((m) => m.occPct));
+  const periodBtns: { id: OwnerPeriodKind; label: string }[] = [
+    { id: "ytd", label: "This year" },
+    { id: "season", label: "This season" },
+    { id: "month", label: "This month" },
+  ];
 
   return (
     <ModuleFrame
-      title="Owner · Pocket CEO"
-      description="Live odometers · loss prevention · 23:30 WhatsApp bot · MTD pacing"
+      title="Owner"
+      description="How the hotel is doing — rooms filled, money in and out, and who brings guests"
       actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusLegend
-            dense
-            className="hidden md:flex"
-            items={[
-              { id: "occ", label: "Occ", swatch: "var(--hos-primary)" },
-              { id: "rev", label: "Rev", swatch: "var(--hos-emerald)" },
-              { id: "risk", label: "Risk", swatch: "var(--hos-ruby)" },
-            ]}
-          />
-          <motion.div whileTap={reduce ? undefined : { scale: 0.97 }}>
-            <Button
-              onClick={() =>
-                toast.success("Test WhatsApp dispatched", {
-                  description: "Owner + GM group · night audit summary simulated",
-                })
-              }
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Period">
+          {periodBtns.map((b) => (
+            <button
+              key={b.id}
+              type="button"
+              onClick={() => setPeriodKind(b.id)}
+              className={`min-h-10 rounded-lg px-3 py-1.5 text-xs font-semibold ${
+                periodKind === b.id
+                  ? "bg-[var(--hos-primary)] text-white"
+                  : "border border-[var(--hos-line)] bg-[var(--hos-cell)] text-[var(--hos-ink)]"
+              }`}
             >
-              Trigger Test Dispatch
-            </Button>
-          </motion.div>
+              {b.label}
+            </button>
+          ))}
         </div>
       }
     >
-    <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4">
+        <p className="m-0 text-[12px] text-[var(--hos-ink-3)]">
+          Showing <strong className="text-[var(--hos-ink-2)]">{glance.period.label}</strong>{" "}
+          ({glance.period.from} → {glance.period.to})
+        </p>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <KpiCard label="Occupancy" value={`${pulse.occPct}%`} sparkline={spark} delta="7-day trend" />
-        <KpiCard label="ADR" value={formatNu(pulse.adr)} delta="Net room" />
-        <KpiCard label="RevPAR" value={formatNu(pulse.revpar)} delta="Per key" />
-        <KpiCard label="Gross today" value={formatNu(gross)} delta="All depts" />
-      </div>
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          <KpiCard
+            label="Rooms filled"
+            value={`${glance.occPct}%`}
+            delta={`${glance.roomNightsSold} of ${glance.roomNightsCapacity} room-nights`}
+          />
+          <KpiCard
+            label="Money in"
+            value={formatNu(glance.moneyIn)}
+            delta={`${glance.income.bookings} bookings · collected ${formatNu(glance.income.collected)}`}
+          />
+          <KpiCard
+            label="Money out"
+            value={formatNu(glance.moneyOut)}
+            delta={`${glance.expense.count} bills on the books`}
+          />
+          <KpiCard
+            label="Left as profit"
+            value={formatNu(glance.profit)}
+            delta={
+              glance.profit >= 0 ? "Money in minus money out" : "Spending ahead of income"
+            }
+          />
+        </div>
 
-      <div className="grid gap-3 md:grid-cols-2">
-        <Link to="/reports?intel=agents" className="no-underline" data-testid="owner-tile-top-agents">
-          <GlassPanel className="p-3.5 transition hover:border-[var(--hos-brass)]/40">
-            <strong className="text-sm text-[var(--hos-ink)]">Top agents</strong>
+        <GlassPanel className="p-3.5" data-testid="owner-today-strip">
+          <strong className="text-sm text-[var(--hos-ink)]">Today at a glance</strong>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-2.5">
+              <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Rooms filled today</div>
+              <strong className="tabular-nums">{pulse.occPct}%</strong>
+            </div>
+            <div className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-2.5">
+              <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Today’s sales</div>
+              <strong className="tabular-nums">{formatNu(pulse.gross)}</strong>
+            </div>
+            <div className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-2.5">
+              <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Avg room rate</div>
+              <strong className="tabular-nums">{formatNu(pulse.adr)}</strong>
+              <div className="text-[10px] text-[var(--hos-ink-3)]">More detail</div>
+            </div>
+            <div className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-2.5">
+              <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Rev per room</div>
+              <strong className="tabular-nums">{formatNu(pulse.revpar)}</strong>
+              <div className="text-[10px] text-[var(--hos-ink-3)]">More detail</div>
+            </div>
+          </div>
+        </GlassPanel>
+
+        {glance.monthBars.length > 0 ? (
+          <GlassPanel className="p-3.5">
+            <strong className="text-sm text-[var(--hos-ink)]">How full by month</strong>
             <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
-              Period room-nights · tap for Intelligence
+              Room-nights sold vs capacity — opaque bars for desk readability
             </p>
-            <ul className="m-0 mt-2 list-none space-y-1.5 p-0">
-              {topAgents.length === 0 ? (
-                <li className="text-[12px] text-[var(--hos-ink-3)]">No agent production yet</li>
-              ) : (
-                topAgents.map((a, i) => (
-                  <li
-                    key={a.agentId}
-                    className="flex items-center justify-between gap-2 text-[12px]"
-                  >
-                    <span>
-                      #{i + 1} {a.agentCode}
-                    </span>
-                    <span className="font-mono tabular-nums text-[var(--hos-ink-2)]">
-                      {a.roomNights}n · {formatNu(a.revenue)}
-                    </span>
-                  </li>
-                ))
-              )}
+            <ul className="m-0 mt-3 flex list-none flex-wrap items-end gap-2 p-0">
+              {glance.monthBars.map((m) => (
+                <li key={m.key} className="flex w-12 flex-col items-center gap-1">
+                  <div
+                    className="w-full rounded-t-md bg-[var(--hos-primary)]"
+                    style={{
+                      height: `${Math.max(4, Math.round((m.occPct / maxMonthOcc) * 64))}px`,
+                    }}
+                    title={`${m.label}: ${m.occPct}%`}
+                  />
+                  <span className="text-[9px] font-semibold text-[var(--hos-ink-3)]">
+                    {m.label.slice(0, 3)}
+                  </span>
+                  <span className="font-mono text-[10px] tabular-nums">{m.occPct}%</span>
+                </li>
+              ))}
             </ul>
           </GlassPanel>
-        </Link>
-        <Link to="/reports?intel=ops" className="no-underline" data-testid="owner-tile-season-staffing">
-          <GlassPanel className="p-3.5 transition hover:border-[var(--hos-brass)]/40">
-            <strong className="text-sm text-[var(--hos-ink)]">Season staffing</strong>
+        ) : null}
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <GlassPanel className="p-3.5">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <strong className="text-sm text-[var(--hos-ink)]">Where did we spend?</strong>
+                <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
+                  Top expense categories for this period
+                </p>
+              </div>
+              <Link
+                to="/finance?tab=expense"
+                className="text-[12px] font-semibold text-[var(--hos-primary)] no-underline"
+              >
+                See all in Finance →
+              </Link>
+            </div>
+            {glance.topExpenseCategories.length === 0 ? (
+              <p className="mt-3 text-[12px] text-[var(--hos-ink-3)]">
+                No purchase bills in this period yet.
+              </p>
+            ) : (
+              <ul className="m-0 mt-3 list-none space-y-2 p-0">
+                {glance.topExpenseCategories.map((c) => {
+                  const pct =
+                    glance.moneyOut > 0
+                      ? Math.round((c.amount / glance.moneyOut) * 100)
+                      : 0;
+                  return (
+                    <li key={c.category} className="text-xs">
+                      <div className="mb-1 flex justify-between gap-2">
+                        <span className="font-semibold text-[var(--hos-ink)]">
+                          {purchaseCategoryLabel(c.category as PurchaseCategoryId)}
+                        </span>
+                        <span className="font-mono tabular-nums">
+                          {formatNu(c.amount)} · {pct}%
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-[rgba(15,23,42,0.08)]">
+                        <div
+                          className="h-full rounded-full bg-[var(--hos-ruby)]"
+                          style={{ width: `${Math.max(2, pct)}%` }}
+                        />
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <Link
+              to="/finance?tab=pl"
+              className="mt-3 inline-block text-[12px] font-semibold text-[var(--hos-primary)] no-underline"
+            >
+              Open profit &amp; loss →
+            </Link>
+          </GlassPanel>
+
+          <GlassPanel className="p-3.5" data-testid="owner-tile-top-agents">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <strong className="text-sm text-[var(--hos-ink)]">Who brings guests?</strong>
+                <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
+                  Top producers · nights · money · typical rate
+                </p>
+              </div>
+              <Link
+                to="/reports?intel=agents"
+                className="text-[12px] font-semibold text-[var(--hos-primary)] no-underline"
+              >
+                Agent insights →
+              </Link>
+            </div>
+            {glance.topAgents.length === 0 ? (
+              <p className="mt-3 text-[12px] text-[var(--hos-ink-3)]">
+                No agent production in this period yet.
+              </p>
+            ) : (
+              <ul className="m-0 mt-3 list-none space-y-2 p-0">
+                {glance.topAgents.map((a, i) => (
+                  <li key={a.agentId}>
+                    <Link
+                      to="/reports?intel=agents"
+                      className="flex items-center justify-between gap-2 rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-2.5 py-2 text-[12px] no-underline transition hover:border-[var(--hos-brass)]/40"
+                    >
+                      <span className="min-w-0 font-semibold text-[var(--hos-ink)]">
+                        #{i + 1} {a.agentName}
+                        <span className="ml-1 font-normal text-[var(--hos-ink-3)]">
+                          ({a.agentCode})
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-right font-mono text-[11px] tabular-nums text-[var(--hos-ink-2)]">
+                        {a.roomNights}n · {formatNu(a.revenue)}
+                        <div className="text-[10px] text-[var(--hos-ink-3)]">
+                          ~{formatNu(a.adr)} / night · unpaid {formatNu(a.unpaid)}
+                        </div>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
+                Where guests come from
+              </div>
+              <ul className="m-0 mt-1.5 flex list-none flex-wrap gap-1.5 p-0">
+                {glance.sourceMix
+                  .filter((s) => s.stayCount > 0)
+                  .map((s) => (
+                    <li key={s.source}>
+                      <Badge tone="default">
+                        {s.label} · {s.stayCount} · {s.roomNights}n
+                      </Badge>
+                    </li>
+                  ))}
+                {glance.sourceMix.every((s) => s.stayCount === 0) ? (
+                  <li className="text-[11px] text-[var(--hos-ink-3)]">No stays in period</li>
+                ) : null}
+              </ul>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-3 text-[12px]">
+              <Link
+                to="/reservations"
+                className="font-semibold text-[var(--hos-primary)] no-underline"
+              >
+                Reservations →
+              </Link>
+              <Link
+                to="/agents"
+                className="font-semibold text-[var(--hos-primary)] no-underline"
+              >
+                Agents desk →
+              </Link>
+            </div>
+          </GlassPanel>
+        </div>
+
+        {glance.ops.byDept.length > 0 ? (
+          <GlassPanel className="p-3.5">
+            <strong className="text-sm text-[var(--hos-ink)]">Staffing cue (more)</strong>
             <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
-              Occ {opsGlance.occPct}% · peak {opsGlance.peakOccPct}% / lean{" "}
-              {opsGlance.leanOccPct}%
+              Peak occ {glance.ops.peakOccPct}% · lean {glance.ops.leanOccPct}% ·{" "}
+              {glance.ops.headcountActive} active on roster
             </p>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[11px]">
-              {opsGlance.byDept.slice(0, 3).map((d) => (
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {glance.ops.byDept.slice(0, 3).map((d) => (
                 <div
                   key={d.dept}
-                  className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-2"
+                  className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-2 text-center text-[11px]"
                 >
                   <div className="text-[9px] uppercase text-[var(--hos-ink-3)]">{d.dept}</div>
                   <div className="font-mono font-bold tabular-nums">
-                    {d.recommendedPeak}
+                    {d.active}{" "}
                     <span className="font-normal text-[var(--hos-ink-3)]">
-                      /{d.recommendedLean}
+                      (peak {d.recommendedPeak} / lean {d.recommendedLean})
                     </span>
                   </div>
                 </div>
               ))}
             </div>
           </GlassPanel>
-        </Link>
-      </div>
+        ) : null}
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="hos-cell rounded-xl p-3">
-          <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Rooms</div>
-          <strong className="text-lg tabular-nums text-[var(--hos-ink)]">{formatNu(roomRev)}</strong>
-        </div>
-        <div className="hos-cell rounded-xl p-3">
-          <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">F&B</div>
-          <strong className="text-lg tabular-nums text-[var(--hos-ink)]">{formatNu(fbRev)}</strong>
-        </div>
-        <div className="hos-cell rounded-xl p-3">
-          <div className="text-[10px] uppercase text-[var(--hos-ink-3)]">Laundry</div>
-          <strong className="text-lg tabular-nums text-[var(--hos-ink)]">{formatNu(laundryRev)}</strong>
-        </div>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <GlassPanel className="p-4">
-          <strong className="text-sm text-[var(--hos-ink)]">Anti-theft & loss prevention</strong>
-          <ul className="mt-3 m-0 list-none space-y-2 p-0">
-            {radar.slice(0, 8).map((f) => (
-              <li
-                key={f.text}
-                className={`hos-cell rounded-xl px-3 py-2 text-xs font-medium ${
-                  f.severity === "high" ? "text-[var(--hos-ruby)]" : "text-[var(--hos-brass-ink)]"
-                }`}
-              >
-                <Badge tone={f.severity === "high" ? "danger" : "vip"} className="mr-2">
-                  {f.severity}
-                </Badge>
-                {f.text}
-              </li>
-            ))}
-          </ul>
-          <p className="mt-3 text-[11px] text-[var(--hos-ink-3)]">
-            Flags: unrecorded till opens · voided POS with PIN trail · keys without check-in · MoU credit overages · heavy folios
-          </p>
+        <GlassPanel className="p-3.5">
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-2 text-left"
+            onClick={() => setAlertsOpen((o) => !o)}
+            aria-expanded={alertsOpen}
+          >
+            <span>
+              <strong className="text-sm text-[var(--hos-ink)]">Desk alerts</strong>
+              <span className="ml-2 text-[11px] text-[var(--hos-ink-3)]">
+                {radar.filter((r) => r.severity === "high").length} urgent · {radar.length} total
+              </span>
+            </span>
+            <span className="text-[12px] font-semibold text-[var(--hos-primary)]">
+              {alertsOpen ? "Hide" : "Show"}
+            </span>
+          </button>
+          {alertsOpen ? (
+            <div className="mt-3 flex flex-col gap-3">
+              {radar.length === 0 ? (
+                <p className="m-0 text-xs text-[var(--hos-ink-3)]">Nothing urgent right now.</p>
+              ) : (
+                <ul className="m-0 list-none space-y-2 p-0">
+                  {radar.slice(0, 8).map((f) => (
+                    <li
+                      key={f.text}
+                      className={`rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-3 py-2 text-xs font-medium ${
+                        f.severity === "high"
+                          ? "text-[var(--hos-ruby)]"
+                          : "text-[var(--hos-brass-ink)]"
+                      }`}
+                    >
+                      <Badge tone={f.severity === "high" ? "danger" : "vip"} className="mr-2">
+                        {f.severity === "high" ? "Urgent" : "Watch"}
+                      </Badge>
+                      {f.text}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] p-3">
+                <strong className="text-xs text-[var(--hos-ink)]">Evening summary (preview)</strong>
+                <pre className="m-0 mt-2 whitespace-pre-wrap font-sans text-[11px] leading-relaxed text-[var(--hos-ink-2)]">
+                  {`${businessDate} — ${glance.period.label}\nRooms filled ${glance.occPct}% · Money in ${formatNu(glance.moneyIn)} · Money out ${formatNu(glance.moneyOut)} · Profit ${formatNu(glance.profit)}\nToday occ ${pulse.occPct}% · drawer ${formatNu(tillBalance)} · alerts ${radar.filter((r) => r.severity === "high").length}`}
+                </pre>
+                <motion.div
+                  className="mt-2"
+                  whileTap={reduce ? undefined : { scale: 0.97 }}
+                >
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() =>
+                      toast.success("Test summary ready", {
+                        description: "Simulated Owner / GM message (not sent)",
+                      })
+                    }
+                  >
+                    Test summary toast
+                  </Button>
+                </motion.div>
+              </div>
+            </div>
+          ) : null}
         </GlassPanel>
-
-        <GlassPanel className="flex flex-col gap-3 p-4">
-          <strong className="text-sm">23:30 WhatsApp Night Audit Bot</strong>
-          <p className="m-0 text-xs text-[var(--hos-ink-3)]">
-            Live preview of the automated message ready for Owner / GM phones.
-          </p>
-          <pre className="hos-cell m-0 flex-1 whitespace-pre-wrap rounded-xl p-3 font-sans text-[11px] leading-relaxed text-[var(--hos-ink-2)]">
-            {waPreview}
-          </pre>
-          <motion.div whileTap={reduce ? undefined : { scale: 0.97 }}>
-            <Button
-              className="w-full"
-              variant="secondary"
-              onClick={() =>
-                toast.success("Test dispatch sent", {
-                  description: "Simulated WA to +975-17… Owner group",
-                })
-              }
-            >
-              1-Tap Trigger Test Dispatch
-            </Button>
-          </motion.div>
-        </GlassPanel>
       </div>
-
-      <GlassPanel className="p-4">
-        <div className="flex flex-wrap items-end justify-between gap-2">
-          <div>
-            <strong className="text-sm text-[var(--hos-ink)]">MTD vs target revenue</strong>
-            <p className="m-0 mt-0.5 text-xs text-[var(--hos-ink-3)]">
-              Actual {formatNu(mtdActual)} · Target {formatNu(MTD_TARGET)} · Projected month-end {formatNu(projected)}
-            </p>
-          </div>
-          <Badge tone={mtdPct >= 80 ? "success" : mtdPct >= 55 ? "vip" : "danger"}>
-            {mtdPct}% paced
-          </Badge>
-        </div>
-        <div className="mt-3 h-3 overflow-hidden rounded-full bg-[rgba(15,23,42,0.08)] dark:bg-[rgba(255,255,255,0.08)]">
-          <motion.div
-            className="h-full rounded-full bg-[linear-gradient(90deg,var(--hos-primary-mid),var(--hos-primary))]"
-            initial={{ width: 0 }}
-            animate={{ width: `${mtdPct}%` }}
-            transition={{ type: "spring", stiffness: 120, damping: 20 }}
-          />
-        </div>
-      </GlassPanel>
-    </div>
     </ModuleFrame>
   );
 }

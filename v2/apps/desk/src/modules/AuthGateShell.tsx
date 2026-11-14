@@ -30,7 +30,7 @@ export function AuthGateShell({
   footer,
   photoSrc = "/auth/night.png",
   atmosphere,
-  badge = "Sovereign desk · Live",
+  badge = "Innora · Live",
 }: AuthGateShellProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const reduceMotion = useRef(false);
@@ -55,12 +55,19 @@ export function AuthGateShell({
   return (
     <div className="auth-gate" data-theme="auth-dark">
       <div className="auth-gate-photo" aria-hidden="true">
-        <img src={photoSrc} alt="" width={1920} height={1080} decoding="async" fetchPriority="high" />
+        <img
+          src={photoSrc}
+          alt=""
+          width={1920}
+          height={1080}
+          decoding="async"
+          fetchPriority="high"
+        />
       </div>
       <div className="auth-gate-veil" aria-hidden="true" />
 
       {atmosphere ? (
-        <aside className="auth-gate-meta" aria-hidden="true">
+        <aside className="auth-gate-meta">
           <p className="auth-gate-meta-title">{atmosphere.title}</p>
           <p className="auth-gate-meta-lead">{atmosphere.lead}</p>
         </aside>
@@ -74,7 +81,7 @@ export function AuthGateShell({
       >
         <div className="auth-gate-stagger">
           <div className="auth-gate-brand">
-            <InnoraLogo size="md" showText tagline="Hotel OS" variant="sovereign" />
+            <InnoraLogo size="lg" showText tagline="Hotel OS" variant="sovereign" />
           </div>
           <p className="auth-gate-badge">
             <span className="auth-gate-badge-dot" aria-hidden="true" />

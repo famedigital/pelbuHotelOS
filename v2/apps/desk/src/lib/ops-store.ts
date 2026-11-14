@@ -1,6 +1,32 @@
 import { create } from "zustand";
 import { newIdempotencyKey, runCommand } from "./api";
 import { useFrontOfficeStore, type HkStatus } from "./front-office-store";
+import {
+  GARMENT_LABEL,
+  laundryBagDescription,
+  laundryBagPreviewNet,
+  type LaundryGarmentLine,
+  type LaundryService,
+  type LaundrySpeed,
+} from "./laundry-pricing";
+
+export type {
+  GarmentKind,
+  LaundryGarmentLine,
+  LaundryService,
+  LaundrySpeed,
+} from "./laundry-pricing";
+export {
+  CATALOG_GARMENTS,
+  GARMENT_LABEL,
+  GARMENT_RATES,
+  SERVICE_LABEL,
+  catalogLineDefaults,
+  laundryBagDescription,
+  laundryBagPreviewNet,
+  laundryLineNet,
+  laundryServiceSpeedMult,
+} from "./laundry-pricing";
 
 export type Maid = {
   id: string;
@@ -20,10 +46,6 @@ export type WorkOrder = {
   createdAt: string;
 };
 
-export type LaundryService = "dry_clean" | "wash_iron" | "press_only";
-export type LaundrySpeed = "normal" | "express";
-export type GarmentKind = "gho" | "kira" | "suit" | "shirt" | "dress" | "woolen";
-
 export type LaundryBag = {
   id: string;
   bagNo: string;
@@ -32,7 +54,7 @@ export type LaundryBag = {
   guestName: string;
   service: LaundryService;
   speed: LaundrySpeed;
-  garments: { kind: GarmentKind; qty: number }[];
+  garments: LaundryGarmentLine[];
   netAmount: number;
   status: "intake" | "in_plant" | "ready" | "delivered" | "posted";
   createdAt: string;
@@ -59,7 +81,7 @@ type OpsState = {
     stayId: string;
     service: LaundryService;
     speed: LaundrySpeed;
-    garments: { kind: GarmentKind; qty: number }[];
+    garments: LaundryGarmentLine[];
   }) => { ok: true; bag: LaundryBag } | { ok: false; error: string };
   advanceBag: (id: string) => { ok: true } | { ok: false; error: string };
   postBagToFolio: (
@@ -68,21 +90,6 @@ type OpsState = {
 };
 
 const HK_CYCLE: HkStatus[] = ["dirty", "clean", "inspected", "occupied", "ooo"];
-
-export const GARMENT_RATES: Record<GarmentKind, number> = {
-  gho: 180,
-  kira: 200,
-  suit: 350,
-  shirt: 80,
-  dress: 220,
-  woolen: 280,
-};
-
-export const SERVICE_LABEL: Record<LaundryService, string> = {
-  dry_clean: "Dry Cleaning",
-  wash_iron: "Wash & Iron",
-  press_only: "Pressing Only",
-};
 
 let bagSeq = 40;
 let woSeq = 12;
@@ -179,17 +186,22 @@ export const useOpsStore = create<OpsState>((set, get) => ({
     if (!stay || stay.status !== "checked_in") {
       return { ok: false, error: "Select an in-house stay" };
     }
-    if (garments.every((g) => g.qty <= 0)) {
-      return { ok: false, error: "Add at least one garment" };
+    const cleaned: LaundryGarmentLine[] = garments
+      .map((g) => ({
+        id: g.id?.trim() || crypto.randomUUID(),
+        kind: g.kind,
+        label: g.label.trim() || (g.kind === "custom" ? "" : GARMENT_LABEL[g.kind]),
+        qty: Math.max(0, Math.floor(g.qty)),
+        unitNet: Math.max(0, Math.round(g.unitNet)),
+      }))
+      .filter((g) => g.qty > 0 && g.label.length > 0);
+    if (cleaned.length === 0) {
+      return { ok: false, error: "Add at least one cloth item" };
     }
-    const base = garments.reduce(
-      (sum, g) => sum + GARMENT_RATES[g.kind] * Math.max(0, g.qty),
-      0,
-    );
-    const serviceMult =
-      service === "dry_clean" ? 1.4 : service === "wash_iron" ? 1 : 0.7;
-    const speedMult = speed === "express" ? 1.5 : 1;
-    const netAmount = Math.round(base * serviceMult * speedMult);
+    if (cleaned.some((g) => g.kind === "custom" && g.unitNet <= 0)) {
+      return { ok: false, error: "Custom cloth needs a rate (Nu)" };
+    }
+    const netAmount = laundryBagPreviewNet(cleaned, service, speed);
     bagSeq += 1;
     const hours = speed === "express" ? 4 : 24;
     const due = new Date();
@@ -202,7 +214,7 @@ export const useOpsStore = create<OpsState>((set, get) => ({
       guestName: stay.guestName,
       service,
       speed,
-      garments: garments.filter((g) => g.qty > 0),
+      garments: cleaned,
       netAmount,
       status: "intake",
       createdAt: new Date().toISOString(),
@@ -245,7 +257,7 @@ export const useOpsStore = create<OpsState>((set, get) => ({
     if (!folioId) {
       return { ok: false, error: "Stay missing API folio — cannot post laundry" };
     }
-    const desc = `Laundry ${bag.bagNo} · ${SERVICE_LABEL[bag.service]} · ${bag.speed}`;
+    const desc = laundryBagDescription(bag);
     const posted = await useFrontOfficeStore
       .getState()
       .postCharge(bag.stayId, desc, bag.netAmount, "laundry", "Laundry Desk");

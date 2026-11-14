@@ -1,5 +1,4 @@
 import {
-  PERSONAL_CHECKOUT_GATE_BTN,
   maskPartnerCalendar,
   type MaskedPartnerCell,
   type PartnerCalendarCell,
@@ -10,14 +9,9 @@ import {
   Building2,
   CalendarRange,
   ClipboardList,
-  Download,
-  FileStack,
   Inbox,
   LayoutGrid,
-  Printer,
   Sparkles,
-  Upload,
-  Wallet,
   Zap,
 } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
@@ -28,16 +22,30 @@ import {
   Button,
   EmptyState,
   GlassPanel,
-  MorphTabs,
-  ModuleFrame,
   StatusLegend,
   Odometer,
 } from "@hos-v2/ui";
 import { InvoiceModal } from "./InvoiceModal";
 import { AgentPrintPackOverlay } from "./AgentPrintPackOverlay";
-import { FieldPortalGate } from "./field/FieldPortalGate";
 import { MarketplaceDeskPanel } from "./field/MarketplaceDeskPanel";
-import { useFieldPortalAuth } from "../lib/field-portal-auth";
+import { Navigate, useNavigate } from "react-router-dom";
+import {
+  clearPortalSession,
+  readPortalMeta,
+  readPortalToken,
+  type PortalMeta,
+  type SessionProperty,
+} from "../lib/auth-session";
+import {
+  mergeConnectedHotels,
+  preferInnoraHotelId,
+  resolveInnoraHotels,
+  resolvePartnerAgent,
+} from "../lib/partner-hotels";
+import {
+  PartnerShell,
+  type PartnerNavId,
+} from "./partner/PartnerShell";
 import {
   addDays,
   datesBetween,
@@ -66,11 +74,8 @@ import {
   buildPartnerInsights,
   buildPartnerInvoices,
   exportPartnerBookingsCsv,
-  exportPartnerInvoicesExcel,
-  filterPartnerInvoices,
   type PartnerInsightTone,
   type PartnerInvoiceRow,
-  type PartnerPayFilter,
 } from "../lib/partner-intelligence";
 import {
   partnerAgencyName,
@@ -84,20 +89,10 @@ import {
   buildFoPulse,
 } from "../lib/b2b-portfolio";
 import { PartnerAgencyDashboard } from "./partner/PartnerAgencyDashboard";
+import { PartnerMoneyPanel } from "./partner/PartnerMoneyPanel";
 import { isOpsDbUnavailable, runCommand } from "../lib/api";
 
-type Tab =
-  | "dashboard"
-  | "calendar"
-  | "inventory"
-  | "rates"
-  | "menus"
-  | "fleet"
-  | "book"
-  | "bookings"
-  | "rooming"
-  | "changes"
-  | "money";
+type Tab = PartnerNavId;
 
 const CELL = 72;
 /** Thin room gutter — more days visible; sticky left freeze pane. */
@@ -133,23 +128,33 @@ function insightDot(tone: PartnerInsightTone): string {
   return "bg-[var(--hos-primary)]";
 }
 
+/** Email session already required by RequirePortalSession — never ask for code+PIN again. */
 export function PartnerPortalPage() {
+  const meta = readPortalMeta();
+  const token = readPortalToken();
+  if (!token || !meta || meta.role !== "agent") {
+    return <Navigate to="/login" replace />;
+  }
+
   return (
-    <FieldPortalGate
-      role="partner"
-      title="Partner Portal"
-      blurb="Agency central — connected hotels, MoU rates, offers, FO pulse, and invoices. Unlock with your agent code."
-    >
-      <PartnerPortalBody />
-    </FieldPortalGate>
+    <PartnerPortalBody
+      subjectId={meta.subjectId}
+      meta={meta}
+    />
   );
 }
 
-function PartnerPortalBody() {
+function PartnerPortalBody({
+  subjectId,
+  meta,
+}: {
+  subjectId: string;
+  meta: PortalMeta & { property?: SessionProperty };
+}) {
+  const navigate = useNavigate();
   const reduce = useReducedMotion();
   const [tab, setTab] = useState<Tab>("dashboard");
-  const [sessionPropertyId, setSessionPropertyId] = useState(DEMO_MOU_PROPERTY_ID);
-  const partnerSession = useFieldPortalAuth((s) => s.sessions.partner);
+  const [sessionPropertyId, setSessionPropertyId] = useState("");
   const agents = useCommercialStore((s) => s.agents);
   const rateCards = useCommercialStore((s) => s.rateCards);
   const cells = useCommercialStore((s) => s.cells);
@@ -158,16 +163,15 @@ function PartnerPortalBody() {
   const quoteDisplay = useCommercialStore((s) => s.quoteDisplay);
   const sessionAgentId = usePartnerPortalStore((s) => s.sessionAgentId);
   const setSessionAgent = usePartnerPortalStore((s) => s.setSessionAgent);
-  const sessionPortalUserId = usePartnerPortalStore((s) => s.sessionPortalUserId);
-  const setSessionPortalUser = usePartnerPortalStore((s) => s.setSessionPortalUser);
 
   useEffect(() => {
-    if (partnerSession?.subjectId && partnerSession.subjectId !== sessionAgentId) {
-      setSessionAgent(partnerSession.subjectId);
+    if (subjectId && subjectId !== sessionAgentId) {
+      setSessionAgent(subjectId);
     }
-  }, [partnerSession?.subjectId, sessionAgentId, setSessionAgent]);
-  const portalUsers = usePartnerPortalStore((s) => s.portalUsers);
+  }, [subjectId, sessionAgentId, setSessionAgent]);
   const canPortal = usePartnerPortalStore((s) => s.canPortal);
+  const portalUsers = usePartnerPortalStore((s) => s.portalUsers);
+  const sessionPortalUserId = usePartnerPortalStore((s) => s.sessionPortalUserId);
   const updateGuideDriver = usePartnerPortalStore((s) => s.updateGuideDriver);
   const mouLinks = useMouStore((s) => s.links);
   const proposeMou = useMouStore((s) => s.propose);
@@ -195,10 +199,32 @@ function PartnerPortalBody() {
   const stays = useFrontOfficeStore((s) => s.stays);
   const businessDate = useFrontOfficeStore((s) => s.businessDate);
 
-  const agent = agents.find((a) => a.id === sessionAgentId) ?? agents[0];
-  const agencyLabel = agent ? partnerAgencyName(agent.id) : "Partner";
-  const agencyToken = agencyLabel.split(" ")[0] ?? agencyLabel;
-  const rateCard = agent ? rateCardById(rateCards, agent.rateCardId) : undefined;
+  const agent = resolvePartnerAgent(agents, subjectId || sessionAgentId, {
+    displayName: meta.displayName,
+    loginCode: meta.loginCode,
+  });
+  const agencyLabel = agent.name || partnerAgencyName(agent.id) || "Partner";
+  const agencyToken =
+    meta.loginCode || agencyLabel.split(" ")[0] || agencyLabel;
+  const rateCard = rateCardById(rateCards, agent.rateCardId);
+
+  const innoraHotels = useMemo(
+    () =>
+      resolveInnoraHotels({
+        portalProperties: meta.properties,
+        portalProperty: meta.property ?? null,
+        mouLinks,
+        agentId: agent.id,
+      }),
+    [meta.properties, meta.property, mouLinks, agent.id],
+  );
+
+  useEffect(() => {
+    const preferred = preferInnoraHotelId(innoraHotels, sessionPropertyId || meta.property?.id);
+    if (preferred && preferred !== sessionPropertyId) {
+      setSessionPropertyId(preferred);
+    }
+  }, [innoraHotels, meta.property?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const today = ymd(new Date());
   const dates = useMemo(
@@ -354,10 +380,6 @@ function PartnerPortalBody() {
   const [nat, setNat] = useState("French");
   const [meal, setMeal] = useState<MealPlan>("MAP");
   const [diet, setDiet] = useState("None");
-  const [depAmt, setDepAmt] = useState(25000);
-  const [depRef, setDepRef] = useState("");
-  const [depMethod, setDepMethod] = useState<"wire" | "mbob">("mbob");
-  const [matchHints, setMatchHints] = useState<ReturnType<typeof suggestDepositMatches>>([]);
   const [bookGuest, setBookGuest] = useState("");
   const [bookType, setBookType] = useState<RoomTypeCode>("deluxe_twin");
   const [bookIn, setBookIn] = useState(() => addDays(ymd(new Date()), 3));
@@ -370,13 +392,9 @@ function PartnerPortalBody() {
   const [bookRooms, setBookRooms] = useState(1);
   const mealBoards = useMealBoardStore((s) => s.boards);
   const boardsForRange = useMealBoardStore((s) => s.boardsForRange);
-  const [invoiceFilter, setInvoiceFilter] = useState<PartnerPayFilter>("all");
-  const [invoiceQuery, setInvoiceQuery] = useState("");
   const [paperStayId, setPaperStayId] = useState<string | null>(null);
   const [paperAutoPrint, setPaperAutoPrint] = useState(false);
   const [printPackOpen, setPrintPackOpen] = useState(false);
-  const [voucherFile, setVoucherFile] = useState("");
-  const [voucherAmt, setVoucherAmt] = useState(25000);
   const allotments = useEcosystemStore((s) => s.allotments);
   const placeAllotmentBlock = useEcosystemStore((s) => s.placeAllotmentBlock);
   const isAllotmentBlocked = useEcosystemStore((s) => s.isAllotmentBlocked);
@@ -385,8 +403,7 @@ function PartnerPortalBody() {
   const allotmentGate = isAllotmentBlocked(bookType, bookIn);
 
   const connectedHotels = useMemo(() => {
-    if (!agent) return [];
-    return buildConnectedHotels({
+    const portfolio = buildConnectedHotels({
       agentId: agent.id,
       links: mouLinks,
       rateCards,
@@ -397,9 +414,25 @@ function PartnerPortalBody() {
       fiscalDocs,
       allotments,
       agent,
-      moneyPropertyId: DEMO_MOU_PROPERTY_ID,
+      moneyPropertyId:
+        preferInnoraHotelId(innoraHotels, sessionPropertyId) ||
+        sessionPropertyId ||
+        undefined,
     });
-  }, [agent, mouLinks, rateCards, cells, season, mealPlan, stays, fiscalDocs, allotments]);
+    return mergeConnectedHotels(portfolio, innoraHotels, agent);
+  }, [
+    agent,
+    mouLinks,
+    rateCards,
+    cells,
+    season,
+    mealPlan,
+    stays,
+    fiscalDocs,
+    allotments,
+    innoraHotels,
+    sessionPropertyId,
+  ]);
 
   const agencyOffers = useMemo(() => {
     if (!agent) return [];
@@ -439,27 +472,11 @@ function PartnerPortalBody() {
 
   const invoiceTotals = useMemo(() => {
     const open = allPartnerInvoices.filter((r) => r.status === "unpaid");
-    const paid = allPartnerInvoices.filter((r) => r.status === "paid");
     return {
       unpaidCount: open.length,
-      paidCount: paid.length,
       unpaidAmt: open.reduce((s, r) => s + r.balance, 0),
-      paidAmt: paid.reduce((s, r) => s + r.amount, 0),
-      allCount: allPartnerInvoices.filter((r) => r.status !== "void").length,
     };
   }, [allPartnerInvoices]);
-
-  const filteredInvoices = useMemo(() => {
-    const base = filterPartnerInvoices(allPartnerInvoices, invoiceFilter);
-    const q = invoiceQuery.trim().toLowerCase();
-    if (!q) return base;
-    return base.filter(
-      (r) =>
-        r.docNo.toLowerCase().includes(q) ||
-        r.guest.toLowerCase().includes(q) ||
-        (r.stayRef ?? "").toLowerCase().includes(q),
-    );
-  }, [allPartnerInvoices, invoiceFilter, invoiceQuery]);
 
   const paperStay = useMemo(
     () => (paperStayId ? stays.find((s) => s.id === paperStayId) ?? null : null),
@@ -628,211 +645,155 @@ function PartnerPortalBody() {
   };
 
   return (
-    <ModuleFrame
-      title="Partner Portal · Agency Central"
-      description="Connected hotels · MoU rates · offers · FO pulse · invoices"
-      actions={
-        <div className="flex flex-wrap items-center gap-2">
-          <StatusLegend
-            dense
-            className="hidden md:flex"
-            items={[
-              { id: "avail", label: "Open", swatch: "var(--hos-emerald)" },
-              { id: "hold", label: "Held", swatch: "var(--hos-brass)" },
-              { id: "full", label: "Sold out", swatch: "var(--hos-ruby)" },
-            ]}
-          />
-          <Badge tone="teal" className="border border-[var(--hos-line)]">
-            {agent.code} · {rateCard?.code ?? "No card"}
-          </Badge>
-        </div>
-      }
+    <PartnerShell
+      agencyName={agent.name}
+      agencyCode={agent.code}
+      hotels={innoraHotels}
+      hotelId={sessionPropertyId}
+      onHotelChange={setSessionPropertyId}
+      activeNav={tab}
+      onNavChange={setTab}
+      counts={{
+        dashboard: connectedHotels.length || undefined,
+        bookings: ownStays.length || undefined,
+        rooming: roomingDraft.length || undefined,
+        changes: pendingChanges || undefined,
+        money: invoiceTotals.unpaidCount || undefined,
+      }}
+      onSignOut={() => {
+        clearPortalSession();
+        navigate("/login", { replace: true });
+      }}
     >
-      <div className="flex flex-col gap-4">
-        {/* Premium agency hero */}
-        <GlassPanel className="relative overflow-hidden p-4">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[rgba(17,17,17,0.06)] via-transparent to-[rgba(245,158,11,0.08)]" />
-          <div className="relative flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-[#111] text-white shadow-[0_10px_28px_-12px_#111]">
-                  <Building2 className="size-5" strokeWidth={2} />
-                </span>
+      <div className="mx-auto flex w-full max-w-[1400px] flex-col gap-4 p-3 md:p-4">
+        {tab === "dashboard" ? (
+          <>
+            <GlassPanel className="relative overflow-hidden p-4">
+              <div className="relative flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <h1 className="m-0 truncate text-[1.45rem] font-extrabold tracking-tight text-[var(--hos-ink)]">
-                    {agent.name}
-                  </h1>
-                  <p className="m-0 text-[12px] text-[var(--hos-ink-3)]">
-                    Sovereign B2B portal · masked calendar · live MoU quote ·{" "}
-                    {season} / {mealPlan}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="m-0 text-[1.25rem] font-extrabold tracking-tight text-[var(--hos-ink)]">
+                      Agency home
+                    </h1>
+                    <Badge tone="vip">{agent.code}</Badge>
+                    <Badge tone="teal" className="border border-[var(--hos-line)]">
+                      {rateCard?.code ?? "AGT-COMMON"}
+                    </Badge>
+                  </div>
+                  <p className="m-0 mt-1 text-[12px] text-[var(--hos-ink-3)]">
+                    Innora hotels · masked calendar · MoU rates · {season} / {mealPlan}
                   </p>
                 </div>
-                <Badge tone="vip">{agent.code}</Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <StatusLegend
+                    dense
+                    className="hidden lg:flex"
+                    items={[
+                      { id: "avail", label: "Open", swatch: "var(--hos-emerald)" },
+                      { id: "hold", label: "Held", swatch: "var(--hos-brass)" },
+                      { id: "full", label: "Sold out", swatch: "var(--hos-ruby)" },
+                    ]}
+                  />
+                  <Button
+                    size="sm"
+                    className="hos-btn-ink hos-btn-spring !rounded-xl"
+                    disabled={!canPortal("book") || !sessionPropertyId}
+                    onClick={() => setTab("book")}
+                  >
+                    <Zap className="size-3.5" strokeWidth={2} />
+                    Smart hold
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap items-end gap-2">
-              <label className="grid gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
-                Agency session
-                <select
-                  value={agent.id}
-                  onChange={(e) => setSessionAgent(e.target.value)}
-                  className="hos-input min-w-[200px] !rounded-xl !text-[13px]"
-                >
-                  {agents.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} ({a.code})
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
-                Portal user
-                <select
-                  value={sessionPortalUserId}
-                  onChange={(e) => setSessionPortalUser(e.target.value)}
-                  className="hos-input min-w-[200px] !rounded-xl !text-[13px]"
-                >
-                  {portalUsers
-                    .filter((u) => u.agentId === agent.id)
-                    .map((u) => (
-                      <option key={u.id} value={u.id}>
-                        {u.name} ({u.role})
-                      </option>
-                    ))}
-                </select>
-              </label>
-              <label className="grid gap-1 text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
-                Active hotel
-                <select
-                  value={sessionPropertyId}
-                  onChange={(e) => setSessionPropertyId(e.target.value)}
-                  className="hos-input min-w-[200px] !rounded-xl !text-[13px]"
-                >
-                  {connectedHotels.length === 0 ? (
-                    <option value={DEMO_MOU_PROPERTY_ID}>No MoU hotels</option>
-                  ) : (
-                    connectedHotels.map((h) => (
-                      <option key={h.propertyId} value={h.propertyId}>
-                        {h.propertyName} ({h.mouStatus})
-                      </option>
-                    ))
-                  )}
-                </select>
-              </label>
-              <Button
-                size="sm"
-                className="hos-btn-ink hos-btn-spring !rounded-xl"
-                disabled={!canPortal("book")}
-                onClick={() => setTab("book")}
-              >
-                <Zap className="size-3.5" strokeWidth={2} />
-                Smart hold
-              </Button>
-            </div>
-          </div>
 
-          <div className="relative mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {[
-              { label: "Own bookings", value: ownStays.length, meta: agencyToken },
-              { label: "Credit used", value: utilPct, suffix: "%", meta: formatNu(agent.usedCredit) },
-              { label: "Sellable tonight", value: freeTonight, meta: "all types" },
-              { label: "Own rack cells", value: ownCellCount, meta: "14-night mask" },
-            ].map((k) => (
-              <motion.div
-                key={k.label}
-                className="hos-luxury-card flex min-h-[78px] flex-col justify-center px-3 py-2.5"
-                whileTap={reduce ? undefined : { scale: 0.985 }}
-              >
-                <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
-                  {k.label}
-                </span>
-                <Odometer
-                  value={k.value}
-                  suffix={"suffix" in k ? k.suffix : undefined}
-                  className="mt-1 font-mono text-[1.45rem] font-black tabular-nums tracking-tight text-[var(--hos-ink)]"
-                />
-                <span className="text-[11px] text-[var(--hos-ink-3)]">{k.meta}</span>
-              </motion.div>
-            ))}
-          </div>
-
-          <div className="relative mt-3">
-            <div className="mb-1 flex items-center justify-between text-[11px]">
-              <span className="font-semibold text-[var(--hos-ink-2)]">
-                MoU credit headroom
-              </span>
-              <span className="font-mono tabular-nums text-[var(--hos-emerald)]">
-                {formatNu(headroom)}
-              </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-[rgba(15,23,42,0.08)] dark:bg-[rgba(255,255,255,0.08)]">
-              <div
-                className={`hos-bar-grow h-full ${
-                  utilPct > 85
-                    ? "bg-[var(--hos-ruby)]"
-                    : utilPct > 70
-                      ? "bg-[var(--hos-brass)]"
-                      : "bg-[var(--hos-primary)]"
-                }`}
-                style={{ width: `${Math.min(100, utilPct)}%` }}
-              />
-            </div>
-          </div>
-        </GlassPanel>
-
-        {/* Intelligence rail */}
-        <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {insights.map((ins) => (
-            <button
-              key={ins.id}
-              type="button"
-              onClick={() => {
-                if (ins.action) setTab(ins.action.tab as Tab);
-              }}
-              className={`hos-luxury-card hos-interactive min-w-[min(100%,260px)] max-w-[300px] shrink-0 border px-3.5 py-3 text-left ${insightBorder(ins.tone)}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className={`size-2 rounded-full ${insightDot(ins.tone)}`} />
-                <Sparkles className="size-3.5 text-[var(--hos-ink-3)]" strokeWidth={2} />
-                <strong className="truncate text-[12px] font-bold text-[var(--hos-ink)]">
-                  {ins.title}
-                </strong>
+              <div className="relative mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {[
+                  { label: "Own bookings", value: ownStays.length, meta: agencyToken },
+                  {
+                    label: "Credit used",
+                    value: utilPct,
+                    suffix: "%",
+                    meta: formatNu(agent.usedCredit),
+                  },
+                  { label: "Sellable tonight", value: freeTonight, meta: "all types" },
+                  {
+                    label: "Own rack cells",
+                    value: ownCellCount,
+                    meta: "14-night mask",
+                  },
+                ].map((k) => (
+                  <motion.div
+                    key={k.label}
+                    className="hos-luxury-card flex min-h-[78px] flex-col justify-center px-3 py-2.5"
+                    whileTap={reduce ? undefined : { scale: 0.985 }}
+                  >
+                    <span className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--hos-ink-3)]">
+                      {k.label}
+                    </span>
+                    <Odometer
+                      value={k.value}
+                      suffix={"suffix" in k ? k.suffix : undefined}
+                      className="mt-1 font-mono text-[1.45rem] font-black tabular-nums tracking-tight text-[var(--hos-ink)]"
+                    />
+                    <span className="text-[11px] text-[var(--hos-ink-3)]">{k.meta}</span>
+                  </motion.div>
+                ))}
               </div>
-              <p className="m-0 mt-1.5 text-[11px] leading-snug text-[var(--hos-ink-3)]">
-                {ins.detail}
-              </p>
-              {ins.action ? (
-                <span className="mt-2 inline-block text-[10px] font-bold uppercase tracking-wider text-[var(--hos-primary)]">
-                  Open {ins.action.label} →
-                </span>
-              ) : null}
-            </button>
-          ))}
-        </div>
 
-        <MorphTabs
-          glowId="partnerPortalTab"
-          value={tab}
-          onChange={setTab}
-          size="md"
-          items={[
-            { id: "dashboard", label: "Dashboard", count: connectedHotels.length || undefined },
-            { id: "calendar", label: "Calendar" },
-            { id: "inventory", label: "Inventory" },
-            { id: "rates", label: "Rates" },
-            { id: "menus", label: "Menus" },
-            { id: "fleet", label: "Guides & cars" },
-            { id: "book", label: "Book" },
-            { id: "bookings", label: "My bookings", count: ownStays.length },
-            { id: "rooming", label: "Rooming", count: roomingDraft.length },
-            { id: "changes", label: "Changes", count: pendingChanges },
-            {
-              id: "money",
-              label: "Invoices",
-              count: invoiceTotals.unpaidCount || undefined,
-            },
-          ]}
-        />
+              <div className="relative mt-3">
+                <div className="mb-1 flex items-center justify-between text-[11px]">
+                  <span className="font-semibold text-[var(--hos-ink-2)]">
+                    MoU credit headroom
+                  </span>
+                  <span className="font-mono tabular-nums text-[var(--hos-emerald)]">
+                    {formatNu(headroom)}
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-[rgba(15,23,42,0.08)] dark:bg-[rgba(255,255,255,0.08)]">
+                  <div
+                    className={`hos-bar-grow h-full ${
+                      utilPct > 85
+                        ? "bg-[var(--hos-ruby)]"
+                        : utilPct > 70
+                          ? "bg-[var(--hos-brass)]"
+                          : "bg-[var(--hos-primary)]"
+                    }`}
+                    style={{ width: `${Math.min(100, utilPct)}%` }}
+                  />
+                </div>
+              </div>
+            </GlassPanel>
+
+            <div className="-mx-1 flex gap-2.5 overflow-x-auto px-1 pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {insights.map((ins) => (
+                <button
+                  key={ins.id}
+                  type="button"
+                  onClick={() => {
+                    if (ins.action) setTab(ins.action.tab as Tab);
+                  }}
+                  className={`hos-luxury-card hos-interactive min-w-[min(100%,260px)] max-w-[300px] shrink-0 border px-3.5 py-3 text-left ${insightBorder(ins.tone)}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={`size-2 rounded-full ${insightDot(ins.tone)}`} />
+                    <Sparkles className="size-3.5 text-[var(--hos-ink-3)]" strokeWidth={2} />
+                    <strong className="truncate text-[12px] font-bold text-[var(--hos-ink)]">
+                      {ins.title}
+                    </strong>
+                  </div>
+                  <p className="m-0 mt-1.5 text-[11px] leading-snug text-[var(--hos-ink-3)]">
+                    {ins.detail}
+                  </p>
+                  {ins.action ? (
+                    <span className="mt-2 inline-block text-[10px] font-bold uppercase tracking-wider text-[var(--hos-primary)]">
+                      Open {ins.action.label} →
+                    </span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </>
+        ) : null}
 
         {tab === "dashboard" ? (
           <PartnerAgencyDashboard
@@ -1399,7 +1360,13 @@ function PartnerPortalBody() {
                 Export CSV
               </Button>
             </div>
-            {!hasActiveMou(agent.id, sessionPropertyId) ? (
+            {!(
+              hasActiveMou(agent.id, sessionPropertyId) ||
+              innoraHotels.some(
+                (h) =>
+                  h.propertyId === sessionPropertyId && h.mouStatus === "active",
+              )
+            ) ? (
               <EmptyState
                 title="No active MoU"
                 description="Propose or accept a MoU with this hotel before bookings unlock."
@@ -1923,451 +1890,19 @@ function PartnerPortalBody() {
         ) : null}
 
         {tab === "money" ? (
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.85fr)]">
-            <GlassPanel className="overflow-hidden p-3.5">
-              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <strong className="flex items-center gap-1.5 text-sm">
-                    <FileStack className="size-4 text-[var(--hos-primary)]" />
-                    All invoices · city ledger
-                  </strong>
-                  <p className="m-0 mt-0.5 text-[11px] text-[var(--hos-ink-3)]">
-                    Tax invoices, PSBN &amp; working folios for {agent.name}
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="!min-h-9 !rounded-full !px-3"
-                    onClick={() => setPrintPackOpen(true)}
-                    data-testid="partner-print-pack"
-                  >
-                    <Printer className="size-3.5" strokeWidth={2} />
-                    Print pack
-                  </Button>
-                  {(
-                    [
-                      {
-                        id: "all" as const,
-                        label: "All",
-                        count: invoiceTotals.allCount,
-                      },
-                      {
-                        id: "unpaid" as const,
-                        label: "Unpaid",
-                        count: invoiceTotals.unpaidCount,
-                      },
-                      {
-                        id: "paid" as const,
-                        label: "Paid",
-                        count: invoiceTotals.paidCount,
-                      },
-                    ] as const
-                  ).map((f) => {
-                    const active = invoiceFilter === f.id;
-                    return (
-                      <button
-                        key={f.id}
-                        type="button"
-                        onClick={() => setInvoiceFilter(f.id)}
-                        className={[
-                          "hos-btn-tactile inline-flex min-h-9 items-center gap-1.5 rounded-full px-3 text-[12px] font-bold transition",
-                          active
-                            ? f.id === "unpaid"
-                              ? "bg-[var(--hos-ruby)] text-white"
-                              : f.id === "paid"
-                                ? "bg-[var(--hos-emerald)] text-white"
-                                : "bg-[#111] text-white"
-                            : "border border-[var(--hos-line)] bg-[var(--hos-cell)] text-[var(--hos-ink-2)]",
-                        ].join(" ")}
-                      >
-                        {f.label}
-                        <span
-                          className={[
-                            "rounded-full px-1.5 py-0.5 font-mono text-[10px] tabular-nums",
-                            active ? "bg-white/20" : "bg-[rgba(17,17,17,0.06)]",
-                          ].join(" ")}
-                        >
-                          {f.count}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <div className="hos-luxury-card p-2.5 text-center text-[11px]">
-                  <div className="text-[var(--hos-ink-3)]">Unpaid</div>
-                  <strong className="font-mono tabular-nums text-[var(--hos-ruby)]">
-                    {formatNu(invoiceTotals.unpaidAmt)}
-                  </strong>
-                </div>
-                <div className="hos-luxury-card p-2.5 text-center text-[11px]">
-                  <div className="text-[var(--hos-ink-3)]">Paid</div>
-                  <strong className="font-mono tabular-nums text-[var(--hos-emerald)]">
-                    {formatNu(invoiceTotals.paidAmt)}
-                  </strong>
-                </div>
-                <div className="hos-luxury-card p-2.5 text-center text-[11px]">
-                  <div className="text-[var(--hos-ink-3)]">30d AR</div>
-                  <strong className="font-mono tabular-nums">
-                    {formatNu(agent.aging.d30)}
-                  </strong>
-                </div>
-                <div className="hos-luxury-card border-[rgba(239,68,68,0.3)] p-2.5 text-center text-[11px]">
-                  <div className="text-[var(--hos-ink-3)]">90d+</div>
-                  <strong className="font-mono tabular-nums text-[var(--hos-ruby)]">
-                    {formatNu(agent.aging.d90)}
-                  </strong>
-                </div>
-              </div>
-
-              <div className="mb-3 flex flex-wrap items-center gap-2">
-                <input
-                  value={invoiceQuery}
-                  onChange={(e) => setInvoiceQuery(e.target.value)}
-                  placeholder="Search doc, guest, stay ref…"
-                  className="hos-input min-w-[160px] flex-1 !min-h-10 !rounded-xl !text-[13px]"
-                  inputMode="search"
-                />
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="hos-btn-tactile !min-h-10 gap-1.5 !rounded-xl text-[12px] font-bold"
-                  disabled={filteredInvoices.length === 0}
-                  onClick={() => {
-                    if (!agent) return;
-                    const res = exportPartnerInvoicesExcel(
-                      agent.code,
-                      filteredInvoices,
-                    );
-                    toast.success("Invoices exported for Excel", {
-                      description: `${res.filename} · ${res.rows} row(s)`,
-                    });
-                  }}
-                >
-                  <Download className="size-3.5" strokeWidth={2} />
-                  Export Excel
-                </Button>
-              </div>
-
-              <div className="hos-scrollbar-slim max-h-[min(520px,60vh)] overflow-auto rounded-xl border border-[var(--hos-line)]">
-                <table className="hos-data w-full min-w-[720px] text-left text-xs">
-                  <thead className="sticky top-0 z-[1] bg-[var(--hos-cell)]">
-                    <tr className="border-b border-[var(--hos-line)] text-[10px] uppercase tracking-wide text-[var(--hos-ink-3)]">
-                      <th className="px-2.5 py-2.5">Doc</th>
-                      <th className="px-2.5 py-2.5">Guest / group</th>
-                      <th className="px-2.5 py-2.5">Date</th>
-                      <th className="px-2.5 py-2.5 text-right">Amount</th>
-                      <th className="px-2.5 py-2.5 text-right">Balance</th>
-                      <th className="px-2.5 py-2.5">Status</th>
-                      <th className="px-2.5 py-2.5 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--hos-line)] bg-white text-[var(--hos-ink)] dark:bg-[var(--hos-cell)]">
-                    {filteredInvoices.map((d) => {
-                      const when = new Date(d.at).toLocaleDateString("en-GB", {
-                        day: "2-digit",
-                        month: "short",
-                        year: "2-digit",
-                      });
-                      const canOpen = Boolean(d.stayId);
-                      return (
-                        <tr
-                          key={d.id}
-                          className={[
-                            "align-middle transition-colors",
-                            canOpen
-                              ? "cursor-pointer hover:bg-[color-mix(in_srgb,var(--hos-primary)_6%,transparent)]"
-                              : "",
-                          ].join(" ")}
-                          onClick={() => {
-                            if (canOpen) openPartnerInvoice(d, false);
-                          }}
-                        >
-                          <td className="px-2.5 py-2.5">
-                            <button
-                              type="button"
-                              className={[
-                                "text-left font-mono text-[12px] font-semibold",
-                                canOpen
-                                  ? "text-[var(--hos-primary)] underline-offset-2 hover:underline"
-                                  : "text-[var(--hos-ink)]",
-                              ].join(" ")}
-                              disabled={!canOpen}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                openPartnerInvoice(d, false);
-                              }}
-                            >
-                              {d.docNo}
-                            </button>
-                            <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
-                              {d.kind}
-                              {d.source === "stay" ? " · working" : ""}
-                            </div>
-                          </td>
-                          <td className="px-2.5 py-2.5">
-                            <div className="font-semibold text-[var(--hos-ink)]">
-                              {d.guest}
-                            </div>
-                            {d.stayRef ? (
-                              <div className="mt-0.5 font-mono text-[10px] text-[var(--hos-ink-3)]">
-                                {d.stayRef}
-                              </div>
-                            ) : null}
-                          </td>
-                          <td className="whitespace-nowrap px-2.5 py-2.5 font-mono tabular-nums text-[var(--hos-ink-2)]">
-                            {when}
-                          </td>
-                          <td className="px-2.5 py-2.5 text-right font-mono tabular-nums">
-                            {formatNu(d.amount)}
-                          </td>
-                          <td
-                            className={[
-                              "px-2.5 py-2.5 text-right font-mono font-bold tabular-nums",
-                              d.balance > PERSONAL_CHECKOUT_GATE_BTN
-                                ? "text-[var(--hos-ruby)]"
-                                : "text-[var(--hos-emerald)]",
-                            ].join(" ")}
-                          >
-                            {formatNu(d.balance)}
-                          </td>
-                          <td className="px-2.5 py-2.5">
-                            <Badge
-                              tone={
-                                d.status === "paid"
-                                  ? "success"
-                                  : d.status === "void"
-                                    ? "muted"
-                                    : "danger"
-                              }
-                            >
-                              {d.status}
-                            </Badge>
-                          </td>
-                          <td className="px-2.5 py-2.5">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                className="!min-h-8 !rounded-lg !px-2 text-[11px] font-bold"
-                                disabled={!canOpen}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openPartnerInvoice(d, false);
-                                }}
-                              >
-                                Open
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="!min-h-8 gap-1 !rounded-lg !px-2 text-[11px] font-bold"
-                                disabled={!canOpen}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openPartnerInvoice(d, true);
-                                }}
-                              >
-                                <Printer className="size-3" strokeWidth={2} />
-                                Print
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {filteredInvoices.length === 0 ? (
-                      <tr>
-                        <td colSpan={7} className="px-2 py-10">
-                          <EmptyState
-                            title={
-                              invoiceFilter === "paid"
-                                ? "No paid invoices"
-                                : invoiceFilter === "unpaid"
-                                  ? "No unpaid invoices"
-                                  : "No invoices yet"
-                            }
-                            description="Fiscal docs and open stay folios for this MoU appear here."
-                          />
-                        </td>
-                      </tr>
-                    ) : null}
-                  </tbody>
-                </table>
-              </div>
-            </GlassPanel>
-
-            <GlassPanel className="flex flex-col gap-2 p-3.5">
-              <strong className="flex items-center gap-1.5 text-sm">
-                <Wallet className="size-4 text-[var(--hos-primary)]" />
-                Deposit proof · smart match
-              </strong>
-              <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
-                Match bank / mBoB proof against unpaid invoices above.
-              </p>
-              <input
-                type="number"
-                value={depAmt}
-                onChange={(e) => setDepAmt(Number(e.target.value) || 0)}
-                className="hos-input !rounded-xl !text-[13px]"
-              />
-              <input
-                value={depRef}
-                onChange={(e) => setDepRef(e.target.value)}
-                placeholder="Bank / mBoB ref"
-                className="hos-input !rounded-xl !text-[13px]"
-              />
-              <select
-                value={depMethod}
-                onChange={(e) => setDepMethod(e.target.value as "wire" | "mbob")}
-                className="hos-input !rounded-xl !text-[13px]"
-              >
-                <option value="mbob">mBoB</option>
-                <option value="wire">Wire</option>
-              </select>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  className="!rounded-full"
-                  onClick={() => setMatchHints(suggestDepositMatches(depAmt))}
-                >
-                  Suggest match
-                </Button>
-                <Button
-                  size="sm"
-                  className="hos-btn-ink !rounded-full"
-                  onClick={() => {
-                    const res = uploadDeposit({
-                      amount: depAmt,
-                      method: depMethod,
-                      ref: depRef,
-                      note: `${agent.code} portal upload`,
-                    });
-                    if (!res.ok) {
-                      toast.error(res.error);
-                      return;
-                    }
-                    toast.success("Uploaded for desk verify", {
-                      description: res.slip.ref,
-                    });
-                    setDepRef("");
-                  }}
-                >
-                  <Upload className="mr-1 size-3.5" />
-                  Upload for desk
-                </Button>
-              </div>
-              {matchHints.length ? (
-                <ul className="m-0 list-none space-y-1 p-0 text-[11px]">
-                  {matchHints.map((h) => (
-                    <li
-                      key={h.fiscalDocId}
-                      className="hos-luxury-card flex justify-between px-2.5 py-2"
-                    >
-                      <span>
-                        {h.docNo} · {formatNu(h.amount)}
-                      </span>
-                      <span className="font-mono text-[var(--hos-ink-3)]">
-                        Δ {formatNu(h.delta)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
-              <div className="mt-2 space-y-1.5">
-                {depositSlips.map((s) => (
-                  <div
-                    key={s.id}
-                    className="flex items-center justify-between rounded-xl border border-[var(--hos-line)] px-2.5 py-2 text-[11px]"
-                  >
-                    <span>
-                      {formatNu(s.amount)} · {s.ref}
-                    </span>
-                    <Badge
-                      tone={
-                        s.status === "verified"
-                          ? "success"
-                          : s.status === "rejected"
-                            ? "danger"
-                            : "vip"
-                      }
-                    >
-                      {s.status}
-                    </Badge>
-                  </div>
-                ))}
-              </div>
-              <p className="m-0 text-[11px] text-[var(--hos-ink-3)]">
-                Desk verifies deposits on Agents · Operator 360.
-              </p>
-              <div className="mt-3 border-t border-[var(--hos-line)] pt-3">
-                <strong className="text-xs uppercase tracking-wide text-[var(--hos-ink-3)]">
-                  Voucher PDF → master folio
-                </strong>
-                <input
-                  value={voucherFile}
-                  onChange={(e) => setVoucherFile(e.target.value)}
-                  placeholder="Yangphel-voucher-Oct.pdf"
-                  className="hos-input mt-2 !rounded-xl !text-[13px]"
-                />
-                <input
-                  type="number"
-                  value={voucherAmt}
-                  onChange={(e) => setVoucherAmt(Number(e.target.value) || 0)}
-                  className="hos-input mt-2 !rounded-xl !text-[13px]"
-                />
-                <Button
-                  size="sm"
-                  className="mt-2 !min-h-12 w-full !rounded-xl"
-                  onClick={() => {
-                    void uploadVoucherPdf({
-                      fileName: voucherFile || "voucher.pdf",
-                      amountBtn: voucherAmt,
-                    }).then((res) => {
-                      if (!res.ok) toast.error(res.error);
-                      else
-                        toast.success("Voucher linked to master folio", {
-                          description: res.voucher.fileName,
-                        });
-                    });
-                  }}
-                >
-                  <FileStack className="mr-1 size-3.5" />
-                  Upload voucher PDF
-                </Button>
-                {vouchers.length > 0 ? (
-                  <ul className="m-0 mt-2 list-none space-y-1 p-0 text-[11px]">
-                    {vouchers.slice(0, 5).map((v) => (
-                      <li
-                        key={v.id}
-                        className="flex items-center justify-between gap-2 rounded-lg border border-[var(--hos-line)] px-2 py-1.5"
-                      >
-                        <span className="truncate">
-                          {v.fileName} · {formatNu(v.amountBtn)}
-                        </span>
-                        <Badge
-                          tone={
-                            v.status === "linked"
-                              ? "success"
-                              : v.status === "failed"
-                                ? "danger"
-                                : "vip"
-                          }
-                        >
-                          {v.status}
-                        </Badge>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            </GlassPanel>
-          </div>
+          <PartnerMoneyPanel
+            agent={agent}
+            agencyCode={agent.code}
+            agencyName={agent.name}
+            invoices={allPartnerInvoices}
+            depositSlips={depositSlips}
+            vouchers={vouchers}
+            onOpenInvoice={openPartnerInvoice}
+            onPrintPack={() => setPrintPackOpen(true)}
+            uploadDeposit={uploadDeposit}
+            suggestDepositMatches={suggestDepositMatches}
+            uploadVoucherPdf={uploadVoucherPdf}
+          />
         ) : null}
       </div>
 
@@ -2389,6 +1924,6 @@ function PartnerPortalBody() {
         fiscalDocs={fiscalDocs}
         onClose={() => setPrintPackOpen(false)}
       />
-    </ModuleFrame>
+    </PartnerShell>
   );
 }

@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { homeRouteForDeskRole, simpleRailItems } from "./desk-homes.js";
+import {
+  homeRouteForDeskRole,
+  resolveDeskHomeRoute,
+  simpleRailItems,
+} from "./desk-homes.js";
 
 describe("desk homes", () => {
   it("routes FO and F&B to dept homes", () => {
@@ -17,5 +21,37 @@ describe("desk homes", () => {
     assert.deepEqual([...simpleRailItems("fo_agent")], ["desk", "stayview", "guests", "print"]);
     assert.deepEqual([...simpleRailItems("cashier")], ["pos"]);
     assert.ok(simpleRailItems("fo_manager").includes("night-audit"));
+  });
+
+  it("gives Property Admin all modules via * sentinel", () => {
+    assert.equal(homeRouteForDeskRole("admin"), "/desk");
+    assert.deepEqual([...simpleRailItems("admin")], ["*"]);
+    assert.deepEqual([...simpleRailItems("property_admin")], ["*"]);
+  });
+
+  it("resolveDeskHomeRoute prefers role, then DEPT code, then DB home", () => {
+    assert.equal(
+      resolveDeskHomeRoute({ deskRole: "fnb", homeRoute: "/desk" }),
+      "/pos",
+    );
+    assert.equal(
+      resolveDeskHomeRoute({
+        deskRole: "mystery",
+        employeeCode: "DEPT-HK",
+        homeRoute: "/desk",
+      }),
+      "/housekeeping",
+    );
+    assert.equal(
+      resolveDeskHomeRoute({
+        deskRole: null,
+        homeRoute: "/reservations",
+      }),
+      "/reservations",
+    );
+    assert.equal(
+      resolveDeskHomeRoute({ deskRole: "owner" }),
+      "/owner",
+    );
   });
 });

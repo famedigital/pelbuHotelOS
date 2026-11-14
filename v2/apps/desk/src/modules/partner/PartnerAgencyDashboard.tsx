@@ -63,8 +63,8 @@ export function PartnerAgencyDashboard({
           </div>
           {hotels.length === 0 ? (
             <EmptyState
-              title="No hotel MoUs"
-              description="Propose a MoU from Bookings or wait for the hotel to invite you."
+              title="No Innora hotels linked"
+              description="Ask the hotel to link your agency on Innora, then sign in again."
             />
           ) : (
             <>

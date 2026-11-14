@@ -316,7 +316,7 @@ const HR_SEED: HrStaffRow[] = [
   { id: "st-2", name: "Pema Choden", dept: "FO", role: "fo_agent", employeeCode: "102", tipPoints: 2, basicBtn: 22000, active: true, pin: "2222", phone: "+975-17610002" },
   { id: "st-3", name: "Dema Lhamo", dept: "HK", role: "hk_attendant", employeeCode: "201", tipPoints: 1.5, basicBtn: 18000, active: true, pin: "3333", phone: "+975-17610003" },
   { id: "st-4", name: "Sonam Tobgay", dept: "F&B", role: "waiter", employeeCode: "301", tipPoints: 1.5, basicBtn: 18000, active: true, pin: "4444", phone: "+975-17610004" },
-  { id: "st-5", name: "Tashi Wangchuk", dept: "F&B", role: "chef", employeeCode: "302", tipPoints: 2, basicBtn: 28000, active: true, pin: "5555", phone: "+975-17610005" },
+  { id: "st-5", name: "Tashi Wangchuk", dept: "F&B", role: "chef", employeeCode: "302", tipPoints: 2, basicBtn: 28000, active: true, pin: "7777", phone: "+975-17610005" },
   { id: "st-6", name: "Dechen Zangmo", dept: "Kitchen", role: "dishwasher", employeeCode: "303", tipPoints: 1, basicBtn: 15000, active: true, pin: "6666", phone: "+975-17610006" },
 ];
 

@@ -1,5 +1,7 @@
 # Hotel OS v2 — Agent (partner) portal
 
+> **Superseded for new work:** use **[Travel Agent OS docs](./travel-agent-os/README.md)** + [ADR 002](./adr/002-travel-agent-os.md) + module packs (M01+). This file remains historical Partner-tab context only.
+>
 > External face of module **12 · Agents**. Spec from Claude plan §3 module 12 + owner decisions.
 > Related: [MODULES.md](./MODULES.md) · [SOURCE-MAP.md](./SOURCE-MAP.md) · [OPERATIONS-FLOW.md](./OPERATIONS-FLOW.md)
 

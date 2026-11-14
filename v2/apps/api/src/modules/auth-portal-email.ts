@@ -5,6 +5,7 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { queryRaw, requireDb } from "@hos-v2/db";
+import { resolveAgencyOrgIdForAuthUser } from "../platform/agency-membership.js";
 import { issueDeskToken } from "../platform/desk-token.js";
 import { gotrueSignInWithPassword } from "../platform/gotrue.js";
 
@@ -36,6 +37,30 @@ type PortalRow = {
   slug: string;
   name: string;
 };
+
+/** Live hotels first; never default a partner JWT onto seed/demo shells. */
+function preferPortalProperty(
+  portals: PortalRow[],
+  propertyId?: string,
+): PortalRow {
+  if (propertyId) {
+    const hit = portals.find((p) => p.property_id === propertyId);
+    if (hit) return hit;
+  }
+  const live = portals.filter((p) => {
+    const slug = p.slug.toLowerCase();
+    const name = p.name.toLowerCase();
+    if (slug === "demo-hotel" || name === "demo" || name === "demo hotel") return false;
+    if (slug.includes("seed") || name.includes("seed archive")) return false;
+    return true;
+  });
+  const pool = live.length > 0 ? live : portals;
+  return (
+    pool.find((p) => p.slug === "pelbu-olakha") ||
+    pool.find((p) => /pelbu/i.test(p.slug) || /pelbu/i.test(p.name)) ||
+    pool[0]!
+  );
+}
 
 type AgentRow = {
   id: string;
@@ -150,11 +175,12 @@ export async function registerAuthPortalEmailRoutes(app: FastifyInstance) {
         });
       }
 
-      const chosen =
-        (body.propertyId
-          ? portals.find((p) => p.property_id === body.propertyId)
-          : undefined) || portals[0]!;
+      const chosen = preferPortalProperty(portals, body.propertyId);
 
+      const agencyOrgId =
+        body.role === "agent"
+          ? await resolveAgencyOrgIdForAuthUser(auth.user.id)
+          : undefined;
       const token = issueDeskToken({
         sub: auth.user.id,
         role: body.role,
@@ -163,7 +189,18 @@ export async function registerAuthPortalEmailRoutes(app: FastifyInstance) {
         subjectId: chosen.subject_id,
         staffName: chosen.display_name,
         homeRoute: chosen.home_route || "/partner",
+        ...(agencyOrgId ? { agencyOrgId } : {}),
       });
+
+      /* Seed/demo shells stay out of the partner hotel list unless that is all they have. */
+      const liveProperties = portals.filter((p) => {
+        const slug = p.slug.toLowerCase();
+        const name = p.name.toLowerCase();
+        if (slug === "demo-hotel" || name === "demo" || name === "demo hotel") return false;
+        if (slug.includes("seed") || name.includes("seed archive")) return false;
+        return true;
+      });
+      const propertyList = liveProperties.length > 0 ? liveProperties : portals;
 
       return {
         ok: true,
@@ -182,7 +219,7 @@ export async function registerAuthPortalEmailRoutes(app: FastifyInstance) {
           slug: chosen.slug,
           name: chosen.name,
         },
-        properties: portals.map((p) => ({
+        properties: propertyList.map((p) => ({
           id: p.property_id,
           slug: p.slug,
           name: p.name,
