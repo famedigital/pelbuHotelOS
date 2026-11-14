@@ -361,6 +361,10 @@ class MemoryStore {
     propertyId: string;
     description: string;
     net: number;
+    /** Persisted tax legs — void must reverse these, not re-quote. */
+    scAmount?: number;
+    gstAmount?: number;
+    totalAmount?: number;
     sourceType: string;
     sourceId: string;
     /** Desk stream: agency folio lines are always master. */
@@ -530,6 +534,9 @@ class MemoryStore {
       propertyId: string;
       description: string;
       net: number;
+      scAmount?: number;
+      gstAmount?: number;
+      totalAmount?: number;
       sourceType: string;
       sourceId: string;
     }[];

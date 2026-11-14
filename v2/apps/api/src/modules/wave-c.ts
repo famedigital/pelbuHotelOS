@@ -14,6 +14,51 @@ import {
 import { store } from "../platform/memory-store.js";
 import { registerCommand } from "./registry.js";
 
+/** Match rates.quoteNight — never default GST 5% when property has GST off. */
+function propertyQuoteRates(propertyId: string) {
+  const p = store.ensureDemoProperty(propertyId);
+  return {
+    gstRate: p.gstEnabled ? p.gstRate : 0,
+    serviceChargeRate: p.scRate,
+    gstApplicable: p.gstEnabled,
+  };
+}
+
+function quoteLineNet(propertyId: string, absNet: number) {
+  return quoteNight(absNet, "net", propertyQuoteRates(propertyId));
+}
+
+/**
+ * Void must reverse the posted legs. Re-quoting with default GST caused a
+ * −280 Nu leak on Pelbu sheet-quote rooms (5600 all-in SC-only → void −5880).
+ */
+function reversePostedLine(original: {
+  net: number;
+  scAmount?: number;
+  gstAmount?: number;
+  totalAmount?: number;
+}, propertyId: string) {
+  if (
+    typeof original.totalAmount === "number" &&
+    Number.isFinite(original.totalAmount)
+  ) {
+    return {
+      netAmount: -original.net,
+      scAmount: -(original.scAmount ?? 0),
+      gstAmount: -(original.gstAmount ?? 0),
+      totalAmount: -original.totalAmount,
+    };
+  }
+  const tax = quoteLineNet(propertyId, Math.abs(original.net));
+  const sign = original.net < 0 ? 1 : -1;
+  return {
+    netAmount: -original.net,
+    scAmount: sign * tax.serviceChargeBtn,
+    gstAmount: sign * tax.gstBtn,
+    totalAmount: sign * tax.totalBtn,
+  };
+}
+
 const postChargeSchema = z.object({
   propertyId: z.string().uuid(),
   folioId: z.string().uuid(),
@@ -51,7 +96,10 @@ registerCommand("finance.postCharge", async (raw, ctx) => {
   if (prior) {
     const stream =
       prior.stream ?? (folio.payerType === "agent" ? "master" : "personal");
-    const taxPrior = quoteNight(Math.abs(prior.net), "net");
+    const taxPrior =
+      typeof prior.totalAmount === "number" && Number.isFinite(prior.totalAmount)
+        ? null
+        : quoteLineNet(input.propertyId, Math.abs(prior.net));
     const signPrior = prior.net < 0 ? -1 : 1;
     return {
       ok: true,
@@ -63,9 +111,15 @@ registerCommand("finance.postCharge", async (raw, ctx) => {
         kind: prior.sourceType,
         stream,
         netAmount: prior.net,
-        scAmount: signPrior * taxPrior.serviceChargeBtn,
-        gstAmount: signPrior * taxPrior.gstBtn,
-        totalAmount: signPrior * taxPrior.totalBtn,
+        scAmount:
+          prior.scAmount ??
+          (taxPrior ? signPrior * taxPrior.serviceChargeBtn : 0),
+        gstAmount:
+          prior.gstAmount ??
+          (taxPrior ? signPrior * taxPrior.gstBtn : 0),
+        totalAmount:
+          prior.totalAmount ??
+          (taxPrior ? signPrior * taxPrior.totalBtn : prior.net),
         voided: false,
         postedAt: new Date().toISOString(),
         balance: folio.balance,
@@ -76,7 +130,7 @@ registerCommand("finance.postCharge", async (raw, ctx) => {
     };
   }
 
-  const tax = quoteNight(Math.abs(input.netAmount), "net");
+  const tax = quoteLineNet(input.propertyId, Math.abs(input.netAmount));
   const sign = input.netAmount < 0 ? -1 : 1;
   const line = {
     id: crypto.randomUUID(),
@@ -99,6 +153,9 @@ registerCommand("finance.postCharge", async (raw, ctx) => {
     propertyId: input.propertyId,
     description: line.description,
     net: line.netAmount,
+    scAmount: line.scAmount,
+    gstAmount: line.gstAmount,
+    totalAmount: line.totalAmount,
     sourceType: input.kind,
     sourceId: line.id,
     stream: line.stream,
@@ -294,22 +351,21 @@ registerCommand("finance.voidLineWithReversal", async (raw, ctx) => {
   }
 
   const reversalId = crypto.randomUUID();
-  const reverseNet = -original.net;
+  const reversed = reversePostedLine(original, input.propertyId);
   const description = `Reversal · ${original.description} · ${input.reason}`;
   store.folioLines.push({
     id: reversalId,
     folioId: folio.id,
     propertyId: input.propertyId,
     description,
-    net: reverseNet,
+    net: reversed.netAmount,
+    scAmount: reversed.scAmount,
+    gstAmount: reversed.gstAmount,
+    totalAmount: reversed.totalAmount,
     sourceType: "reversal",
     sourceId: original.id,
   });
-  // Approximate tax-inclusive delta: original net was stored as net; night audit/pos use totals.
-  // For memory lines we stored net only — reverse the same amount on balance.
-  const tax = quoteNight(Math.abs(original.net), "net");
-  const sign = original.net < 0 ? 1 : -1;
-  const delta = sign * tax.totalBtn;
+  const delta = reversed.totalAmount;
   const prevBalance = folio.balance;
   folio.balance = Math.round((folio.balance + delta) * 100) / 100;
 
@@ -321,9 +377,9 @@ registerCommand("finance.voidLineWithReversal", async (raw, ctx) => {
       reversalId,
       originalLineId: original.id,
       description,
-      netAmount: reverseNet,
-      scAmount: sign * tax.serviceChargeBtn,
-      gstAmount: sign * tax.gstBtn,
+      netAmount: reversed.netAmount,
+      scAmount: reversed.scAmount,
+      gstAmount: reversed.gstAmount,
       totalAmount: delta,
       idempotencyKey: input.idempotencyKey,
     });
@@ -355,7 +411,7 @@ registerCommand("finance.voidLineWithReversal", async (raw, ctx) => {
       balance: folio.balance,
       description: `Reversal · ${original.description}`,
       totalAmount: delta,
-      netAmount: reverseNet,
+      netAmount: reversed.netAmount,
       kind: "adjustment",
       postedAt: new Date().toISOString(),
     },

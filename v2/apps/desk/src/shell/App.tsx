@@ -47,7 +47,7 @@ import {
 import { useFiscalStore } from "../lib/fiscal-store";
 import { useSettingsStore } from "../lib/settings-store";
 import { clearHotelGate } from "../lib/auth-session";
-import { clearDeskSession, readDeskStaff } from "../lib/desk-session";
+import { clearDeskSession, readDeskHomeRoute, readDeskStaff } from "../lib/desk-session";
 import {
   readNavPro,
   simpleRailItems,
@@ -68,8 +68,7 @@ import {
   type LiveSnapshot,
 } from "../lib/live-sync";
 import { PinGateway } from "../modules/PinGateway";
-import { HotelLoginPage } from "../modules/HotelLoginPage";
-import { PortalLoginPage } from "../modules/PortalLoginPage";
+import { UnifiedLoginPage } from "../modules/UnifiedLoginPage";
 import { readDeskToken } from "../lib/desk-session";
 import { readHotelToken, readPortalMeta, readPortalToken } from "../lib/auth-session";
 import { DeskPage } from "../modules/DeskPage";
@@ -489,6 +488,8 @@ export function App() {
   const visibleSidebarGroups = useMemo(() => {
     if (navPro) return SIDEBAR_GROUPS;
     const allow = new Set(simpleRailItems(deskStaff?.deskRole));
+    /* Property Admin (`*`) — every module without toggling Show all. */
+    if (allow.has("*")) return SIDEBAR_GROUPS;
     allow.add("settings");
     return SIDEBAR_GROUPS.map((g) => ({
       ...g,
@@ -578,6 +579,15 @@ export function App() {
   }, []);
 
   useEffect(() => {
+    const name = useSettingsStore.getState().hotelName;
+    void import("../lib/hotel-identity")
+      .then(({ applyPropertyHotelIdentity }) => applyPropertyHotelIdentity(name))
+      .catch((err) => {
+        console.warn("[shell] hotel identity boot skipped", err);
+      });
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     let attempt = 0;
     const run = () => {
@@ -630,7 +640,7 @@ export function App() {
     const unsubSnap = subscribeLiveSync(setLiveSnap);
     let folioHydrateTimer: ReturnType<typeof setTimeout> | null = null;
     const unsubEvents = onLiveEvent((ev, source) => {
-      if (source === "tab") return;
+      /* Tab broadcasts included — same pattern as Tumble Jumble broadcastLive(self). */
       const t = ev.type.toLowerCase();
       const moneyOrStay =
         t.includes("folio") ||
@@ -639,9 +649,11 @@ export function App() {
         t.includes("void") ||
         t.includes("check") ||
         t.includes("booking") ||
-        t.includes("settle");
+        t.includes("settle") ||
+        t.includes("desk.fo") ||
+        t.includes("patched");
       if (moneyOrStay) {
-        /* Debounce StayHub / desk folio refresh from outbox deltas. */
+        /* Fast debounce — optimistic store already moved; hydrate confirms. */
         if (folioHydrateTimer) clearTimeout(folioHydrateTimer);
         folioHydrateTimer = setTimeout(() => {
           void hydrateFromApi().then((res) => {
@@ -649,7 +661,7 @@ export function App() {
               console.warn("[shell] live folio hydrate failed", res.error);
             }
           });
-        }, 1_200);
+        }, source === "tab" ? 200 : 400);
       }
       if (t.includes("hk") || t.includes("booking.confirmed") || t.includes("audit.")) {
         toast.message(`Live · ${ev.type}`, {
@@ -807,7 +819,7 @@ export function App() {
         label: "Agent print pack",
         hint: "Master · invoices · summary · print",
         group: "Sales",
-        onSelect: () => navigate("/agents"),
+        onSelect: () => navigate("/agents?print=1"),
       },
       {
         id: "partner",
@@ -915,7 +927,7 @@ export function App() {
     clearDeskSession();
     localStorage.removeItem("hos_desk_role");
     clearHotelGate();
-    navigate("/login/hotel");
+    navigate("/login");
   }, [navigate]);
 
   const railWidth = railCollapsed ? 64 : 210;
@@ -1446,19 +1458,19 @@ export function App() {
 }
 
 function AuthEntry() {
-  if (readDeskToken()) return <Navigate to="/desk" replace />;
+  if (readDeskToken()) return <Navigate to={readDeskHomeRoute()} replace />;
   if (readHotelToken()) return <Navigate to="/pin" replace />;
   if (readPortalToken()) {
     const meta = readPortalMeta();
     return <Navigate to={meta?.homeRoute || "/partner"} replace />;
   }
-  return <Navigate to="/login/hotel" replace />;
+  return <Navigate to="/login" replace />;
 }
 
 function RequireStaffSession({ children }: { children?: React.ReactNode }) {
   if (!readDeskToken()) {
     if (readHotelToken()) return <Navigate to="/pin" replace />;
-    return <Navigate to="/login/hotel" replace />;
+    return <Navigate to="/login" replace />;
   }
   return children ? <>{children}</> : <Outlet />;
 }
@@ -1473,7 +1485,7 @@ function RequirePortalSession({
   const token = readPortalToken();
   const meta = readPortalMeta();
   if (!token || meta?.role !== role) {
-    return <Navigate to={`/login/${role}`} replace />;
+    return <Navigate to="/login" replace />;
   }
   return <>{children}</>;
 }
@@ -1482,8 +1494,9 @@ function AppRoutes({ location }: { location: ReturnType<typeof useLocation> }) {
   return (
     <Routes location={location}>
       <Route path="/" element={<AuthEntry />} />
-      <Route path="/login/hotel" element={<HotelLoginPage />} />
-      <Route path="/login/:role" element={<PortalLoginPage />} />
+      <Route path="/login" element={<UnifiedLoginPage />} />
+      <Route path="/login/hotel" element={<Navigate to="/login" replace />} />
+      <Route path="/login/:role" element={<Navigate to="/login" replace />} />
       <Route path="/pin" element={<PinGateway />} />
       <Route path="/rates/share/:token" element={<RateSheetSharePage />} />
       <Route element={<RequireStaffSession />}>

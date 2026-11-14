@@ -756,6 +756,9 @@ type ApiFolioLine = {
   id: string;
   description: string;
   net: number;
+  scAmount?: number;
+  gstAmount?: number;
+  totalAmount?: number;
   kind: string;
   sourceId?: string;
   stream?: "master" | "personal";
@@ -789,6 +792,7 @@ type ApiBooking = {
     netAmount: number | null;
   }[];
   folioBalance?: number;
+  agencyBalance?: number;
   folioId?: string;
   agencyFolioId?: string;
   folioLines?: ApiFolioLine[];
@@ -814,11 +818,17 @@ function mapApiFolioKind(kind: string): Stay["folioLines"][number]["kind"] {
 function mapApiFolioLines(lines: ApiFolioLine[] | undefined): Stay["folioLines"] {
   if (!lines?.length) return [];
   return lines.map((l) => {
-    const kind = mapApiFolioKind(l.kind);
+    const rawKind = l.kind;
+    const kind = mapApiFolioKind(rawKind);
     const net = l.net;
-    // API memory lines store net; reconstruct SC/GST with the same property policy as desk posts.
-    const isPayment = kind === "payment" || net < 0;
-    if (isPayment) {
+    const stream: "master" | "personal" =
+      l.stream ??
+      (kind === "room" || /meal plan/i.test(l.description) ? "master" : "personal");
+    const hasStored =
+      typeof l.totalAmount === "number" && Number.isFinite(l.totalAmount);
+
+    /* Real payments only — never treat reversals/FOC credits as payment (that dropped SC and left Nu 6,109). */
+    if (rawKind === "payment" || kind === "payment") {
       return {
         id: l.id,
         postedAt: new Date().toISOString(),
@@ -827,25 +837,44 @@ function mapApiFolioLines(lines: ApiFolioLine[] | undefined): Stay["folioLines"]
         netAmount: net,
         scAmount: 0,
         bstAmount: 0,
-        totalAmount: net,
+        totalAmount: hasStored ? l.totalAmount! : net,
         voided: false,
-        // Agency folio payments must stay on master (never default to personal).
         stream: (l.stream ?? "personal") as "master" | "personal",
       };
     }
-    const tax = propertyTaxBreakdown(Math.abs(net));
-    const stream: "master" | "personal" =
-      l.stream ??
-      (kind === "room" || /meal plan/i.test(l.description) ? "master" : "personal");
+
+    if (hasStored) {
+      return {
+        id: l.id,
+        postedAt: new Date().toISOString(),
+        kind,
+        description: l.description,
+        netAmount: net,
+        scAmount: l.scAmount ?? 0,
+        bstAmount: l.gstAmount ?? 0,
+        totalAmount: l.totalAmount!,
+        voided: false,
+        stream,
+      };
+    }
+
+    /* Preserve API net (sheet-quote cents). Do not Math.round net — that caused Nu 6,109 leaks with reversals. */
+    const sign = net < 0 ? -1 : 1;
+    const absNet = Math.abs(net);
+    const tax = propertyTaxBreakdown(absNet);
+    const scAmount = tax.scAmount > 0 ? Math.round(absNet * 0.1 * 100) / 100 : 0;
+    const bstAmount = tax.bstAmount;
+    const totalAmount =
+      Math.round((absNet + scAmount + bstAmount) * 100) / 100;
     return {
       id: l.id,
       postedAt: new Date().toISOString(),
       kind,
       description: l.description,
-      netAmount: tax.netAmount,
-      scAmount: tax.scAmount,
-      bstAmount: tax.bstAmount,
-      totalAmount: tax.totalAmount,
+      netAmount: net,
+      scAmount: sign * scAmount,
+      bstAmount: sign * bstAmount,
+      totalAmount: sign * totalAmount,
       voided: false,
       stream,
     };
@@ -960,6 +989,10 @@ export function mapApiBookingToStay(
     apiBookingLineId: line?.id,
     apiFolioId: b.folioId,
     apiAgencyFolioId: b.agencyFolioId,
+    apiAgencyBalance:
+      typeof b.agencyBalance === "number" ? b.agencyBalance : null,
+    apiGuestBalance:
+      typeof b.folioBalance === "number" ? b.folioBalance : null,
     syncPending: false,
   };
 }
@@ -1058,12 +1091,10 @@ export async function hydrateFrontOfficeRemote(): Promise<FoHydrateResult> {
     }>(`/v1/settings/snapshot?propertyId=${propertyId}`);
     if (snap.property?.name?.trim()) {
       try {
-        const { useSettingsStore } = await import("./settings-store");
-        useSettingsStore.getState().updateProfile({
-          hotelName: snap.property.name.trim(),
-        });
+        const { applyPropertyHotelIdentity } = await import("./hotel-identity");
+        await applyPropertyHotelIdentity(snap.property.name.trim());
       } catch (err) {
-        console.warn("[fo-remote] settings hotelName sync skipped", err);
+        console.warn("[fo-remote] settings hotel identity sync skipped", err);
       }
     }
     let roomBlocks: ApiRoomBlock[] = [];

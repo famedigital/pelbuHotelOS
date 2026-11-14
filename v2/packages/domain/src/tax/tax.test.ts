@@ -47,4 +47,27 @@ describe("room night tax SC→GST", () => {
     const fromAllIn = quoteNight(net.totalBtn, "all_in");
     assert.equal(fromAllIn.amountBtn, net.amountBtn);
   });
+
+  it("Pelbu sheet-quote 5600 all-in with GST off stays 5600 (no −280 void leak)", () => {
+    const sheet = quoteNight(5600, "all_in", {
+      serviceChargeRate: 0.1,
+      gstRate: 0,
+      gstApplicable: false,
+    });
+    assert.equal(sheet.amountBtn, 5090.91);
+    assert.equal(sheet.serviceChargeBtn, 509.09);
+    assert.equal(sheet.gstBtn, 0);
+    assert.equal(sheet.totalBtn, 5600);
+
+    const voidWithPropertyRates = quoteNight(sheet.amountBtn, "net", {
+      serviceChargeRate: 0.1,
+      gstRate: 0,
+      gstApplicable: false,
+    });
+    assert.equal(voidWithPropertyRates.totalBtn, 5600);
+
+    const voidWithDefaultGst = quoteNight(sheet.amountBtn, "net");
+    assert.equal(voidWithDefaultGst.gstBtn, 280);
+    assert.equal(voidWithDefaultGst.totalBtn, 5880);
+  });
 });

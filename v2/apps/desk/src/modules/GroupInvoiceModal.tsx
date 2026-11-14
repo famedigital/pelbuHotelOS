@@ -19,6 +19,7 @@ import {
 } from "../lib/front-office-store";
 import { useSettingsStore } from "../lib/settings-store";
 import { peekGaplessDocNoExternal } from "../lib/extras-store";
+import { displayHotelDocNo } from "../lib/doc-numbers";
 
 function moneyPlain(n: number) {
   return n.toLocaleString("en-BT", { maximumFractionDigits: 0 });
@@ -148,9 +149,10 @@ export function GroupInvoiceModal({
     .join(", ");
   const committedFns = peers
     .map((p) => p.folioNo)
-    .filter((n): n is string => Boolean(n?.trim()));
-  const folioNo = committedFns[0] ?? peekGaplessDocNoExternal("FN");
-  const invHint = peekGaplessDocNoExternal("INV");
+    .filter((n): n is string => Boolean(n?.trim()))
+    .map((n) => displayHotelDocNo(n));
+  const folioNo = displayHotelDocNo(committedFns[0] ?? peekGaplessDocNoExternal("FN"));
+  const invHint = displayHotelDocNo(peekGaplessDocNoExternal("INV"));
   const folioLabel =
     committedFns.length > 1
       ? `${committedFns[0]} (+${committedFns.length - 1})`

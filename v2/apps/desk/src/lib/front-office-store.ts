@@ -193,6 +193,9 @@ export type Stay = {
   taxInvoiceAt?: string | null;
   /** Working folio number · HotelINITIAL + FN + serial (assigned on first folio print). */
   folioNo?: string | null;
+  /** Authoritative agency folio balance from API hydrate (preferred over summing lines). */
+  apiAgencyBalance?: number | null;
+  apiGuestBalance?: number | null;
 };
 
 export function stayBillingMode(stay: Pick<Stay, "billingMode">): StayBillingMode {
@@ -419,7 +422,7 @@ type FrontOfficeState = UiState & {
     stayId: string,
     mode: StayBillingMode,
     actor?: string,
-  ) => { ok: true } | { ok: false; error: string };
+  ) => Promise<{ ok: true } | { ok: false; error: string }>;
   /** Links a gapless fiscal tax doc after desk explicitly creates it. */
   attachTaxInvoice: (
     stayId: string,
@@ -739,10 +742,46 @@ export function taxBreakdown(net: number): {
   return propertyTaxBreakdown(net);
 }
 
-export function folioBalance(stay: Stay, stream?: FolioStream): number {
-  return stay.folioLines
+/** Sum open lines — TJ-style live UI uses this immediately; API snapshot is optional override. */
+export function folioBalanceFromLines(
+  lines: FolioLine[],
+  stream?: FolioStream,
+): number {
+  const sum = lines
     .filter((l) => !l.voided && (stream == null || l.stream === stream))
-    .reduce((sum, l) => sum + l.totalAmount, 0);
+    .reduce((acc, l) => acc + l.totalAmount, 0);
+  return Math.round(sum * 100) / 100;
+}
+
+export function folioBalance(stay: Stay, stream?: FolioStream): number {
+  /* apiAgencyBalance is kept hot on every local money mutation (TJ optimistic).
+     Hydrate refreshes it from API. Prefer it when set so bad line tax mapping cannot drift Groups. */
+  if (
+    stream === "master" &&
+    typeof stay.apiAgencyBalance === "number" &&
+    Number.isFinite(stay.apiAgencyBalance)
+  ) {
+    return stay.apiAgencyBalance;
+  }
+  if (
+    stream === "personal" &&
+    typeof stay.apiGuestBalance === "number" &&
+    Number.isFinite(stay.apiGuestBalance)
+  ) {
+    return stay.apiGuestBalance;
+  }
+  return folioBalanceFromLines(stay.folioLines, stream);
+}
+
+function withSyncedFolioBalances(
+  stay: Stay,
+  folioLines: FolioLine[],
+): Pick<Stay, "folioLines" | "apiAgencyBalance" | "apiGuestBalance"> {
+  return {
+    folioLines,
+    apiAgencyBalance: folioBalanceFromLines(folioLines, "master"),
+    apiGuestBalance: folioBalanceFromLines(folioLines, "personal"),
+  };
 }
 
 export function folioTotals(stay: Stay, stream?: FolioStream) {
@@ -893,6 +932,19 @@ function isPackageFolioLine(l: FolioLine): boolean {
   );
 }
 
+/** API void is append-only (original stays; reversal nets it). Skip already-reversed. */
+function packageLineAlreadyReversed(
+  lines: FolioLine[],
+  line: FolioLine,
+): boolean {
+  const needle = `Reversal · ${line.description}`;
+  return lines.some(
+    (l) =>
+      !l.voided &&
+      (l.description === needle || l.description.startsWith(`${needle} ·`)),
+  );
+}
+
 /** Build room + meal (+ extra bed) folio lines from stay / daily plans. */
 export function buildStayPackageFolioLines(
   stay: Pick<
@@ -928,7 +980,12 @@ export function buildStayPackageFolioLines(
     const nightly = plan?.nightlyNet ?? stay.nightlyNet;
     const meal = plan?.mealPlan ?? stay.mealPlan;
     const mealNet = mealPlanNightlyNet(meal);
-    lines.push(chargeLine(`Room · ${typeName} · ${d}`, nightly, "room", stream));
+    /* Skip Nu 0 package lines — FOC / complementary must leave folio empty. */
+    if (nightly > 0) {
+      lines.push(
+        chargeLine(`Room · ${typeName} · ${d}`, nightly, "room", stream),
+      );
+    }
     if (mealNet > 0) {
       lines.push(
         chargeLine(`${meal} meal plan · ${d}`, mealNet, "fb", stream),
@@ -1754,6 +1811,10 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
                 guestName: apiStay.guestName || prev.guestName,
                 apiFolioId: apiStay.apiFolioId ?? prev.apiFolioId,
                 apiAgencyFolioId: apiStay.apiAgencyFolioId ?? prev.apiAgencyFolioId,
+                apiAgencyBalance:
+                  apiStay.apiAgencyBalance ?? prev.apiAgencyBalance ?? null,
+                apiGuestBalance:
+                  apiStay.apiGuestBalance ?? prev.apiGuestBalance ?? null,
                 apiGuestId: apiStay.apiGuestId ?? prev.apiGuestId,
                 syncPending: false,
               }
@@ -2179,7 +2240,7 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
     return { ok: true };
   },
 
-  setBillingMode: (stayId, mode, actor = ACTOR_DEFAULT) => {
+  setBillingMode: async (stayId, mode, actor = ACTOR_DEFAULT) => {
     const stay = get().stays.find((s) => s.id === stayId);
     if (!stay) return { ok: false, error: "Stay not found" };
     if (stay.taxInvoiceId && mode !== "standard") {
@@ -2188,7 +2249,10 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
         error: `Tax invoice ${stay.taxInvoiceNo} already issued — cannot switch to ${BILLING_MODE_LABEL[mode]}`,
       };
     }
-    if (stayBillingMode(stay) === mode) return { ok: true };
+    if (stayBillingMode(stay) === mode && mode !== "complementary") {
+      return { ok: true };
+    }
+    const prevMode = stayBillingMode(stay);
     set((s) => ({
       stays: s.stays.map((x) =>
         x.id === stayId
@@ -2207,6 +2271,50 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
       ),
       liveRevision: s.liveRevision + 1,
     }));
+    /*
+     * Complementary / FOC: zero room + drop meal package (sheet-quote MAP is
+     * all-in; leaving MAP rebuild posts Nu 950 meal and FOC looks “broken”).
+     */
+    if (mode === "complementary") {
+      const cur = get().stays.find((s) => s.id === stayId);
+      if (!cur) return { ok: true };
+      const zeroPlans = cur.dailyPlans?.map((d) => ({
+        ...d,
+        nightlyNet: 0,
+        mealPlan: "EP" as MealPlan,
+        extraBed: false,
+      }));
+      const rateRes = await get().updateStayRate(
+        stayId,
+        {
+          nightlyNet: 0,
+          mealPlan: "EP",
+          ...(zeroPlans ? { dailyPlans: zeroPlans } : {}),
+        },
+        actor,
+      );
+      if (!rateRes.ok) {
+        set((s) => ({
+          stays: s.stays.map((x) =>
+            x.id === stayId
+              ? {
+                  ...x,
+                  billingMode: prevMode,
+                  audit: [
+                    audit(
+                      `Billing mode rollback → ${BILLING_MODE_LABEL[prevMode]} (FOC rate failed)`,
+                      actor,
+                    ),
+                    ...x.audit,
+                  ],
+                }
+              : x,
+          ),
+          liveRevision: s.liveRevision + 1,
+        }));
+        return rateRes;
+      }
+    }
     return { ok: true };
   },
 
@@ -3264,10 +3372,11 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
             ? { ...l, voided: true }
             : l,
         );
+        const folioLines = [...voidedPkg, ...fresh];
         return {
           ...st,
           apiAgencyFolioId: agencyFolioId ?? st.apiAgencyFolioId,
-          folioLines: [...voidedPkg, ...fresh],
+          ...withSyncedFolioBalances(st, folioLines),
           audit:
             fresh.length > 0
               ? [
@@ -3639,21 +3748,21 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
       stream: resolved,
     };
     set((s) => ({
-      stays: s.stays.map((st) =>
-        st.id !== stayId
-          ? st
-          : {
-              ...st,
-              folioLines: [...st.folioLines, line],
-              audit: [
-                audit(
-                  `Posted ${kind}/${resolved}: ${description} (net Nu. ${netAmount})`,
-                  actor,
-                ),
-                ...st.audit,
-              ],
-            },
-      ),
+      stays: s.stays.map((st) => {
+        if (st.id !== stayId) return st;
+        const folioLines = [...st.folioLines, line];
+        return {
+          ...st,
+          ...withSyncedFolioBalances(st, folioLines),
+          audit: [
+            audit(
+              `Posted ${kind}/${resolved}: ${description} (net Nu. ${netAmount})`,
+              actor,
+            ),
+            ...st.audit,
+          ],
+        };
+      }),
       liveRevision: s.liveRevision + 1,
     }));
     return { ok: true };
@@ -3697,26 +3806,26 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
       stream: line.stream,
     };
     set((s) => ({
-      stays: s.stays.map((st) =>
-        st.id !== stayId
-          ? st
-          : {
-              ...st,
-              folioLines: [
-                ...st.folioLines.map((l) =>
-                  l.id === lineId ? { ...l, voided: true } : l,
-                ),
-                reversal,
-              ],
-              audit: [
-                audit(
-                  `Reversal · ${line.description} (${formatNu(line.totalAmount)}) · PIN audit`,
-                  actor,
-                ),
-                ...st.audit,
-              ],
-            },
-      ),
+      stays: s.stays.map((st) => {
+        if (st.id !== stayId) return st;
+        const folioLines = [
+          ...st.folioLines.map((l) =>
+            l.id === lineId ? { ...l, voided: true } : l,
+          ),
+          reversal,
+        ];
+        return {
+          ...st,
+          ...withSyncedFolioBalances(st, folioLines),
+          audit: [
+            audit(
+              `Reversal · ${line.description} (${formatNu(line.totalAmount)}) · PIN audit`,
+              actor,
+            ),
+            ...st.audit,
+          ],
+        };
+      }),
       liveRevision: s.liveRevision + 1,
     }));
     return { ok: true };
@@ -3736,9 +3845,10 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
     /* In-house + departed: void package lines remotely, then rebuild. */
     if (stay.status === "checked_in" || stay.status === "checked_out") {
       const reverseLines: FolioLine[] = [];
-      const voidedIds = new Set<string>();
+      const existingIds = new Set(stay.folioLines.map((l) => l.id));
       for (const line of stay.folioLines) {
         if (!isPackageFolioLine(line) || !isApiUuid(line.id)) continue;
+        if (packageLineAlreadyReversed(stay.folioLines, line)) continue;
         const folioId =
           line.stream === "master" && isApiUuid(stay.apiAgencyFolioId)
             ? stay.apiAgencyFolioId
@@ -3750,16 +3860,18 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
           reason: "Package rebuild · rate/meal change",
         });
         if (!voided.ok) return { ok: false, error: voided.error };
-        voidedIds.add(line.id);
+        if (existingIds.has(voided.data.reversalId)) continue;
+        existingIds.add(voided.data.reversalId);
+        /* Mirror original tax totals — API quoteNight can disagree with sheet-quote nets (−280 FOC leak). */
         reverseLines.push({
           id: voided.data.reversalId,
           postedAt: voided.data.postedAt ?? nowIso(),
           kind: "adjustment",
           description: voided.data.description,
-          netAmount: voided.data.netAmount,
-          scAmount: 0,
-          bstAmount: 0,
-          totalAmount: voided.data.totalAmount,
+          netAmount: -line.netAmount,
+          scAmount: -line.scAmount,
+          bstAmount: -line.bstAmount,
+          totalAmount: -line.totalAmount,
           voided: false,
           stream: line.stream,
         });
@@ -3778,17 +3890,15 @@ export const useFrontOfficeStore = create<FrontOfficeState>((set, get) => ({
                   nightlyNet: patch.nightlyNet ?? d.nightlyNet,
                 }))
               : undefined);
+          /* Keep originals active — API void is append-only reversal (net → 0).
+             Marking voided + adding reversal double-credits (FOC showed Nu −5,880). */
+          const folioLines = [...st.folioLines, ...reverseLines];
           return {
             ...st,
             mealPlan: nextMeal,
             nightlyNet: nextNet,
             dailyPlans: nextPlans,
-            folioLines: [
-              ...st.folioLines.map((l) =>
-                voidedIds.has(l.id) ? { ...l, voided: true } : l,
-              ),
-              ...reverseLines,
-            ],
+            ...withSyncedFolioBalances(st, folioLines),
             audit: [
               audit(
                 `Rate/meal → ledger rebuild · ${nextMeal} · ${formatNu(nextNet)}/night`,

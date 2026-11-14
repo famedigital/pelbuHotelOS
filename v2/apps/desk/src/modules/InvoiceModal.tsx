@@ -26,7 +26,11 @@ import {
 } from "../lib/front-office-store";
 import { useExtrasStore } from "../lib/extras-store";
 import { useSettingsStore } from "../lib/settings-store";
-import { peekNextFolioNo, peekNextInvoiceNo } from "../lib/doc-numbers";
+import {
+  displayHotelDocNo,
+  peekNextFolioNo,
+  peekNextInvoiceNo,
+} from "../lib/doc-numbers";
 
 type PaperKind = "tax" | "proforma" | "folio";
 type PaperSize = "a4" | "thermal";
@@ -64,15 +68,15 @@ function shortDate(iso: string) {
 
 function draftDocNo(stay: Stay, kind: PaperKind) {
   if (kind === "folio") {
-    if (stay.folioNo) return stay.folioNo;
-    return `${peekNextFolioNo()} · draft`;
+    if (stay.folioNo) return displayHotelDocNo(stay.folioNo);
+    return `${displayHotelDocNo(peekNextFolioNo())} · draft`;
   }
   if (kind === "proforma") {
-    const base = stay.folioNo ?? peekNextFolioNo();
+    const base = displayHotelDocNo(stay.folioNo ?? peekNextFolioNo());
     return `${base.replace("FN", "PRF")} · draft`;
   }
-  if (stay.taxInvoiceNo) return stay.taxInvoiceNo;
-  return `${peekNextInvoiceNo()} · draft`;
+  if (stay.taxInvoiceNo) return displayHotelDocNo(stay.taxInvoiceNo);
+  return `${displayHotelDocNo(peekNextInvoiceNo())} · draft`;
 }
 
 function lineDesc(line: FolioLine): string {

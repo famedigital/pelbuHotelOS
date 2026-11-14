@@ -1054,6 +1054,16 @@ export function StayHubDrawer() {
                     <span className="capitalize">
                       {stay.status.replace("_", " ")}
                     </span>
+                    <span className="mx-1 opacity-40">·</span>
+                    <span
+                      className={
+                        stayBillingMode(stay) === "complementary"
+                          ? "font-semibold text-[var(--hos-brass-ink)]"
+                          : undefined
+                      }
+                    >
+                      {BILLING_MODE_LABEL[stayBillingMode(stay)]}
+                    </span>
                   </p>
                 </>
               ) : (
@@ -2150,6 +2160,56 @@ export function StayHubDrawer() {
 
                 {tab === "streams" ? (
                   <>
+                    <section className="rounded-xl border border-[var(--hos-line)] bg-[var(--hos-cell)] px-2.5 py-2">
+                      <div className="mb-1 flex items-center justify-between gap-2">
+                        <p className="m-0 text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
+                          Billing · this room
+                        </p>
+                        <button
+                          type="button"
+                          className="text-[10px] font-semibold text-[var(--hos-primary)] underline-offset-2 hover:underline"
+                          onClick={() => setTab("controls")}
+                        >
+                          Room controls →
+                        </button>
+                      </div>
+                      <div className="flex rounded-md border border-[var(--hos-line)] bg-[var(--hos-bg)] p-0.5">
+                        {BILLING_MODES.map((mode) => {
+                          const active = stayBillingMode(stay) === mode;
+                          return (
+                            <button
+                              key={mode}
+                              type="button"
+                              data-testid={`stayhub-folio-billing-${mode}`}
+                              disabled={
+                                Boolean(stay.taxInvoiceId) && mode !== "standard"
+                              }
+                              onClick={() => {
+                                void (async () => {
+                                  const res = await setBillingMode(stay.id, mode);
+                                  if (!res.ok) {
+                                    toast.error(res.error);
+                                    return;
+                                  }
+                                  toast.message(
+                                    mode === "complementary"
+                                      ? "Complementary (FOC) · room package zeroed"
+                                      : `Billing → ${BILLING_MODE_LABEL[mode]}`,
+                                  );
+                                })();
+                              }}
+                              className={`relative flex-1 rounded-[5px] px-2 py-1.5 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                                active
+                                  ? "bg-[var(--hos-primary)] text-white"
+                                  : "text-[var(--hos-ink-2)] hover:text-[var(--hos-ink)]"
+                              }`}
+                            >
+                              {BILLING_MODE_LABEL[mode]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
                     {stay.groupId && streamFocus === "master" && groupRollup ? (
                       <div className="rounded-xl border border-[color-mix(in_srgb,var(--hos-brass)_35%,transparent)] bg-[color-mix(in_srgb,var(--hos-brass)_10%,var(--hos-cell))] px-2.5 py-2 text-[11px] leading-snug text-[var(--hos-ink-2)]">
                         <strong className="text-[var(--hos-ink)]">
@@ -2514,14 +2574,21 @@ export function StayHubDrawer() {
                             <button
                               key={mode}
                               type="button"
+                              data-testid={`stayhub-billing-${mode}`}
                               disabled={Boolean(stay.taxInvoiceId) && mode !== "standard"}
                               onClick={() => {
-                                const res = setBillingMode(stay.id, mode);
-                                if (!res.ok) toast.error(res.error);
-                                else
+                                void (async () => {
+                                  const res = await setBillingMode(stay.id, mode);
+                                  if (!res.ok) {
+                                    toast.error(res.error);
+                                    return;
+                                  }
                                   toast.message(
-                                    `Billing → ${BILLING_MODE_LABEL[mode]}`,
+                                    mode === "complementary"
+                                      ? "Complementary (FOC) · room package zeroed"
+                                      : `Billing → ${BILLING_MODE_LABEL[mode]}`,
                                   );
+                                })();
                               }}
                               className={`relative flex-1 rounded-[5px] px-2 py-1.5 text-[11px] font-medium transition disabled:cursor-not-allowed disabled:opacity-40 ${
                                 active
@@ -2534,6 +2601,10 @@ export function StayHubDrawer() {
                           );
                         })}
                       </div>
+                      <p className="m-0 mt-1.5 text-[10px] leading-snug text-[var(--hos-ink-3)]">
+                        Complementary = FOC: tax invoice blocked and this room’s
+                        package charges rebuild at Nu 0 (agency master drops).
+                      </p>
                     </section>
 
                     <div className="hos-cell rounded-xl p-3">

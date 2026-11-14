@@ -1,10 +1,12 @@
 /**
  * Hotel document numbers:
- *   Folio   → {HOTEL_INITIAL}FN{serial}   e.g. DHFN00042
- *   Invoice → {HOTEL_INITIAL}INV{serial}  e.g. DHINV00042
+ *   Folio   → {HOTEL_INITIAL}FN{serial}   e.g. DHFN00042 / PSFN00042
+ *   Invoice → {HOTEL_INITIAL}INV{serial}  e.g. DHINV00042 / PSINV00042
  * Agent city-ledger fiscal stays PSBN-style via kind flag when needed.
  */
 import { useSettingsStore } from "./settings-store";
+
+const DOC_KIND_TAIL = /^(FN|INV|PSBN|RCP)\d+$/i;
 
 /** Letters from hotel name → 2–4 char INITIAL (Demo Hotel → DH). */
 export function hotelInitialFromName(hotelName: string): string {
@@ -24,11 +26,55 @@ export function hotelInitialFromName(hotelName: string): string {
     .toUpperCase();
 }
 
+/**
+ * Property-aware initial. Pelbu Suites must stay **PS** (not PSO from
+ * “Pelbu Suites Olakha” first-letter derivation).
+ */
+export function canonicalHotelInitial(hotelName: string): string {
+  const n = hotelName.trim().toLowerCase();
+  if (n.includes("pelbu")) return "PS";
+  return hotelInitialFromName(hotelName);
+}
+
+/** Rewrite DHFN00121 → PSFN00121 (same kind + serial, new hotel initial). */
+export function rewriteDocHotelInitial(
+  docNo: string,
+  fromInitial: string,
+  toInitial: string,
+): string {
+  const from = fromInitial.trim().toUpperCase();
+  const to = toInitial.trim().toUpperCase().slice(0, 4);
+  if (!from || !to || from === to) return docNo;
+  const raw = docNo.trim();
+  if (!raw.toUpperCase().startsWith(from)) return docNo;
+  const tail = raw.slice(from.length);
+  if (!DOC_KIND_TAIL.test(tail)) return docNo;
+  return `${to}${tail.toUpperCase()}`;
+}
+
 export function resolveHotelInitial(): string {
   const s = useSettingsStore.getState();
   const custom = s.hotelInitial?.trim();
   if (custom && custom.length >= 2) return custom.toUpperCase().slice(0, 4);
-  return hotelInitialFromName(s.hotelName);
+  return canonicalHotelInitial(s.hotelName);
+}
+
+/**
+ * Display/print helper: if a leftover Demo prefix (DH…) is shown on a
+ * Pelbu (PS) desk, rewrite kind+serial onto the live hotel initial.
+ */
+export function displayHotelDocNo(docNo: string | null | undefined): string {
+  if (!docNo?.trim()) return "";
+  const target = resolveHotelInitial();
+  const raw = docNo.trim();
+  const m = raw.match(/^([A-Za-z]{2,4})(FN|INV|PSBN|RCP)(\d+)$/i);
+  if (!m) return raw;
+  const from = m[1]!.toUpperCase();
+  if (from === target) return `${target}${m[2]!.toUpperCase()}${m[3]}`;
+  if (from === "DH" && target !== "DH") {
+    return rewriteDocHotelInitial(raw, "DH", target);
+  }
+  return raw;
 }
 
 export function formatFolioNo(serial: number, initial = resolveHotelInitial()): string {

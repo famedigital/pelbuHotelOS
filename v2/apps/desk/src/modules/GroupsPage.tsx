@@ -23,9 +23,58 @@ import {
   useFrontOfficeStore,
   type GroupMeta,
   type MealPlan,
+  type Stay,
 } from "../lib/front-office-store";
+import {
+  displayHotelDocNo,
+  peekNextFolioNo,
+  peekNextInvoiceNo,
+} from "../lib/doc-numbers";
+import { GroupInvoiceModal } from "./GroupInvoiceModal";
 
 const MEALS: MealPlan[] = ["EP", "CP", "MAP", "AP"];
+
+function groupDocLabels(members: Stay[]): {
+  folioLabel: string;
+  invoiceLabel: string;
+  invoiceIssued: boolean;
+} {
+  const folios = [
+    ...new Set(
+      members
+        .map((m) => displayHotelDocNo(m.folioNo))
+        .filter((n) => Boolean(n?.trim())),
+    ),
+  ];
+  const invoices = [
+    ...new Set(
+      members
+        .map((m) => displayHotelDocNo(m.taxInvoiceNo))
+        .filter((n) => Boolean(n?.trim())),
+    ),
+  ];
+  const folioLabel =
+    folios.length === 0
+      ? `${displayHotelDocNo(peekNextFolioNo())} · draft`
+      : folios.length === 1
+        ? folios[0]!
+        : `${folios[0]} (+${folios.length - 1})`;
+  if (invoices.length > 0) {
+    return {
+      folioLabel,
+      invoiceLabel:
+        invoices.length === 1
+          ? invoices[0]!
+          : `${invoices[0]} (+${invoices.length - 1})`,
+      invoiceIssued: true,
+    };
+  }
+  return {
+    folioLabel,
+    invoiceLabel: `${displayHotelDocNo(peekNextInvoiceNo())} · draft`,
+    invoiceIssued: false,
+  };
+}
 
 export function GroupsPage() {
   const navigate = useNavigate();
@@ -36,6 +85,7 @@ export function GroupsPage() {
   const checkInGroup = useFrontOfficeStore((s) => s.checkInGroup);
   const applyGroupMealPlan = useFrontOfficeStore((s) => s.applyGroupMealPlan);
   const upsertGroupMeta = useFrontOfficeStore((s) => s.upsertGroupMeta);
+  const ensureFolioNo = useFrontOfficeStore((s) => s.ensureFolioNo);
 
   const groups = useMemo(
     () => listTourGroups(stays, groupMeta),
@@ -51,6 +101,7 @@ export function GroupsPage() {
     "rooming",
   );
   const [isNewGroupOpen, setIsNewGroupOpen] = useState(false);
+  const [groupBillOpen, setGroupBillOpen] = useState(false);
   const [, startTransition] = useTransition();
 
   const [newGroupName, setNewGroupName] = useState("");
@@ -71,6 +122,24 @@ export function GroupsPage() {
   }, [groups, selectedGroupId]);
 
   const selectedGroup = groups.find((g) => g.id === selectedGroupId) ?? groups[0];
+
+  const memberFolioKey = (selectedGroup?.members ?? [])
+    .map((m) => `${m.id}:${m.folioNo ?? ""}:${m.taxInvoiceNo ?? ""}`)
+    .join("|");
+
+  useEffect(() => {
+    if (!selectedGroup?.members.length) return;
+    for (const m of selectedGroup.members) {
+      if (!m.folioNo && !["cancelled", "no_show"].includes(m.status)) {
+        ensureFolioNo(m.id);
+      }
+    }
+  }, [selectedGroup, memberFolioKey, ensureFolioNo]);
+
+  const selectedDocs = useMemo(
+    () => groupDocLabels(selectedGroup?.members ?? []),
+    [selectedGroup, memberFolioKey],
+  );
 
   const filteredGroups = groups.filter((g) => {
     if (statusFilter !== "all" && g.status !== statusFilter) return false;
@@ -310,6 +379,32 @@ export function GroupsPage() {
                       {selectedGroup.mealPlan}
                     </span>
                   </p>
+                  <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
+                        Agency due
+                      </span>
+                      <p className="m-0 font-mono text-[20px] font-semibold tabular-nums text-[var(--hos-ink)]">
+                        {formatNu(selectedGroup.masterBalance)}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
+                        {selectedDocs.invoiceIssued ? "Invoice" : "Invoice (draft)"}
+                      </span>
+                      <p className="m-0 font-mono text-[15px] font-semibold tracking-tight text-[var(--hos-primary)]">
+                        {selectedDocs.invoiceLabel}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]">
+                        Folio
+                      </span>
+                      <p className="m-0 font-mono text-[13px] font-medium text-[var(--hos-ink-2)]">
+                        {selectedDocs.folioLabel}
+                      </p>
+                    </div>
+                  </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   <div className="flex rounded-full border border-[var(--hos-line)] bg-[var(--hos-cell)] p-0.5">
@@ -334,6 +429,14 @@ export function GroupsPage() {
                       </button>
                     ))}
                   </div>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="!h-9 !rounded-full !px-3 text-[12px]"
+                    onClick={() => setGroupBillOpen(true)}
+                  >
+                    Print bill
+                  </Button>
                   {selectedGroup.status !== "in_house" &&
                   selectedGroup.status !== "departed" ? (
                     <Button
@@ -435,6 +538,27 @@ export function GroupsPage() {
                           })
                         )}
                       </tbody>
+                      {selectedGroup.members.length > 0 ? (
+                        <tfoot>
+                          <tr className="border-t border-[var(--hos-line)] bg-[color-mix(in_srgb,var(--hos-brass)_8%,var(--hos-cell))]">
+                            <td
+                              colSpan={3}
+                              className="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--hos-ink-3)]"
+                            >
+                              Group total · {selectedDocs.invoiceLabel}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono text-[12px] tabular-nums text-[var(--hos-emerald)]">
+                              {formatNu(selectedGroup.personalBalance)}
+                            </td>
+                            <td className="px-3 py-2 text-right font-mono text-[13px] font-semibold tabular-nums text-[var(--hos-ink)]">
+                              {formatNu(selectedGroup.masterBalance)}
+                            </td>
+                            <td className="px-3 py-2 text-[11px] text-[var(--hos-ink-3)]">
+                              {selectedGroup.members.length} rooms
+                            </td>
+                          </tr>
+                        </tfoot>
+                      ) : null}
                     </table>
                   </div>
                   <p className="m-0 mt-2 text-[11px] text-[var(--hos-ink-3)]">
@@ -512,6 +636,18 @@ export function GroupsPage() {
                         Rule: agency pays room + meal plan; guests pay extras.
                       </p>
                       <div className="flex justify-between text-[12px]">
+                        <span className="text-[var(--hos-ink-3)]">Invoice</span>
+                        <span className="font-mono font-semibold text-[var(--hos-primary)]">
+                          {selectedDocs.invoiceLabel}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[12px]">
+                        <span className="text-[var(--hos-ink-3)]">Folio</span>
+                        <span className="font-mono text-[var(--hos-ink)]">
+                          {selectedDocs.folioLabel}
+                        </span>
+                      </div>
+                      <div className="flex justify-between text-[12px]">
                         <span className="text-[var(--hos-ink-3)]">Charges posted</span>
                         <span className="font-mono text-[var(--hos-ink)]">
                           {formatNu(selectedGroup.masterFolioCharges)}
@@ -529,6 +665,13 @@ export function GroupsPage() {
                           {formatNu(selectedGroup.masterBalance)}
                         </span>
                       </div>
+                      <Button
+                        size="sm"
+                        className="mt-1 w-full !rounded-full text-[12px]"
+                        onClick={() => setGroupBillOpen(true)}
+                      >
+                        Open / print agency bill
+                      </Button>
                     </GlassElevated>
                     <GlassElevated className="space-y-2 p-3.5">
                       <h3 className="m-0 text-[13px] font-medium text-[var(--hos-ink)]">
@@ -659,6 +802,16 @@ export function GroupsPage() {
               </form>
             </GlassElevated>
           </div>
+        ) : null}
+
+        {selectedGroup ? (
+          <GroupInvoiceModal
+            open={groupBillOpen}
+            stays={selectedGroup.members}
+            groupName={selectedGroup.name}
+            agencyName={selectedGroup.agencyName}
+            onClose={() => setGroupBillOpen(false)}
+          />
         ) : null}
       </div>
     </ModuleFrame>
