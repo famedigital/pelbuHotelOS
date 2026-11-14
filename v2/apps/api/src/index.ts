@@ -51,16 +51,8 @@ import { registerAuthPinRoutes } from "./modules/auth-pin.js";
 import { registerAuthPortalRoutes } from "./modules/auth-portals.js";
 import { registerAuthHotelEmailRoutes } from "./modules/auth-hotel-email.js";
 import { registerAuthPortalEmailRoutes } from "./modules/auth-portal-email.js";
-import { registerAuthUnifiedLoginRoutes } from "./modules/auth-unified-login.js";
 import { registerAuthE2eDemoRoutes } from "./modules/auth-e2e-demo.js";
-import {
-  assertDeskJwtSecretConfigured,
-  bearerToken,
-  verifyDeskToken,
-} from "./platform/desk-token.js";
-import "./modules/agency-org.js";
-
-assertDeskJwtSecretConfigured();
+import { bearerToken, verifyDeskToken } from "./platform/desk-token.js";
 
 const auditBuffer: unknown[] = [];
 
@@ -99,7 +91,6 @@ await registerAuthPinRoutes(app);
 await registerAuthPortalRoutes(app);
 await registerAuthHotelEmailRoutes(app);
 await registerAuthPortalEmailRoutes(app);
-await registerAuthUnifiedLoginRoutes(app);
 registerAuthE2eDemoRoutes(app);
 
 app.addContentTypeParser(
@@ -167,8 +158,6 @@ app.post<{
       claims.deskRole || claims.role || bodyActor?.role || "fo_agent",
     ),
     staffId: claims.staffId ?? claims.sub,
-    agencyOrgId: claims.agencyOrgId,
-    subjectId: claims.subjectId,
   };
   if (bodyActor?.propertyId && bodyActor.propertyId !== claims.propertyId) {
     return reply.code(403).send({ ok: false, error: "Actor property does not match session" });
@@ -317,16 +306,9 @@ app.get<{ Querystring: { propertyId?: string } }>("/v1/rates/snapshot", async (r
 app.get<{ Querystring: { propertyId?: string } }>(
   "/v1/partners/snapshot",
   async (req, reply) => {
-    const claims = verifyDeskToken(bearerToken(req.headers.authorization));
-    if (!claims) {
-      return reply.code(401).send({ ok: false, error: "Valid session required" });
-    }
     const propertyId = req.query.propertyId;
     if (!propertyId) {
       return reply.code(400).send({ ok: false, error: "propertyId required" });
-    }
-    if (propertyId !== claims.propertyId) {
-      return reply.code(403).send({ ok: false, error: "property_id mismatch" });
     }
     const parsed = z.string().uuid().safeParse(propertyId);
     if (!parsed.success) {
